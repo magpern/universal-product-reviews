@@ -1,6 +1,12 @@
 # Contributing
 
-This is a **private** plugin repository. Contributions follow internal review only.
+This is a **public-source, proprietary** plugin repository. Contributions follow the internal review process. Read [ADR-0001](docs/decisions/ADR-0001-repository-visibility.md) before contributing.
+
+## Public-repository rules
+
+- Never commit credentials, tokens, private keys, customer/order/review data, production configuration, host paths, IP addresses, or internal-only operational details.
+- Treat issues, pull requests, and all repository discussion as public.
+- Do not disclose vulnerabilities in public issues before a fix and disclosure decision are available.
 
 ## Branch workflow
 
@@ -25,9 +31,9 @@ Types: `feat`, `fix`, `docs`, `chore`, `ci`, `test`, `refactor`.
 ## Code standards
 
 - PHP 8.1+ with `declare(strict_types=1);` in new files under `src/`.
-- Namespace: `UniversalProductReviews\`.
+- Namespace: `UniversalProductReviews\\`.
 - Prefix: `upr_*` for hooks, tables, CLI, Action Scheduler group.
-- **Do not** import `Automattic\WooCommerce\Internal\OrderReviews\*`.
+- **Do not** import `Automattic\\WooCommerce\\Internal\\OrderReviews\\*`.
 - **Do not** add site, host, or vendor-specific names to `src/` or generic product documentation.
 
 ## Local validation
