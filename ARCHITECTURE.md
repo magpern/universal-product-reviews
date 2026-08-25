@@ -2,6 +2,8 @@
 
 **Status:** Frozen at M0 (`plan-rev6-freeze`). Authoritative specification for M1–M8 implementation.
 
+**Repository governance:** The repository is public and proprietary, as decided by [ADR-0001](docs/decisions/ADR-0001-repository-visibility.md). This later governance decision overrides Rev 6's private-repository assumption without changing the frozen technical scope.
+
 **Product scope:** Portable WooCommerce product-review operations. Site-, theme-, fulfillment-, support-desk-, and SEO-plugin-specific wiring is **external** — host adapters documented in [`docs/integration/`](docs/integration/).
 
 ---
@@ -11,7 +13,7 @@
 | Principle | Implication |
 |-----------|-------------|
 | Native review data | WP comments + WC star rating meta; UPR adds operations, not a parallel review store |
-| Public APIs only | No `Automattic\WooCommerce\Internal\OrderReviews\*` dependencies |
+| Public APIs only | No `Automattic\\WooCommerce\\Internal\\OrderReviews\\*` dependencies |
 | Line-item granularity | Invitation state keyed by immutable WC order item ID |
 | Token session exchange | Tokens are not consumed on page view; redeem on successful submit only |
 | Review-scoped moderation | Global WordPress comment settings unchanged |
@@ -28,7 +30,7 @@
 | Surface | Convention | Examples |
 |---------|------------|----------|
 | Plugin slug | `universal-product-reviews` | — |
-| PHP namespace | `UniversalProductReviews\` (`UPR`) | `UniversalProductReviews\Retention\PurgeContext` |
+| PHP namespace | `UniversalProductReviews\\` (`UPR`) | `UniversalProductReviews\\Retention\\PurgeContext` |
 | DB tables | `{prefix}upr_*` | `upr_invite_items`, `upr_tokens`, `upr_audit` |
 | AS group | `upr` | — |
 | AS hooks | `upr_*` | `upr_send_initial_bundle`, `upr_purge_spam`, `upr_reconcile_invitations` |
@@ -88,7 +90,7 @@ Hosts enable via replay checklist (not hard-coded in M0):
 
 **Allowed public APIs:** `wp_insert_comment`, `wp_update_comment`, comment meta, `wc_customer_bought_product`, core `pre_comment_on_post` verification, standard WC/WP filters.
 
-**Forbidden:** `Automattic\WooCommerce\Internal\OrderReviews\*`
+**Forbidden:** `Automattic\\WooCommerce\\Internal\\OrderReviews\\*`
 
 ### Guest vs account policy
 
@@ -189,7 +191,7 @@ apply_filters(
 
 ---
 
-## 10. Retention — `UniversalProductReviews\Retention\PurgeContext`
+## 10. Retention — `UniversalProductReviews\\Retention\\PurgeContext`
 
 ```php
 final class PurgeContext {
@@ -252,7 +254,7 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 ### M0 — Repository foundation (complete at freeze)
 
-- Private repo, inert scaffold `0.0.0`, frozen docs, CI, tag `plan-rev6-freeze`
+- Public proprietary repository governed by [ADR-0001](docs/decisions/ADR-0001-repository-visibility.md), inert scaffold `0.0.0`, frozen docs, CI, tag `plan-rev6-freeze`
 - **No** runtime review features, host bind-mount, or production change
 
 ### M1 — Core enablement
@@ -309,4 +311,4 @@ Review incentives (coupons, points, rating-conditioned rewards) are **out of sco
 
 ## 19. Freeze statement
 
-Rev 6 is materialised in this repository at M0. Implementation of runtime features begins at M1 only after `plan-rev6-freeze` tag on `main`.
+Rev 6 is materialised in this repository at M0. [ADR-0001](docs/decisions/ADR-0001-repository-visibility.md) is the authoritative later decision on repository visibility. Implementation of runtime features begins at M1 only after `plan-rev6-freeze` tag on `main`.
