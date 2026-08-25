@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# M0 CI checks — lightweight gates for scaffold and frozen documentation.
+# M1 CI checks — lint, policy guards, and documentation structure.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -11,7 +11,7 @@ fail() {
 }
 
 echo "==> PHP syntax lint"
-find . -name '*.php' -not -path './vendor/*' -print0 | while IFS= read -r -d '' f; do
+find . -name '*.php' -not -path './vendor/*' -not -path './tests/tmp/*' -print0 | while IFS= read -r -d '' f; do
   php -l "$f" >/dev/null
 done
 
@@ -19,15 +19,21 @@ echo "==> Composer autoload / structure"
 test -f universal-product-reviews.php || fail "missing plugin bootstrap"
 test -f src/Plugin.php || fail "missing src/Plugin.php"
 test -f ARCHITECTURE.md || fail "missing ARCHITECTURE.md"
+test -f docs/milestones/M1-core-enablement.md || fail "missing M1 milestone spec"
 test -f docs/production-replay.md || fail "missing docs/production-replay.md"
 grep -q 'Plugin Name: Universal Product Reviews' universal-product-reviews.php || fail "plugin header"
-grep -q 'Version: 0.0.0' universal-product-reviews.php || fail "expected M0 version 0.0.0"
+grep -q 'Version: 0.1.0' universal-product-reviews.php || fail "expected M1 version 0.1.0"
 grep -q 'namespace UniversalProductReviews' src/Plugin.php || fail "namespace"
 
-echo "==> M0 inert scaffold checks"
-# Must not register runtime review hooks in M0.
-if grep -RIn --include='*.php' -E "add_action\s*\(\s*['\"]pre_comment_approved|add_action\s*\(\s*['\"]wp_ajax_|register_activation_hook|as_schedule|ActionScheduler" src/ universal-product-reviews.php 2>/dev/null; then
-  fail "M0 scaffold must not register review/cron/activation hooks"
+echo "==> M1 scope guards (no M2+ artefacts)"
+if grep -RIn --include='*.php' -E 'dbDelta|CREATE TABLE|as_schedule|WP_CLI::add_command|upr_invite|upr_tokens' src/ universal-product-reviews.php 2>/dev/null; then
+  fail "M2+ artefact detected"
+fi
+if grep -RIn --include='*.php' -E 'wc_add_notice|woocommerce_single_product_summary|wp_enqueue_style|register_activation_hook' src/ universal-product-reviews.php 2>/dev/null; then
+  fail "forbidden UI/activation hook detected"
+fi
+if grep -RIn --include='*.php' -E "add_action\s*\(\s*['\"]pre_comment_on_post" src/ universal-product-reviews.php 2>/dev/null; then
+  fail "guest guard must not use pre_comment_on_post"
 fi
 
 echo "==> Forbidden WooCommerce Internal OrderReviews references"
@@ -44,7 +50,7 @@ while IFS= read -r pattern || [[ -n "$pattern" ]]; do
   fi
 done < "$ROOT/scripts/ci/forbidden-patterns.txt"
 
-echo "==> Forbidden site/vendor patterns in generic docs (exclude compatibility prohibitions)"
+echo "==> Forbidden site/vendor patterns in generic docs"
 DOC_SCAN=(docs ARCHITECTURE.md README.md CHANGELOG.md)
 DOC_FORBIDDEN=(biopentra blocksy rank-math rankmath yoast judge.me yotpo trustpilot elementor fluent-imap fluentform mp-commerce mpcf)
 for pattern in "${DOC_FORBIDDEN[@]}"; do
@@ -55,8 +61,10 @@ done
 
 echo "==> Documentation link sanity (required files exist)"
 required_docs=(
+  docs/milestones/M1-core-enablement.md
   docs/integration/adapters.md
   docs/integration/schema-acceptance.md
+  docs/integration/submission-availability.md
   docs/integration/woocommerce-settings.md
   docs/integration/site-upr-adapters.php.example
   docs/compatibility/wordpress-woocommerce.md
@@ -72,4 +80,8 @@ for f in "${required_docs[@]}"; do
   test -f "$f" || fail "missing $f"
 done
 
-echo "==> All M0 CI checks passed"
+echo "==> CI workflow asserts DEV integration coordinates"
+grep -q '11.0.1' .github/workflows/ci.yml || fail "WC 11.0.1 mandatory leg missing from CI"
+grep -q '8.4' .github/workflows/ci.yml || fail "PHP 8.4 mandatory leg missing from CI"
+
+echo "==> All M1 CI checks passed"

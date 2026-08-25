@@ -1,9 +1,6 @@
 <?php
 /**
- * M0 foundation bootstrap — inert placeholder.
- *
- * No hooks, database tables, settings, cron, CLI, or review logic are
- * registered in M0. Future milestones extend this class.
+ * M1 service bootstrap.
  *
  * @package UniversalProductReviews
  */
@@ -12,14 +9,33 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews;
 
+use UniversalProductReviews\Moderation\ReviewModeration;
+use UniversalProductReviews\Submission\GuestSubmissionGuard;
+use UniversalProductReviews\Submission\ReviewAvailability;
+use UniversalProductReviews\WooCommerce\WooCommerceGate;
+
 defined( 'ABSPATH' ) || exit;
 
 final class Plugin {
 
-	/**
-	 * M0: intentionally empty. Establishes package entry point only.
-	 */
+	private static bool $initialized = false;
+
 	public static function init(): void {
-		// M1+ registers review-scoped moderation and related services here.
+		if ( self::$initialized || ! WooCommerceGate::is_active() ) {
+			return;
+		}
+
+		self::$initialized = true;
+
+		ReviewModeration::register();
+		GuestSubmissionGuard::register();
+		ReviewAvailability::register();
+	}
+
+	/**
+	 * Test seam: reset bootstrap state between integration tests.
+	 */
+	public static function reset_for_tests(): void {
+		self::$initialized = false;
 	}
 }
