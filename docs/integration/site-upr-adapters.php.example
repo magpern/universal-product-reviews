@@ -1,0 +1,61 @@
+<?php
+/**
+ * Illustrative host adapter stub — NOT RUNNABLE as-is.
+ *
+ * Copy to host MU-plugins directory and adapt delivery/support integration
+ * to your fulfillment and support desk systems. Do not commit host-specific
+ * identifiers to the UPR core repository.
+ *
+ * @package HostAdapters
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/*
+ * Example: bridge fulfillment "order delivered" signal to UPR.
+ *
+ * add_action(
+ *   'your_fulfillment_order_delivered',
+ *   function ( int $order_id, array $context ) {
+ *     do_action( 'upr_order_delivery_confirmed', $order_id, $context );
+ *   },
+ *   10,
+ *   2
+ * );
+ */
+
+/*
+ * Example: delivery read helper for reconciliation.
+ *
+ * add_filter(
+ *   'upr_is_order_delivered',
+ *   function ( bool $delivered, int $order_id ) {
+ *     return your_fulfillment_is_delivered( $order_id );
+ *   },
+ *   10,
+ *   2
+ * );
+ */
+
+/*
+ * Example: support desk delay/suppress.
+ *
+ * add_filter(
+ *   'upr_review_invitation_action',
+ *   function ( array $decision, int $order_id, int $order_item_id ) {
+ *     if ( your_support_has_compliance_hold( $order_id ) ) {
+ *       return [ 'action' => 'suppress', 'code' => 'compliance_hold' ];
+ *     }
+ *     if ( your_support_has_open_ticket( $order_id ) ) {
+ *       return [
+ *         'action'     => 'delay',
+ *         'code'       => 'support_ticket',
+ *         'delay_until'=> time() + WEEK_IN_SECONDS,
+ *       ];
+ *     }
+ *     return $decision;
+ *   },
+ *   10,
+ *   3
+ * );
+ */
