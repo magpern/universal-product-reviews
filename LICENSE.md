@@ -2,8 +2,8 @@
 
 **Status:** Proprietary / all rights reserved.
 
-This repository is private. No open-source licence is granted by default.
+This repository is publicly visible, but no open-source licence is granted.
 
-Distribution, copying, or deployment outside authorised host environments requires explicit maintainer approval.
+Source inspection does not grant permission to copy, redistribute, deploy, or create derivative works. Any such use requires explicit maintainer approval.
 
-If a public licence is adopted in a future milestone, this file will be updated and `composer.json` will reflect the chosen licence identifier.
+If an open-source licence is adopted in a future decision, this file and `composer.json` will be updated with the chosen licence identifier.
