@@ -61,6 +61,29 @@ apply_filters( 'upr_product_rating_summary', null, $product_id );
 
 Host storefront plugin renders markup; UPR does not output theme HTML.
 
+## Availability messaging adapter (M1 contract / M3 UI)
+
+**Purpose:** Consume read-only submission eligibility data for customer-facing messaging.
+
+**M1:** UPR enforces policy via `preprocess_comment` (guest block) and exposes filters only. Host adapters **may** read filters for diagnostics or minimal copy; polished PDP unavailable-form UI is **M3**.
+
+**M3:** Host storefront or theme adapter renders messaging when `can_submit` is false.
+
+### Filters (UPR provides defaults)
+
+```php
+apply_filters( 'upr_product_review_availability', $availability, $product_id, $user_id );
+apply_filters( 'upr_product_review_unavailable_message', null, $reason_code, $product_id, $user_id );
+```
+
+See [`submission-availability.md`](submission-availability.md) for reason codes:
+
+- `reviews_disabled`
+- `guest_requires_invitation`
+- `not_verified_purchaser`
+
+Host adapters render markup; UPR never calls `wc_add_notice` or theme template hooks in M1.
+
 ## Theme adapter
 
 CSS on native WooCommerce reviews tab — host child theme responsibility.

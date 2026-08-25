@@ -4,24 +4,44 @@
 
 Product reviews in `hold` (pending) state awaiting human approval.
 
-## Access
+## M1 operation (native WordPress Comments)
 
-- WordPress **Comments** admin filtered to product reviews (M1+).
-- UPR **Reviews → Queue** admin screen (M4+).
+M1 has no dedicated UPR admin queue (M4+). Moderators use the standard WordPress **Comments** admin:
+
+1. Filter or identify comments with type **review** on **product** posts.
+2. All **new** product reviews enter **Pending** automatically (UPR `pre_comment_approved` hold).
+3. **Approve** genuine reviews — including negative reviews.
+4. Do not reject for rating or sentiment alone.
+
+### Interim guest policy (M1)
+
+- **Guests cannot submit** product reviews through native WooCommerce (UPR `preprocess_comment` guard).
+- Guest invitation submission is **M2+**.
+- Customer-facing explanation of unavailable forms is **M3** (host adapter); M1 enforcement is core-only.
+
+### Global comment settings
+
+UPR does **not** change `comment_moderation` or `comment_whitelist`. Non-review comments follow existing site policy.
+
+## Access (by milestone)
+
+| Milestone | Interface |
+|-----------|-----------|
+| M1 | WordPress **Comments** admin (product reviews, pending) |
+| M4+ | UPR **Reviews → Queue** admin screen (future) |
 
 ## Procedures
 
 ### Triage new review
 
-1. Open pending review; verify verified-purchase linkage.
-2. Check deterministic flags (regulatory keywords, PII spans, link count).
-3. **Approve** if genuine product experience — including negative reviews.
-4. **Spam** only with reason code if high-certainty deterministic match.
-5. **Hold** if uncertain — do not reject for rating or sentiment.
+1. Open pending review; verify verified-purchase linkage (native WC meta).
+2. **Approve** if genuine product experience — including negative reviews.
+3. **Spam** only with reason code if high-certainty match (M4+ deterministic rules).
+4. **Hold** if uncertain — do not reject for rating or sentiment.
 
 ### Bulk actions
 
-Require reason code in audit log. Never bulk-delete pending reviews.
+Require reason code in audit log when UPR audit exists (M4+). Never bulk-delete pending reviews.
 
 ### Escalation
 
@@ -34,5 +54,6 @@ Regulatory or compliance flags → legal/ops queue per host policy.
 
 ## Related
 
+- [`../milestones/M1-core-enablement.md`](../milestones/M1-core-enablement.md)
 - [`retention.md`](retention.md)
 - [`ai-outage.md`](ai-outage.md)
