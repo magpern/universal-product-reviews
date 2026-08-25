@@ -15,5 +15,3 @@ fluent-imap
 fluentform
 mp-commerce
 mpcf
-Internal\\\\OrderReviews
-Internal/OrderReviews

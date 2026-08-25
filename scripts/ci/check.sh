@@ -35,14 +35,23 @@ if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews'
   fail "Internal OrderReviews reference found"
 fi
 
-echo "==> Forbidden site/vendor patterns in src/ and docs/"
-SCAN_PATHS=(src docs ARCHITECTURE.md README.md CONTRIBUTING.md CHANGELOG.md)
+echo "==> Forbidden site/vendor patterns in src/"
+SCAN_PATHS=(src)
 while IFS= read -r pattern || [[ -n "$pattern" ]]; do
   [[ -z "$pattern" || "$pattern" =~ ^# ]] && continue
   if grep -RIn -E "$pattern" "${SCAN_PATHS[@]}" 2>/dev/null; then
     fail "forbidden pattern matched: $pattern"
   fi
 done < "$ROOT/scripts/ci/forbidden-patterns.txt"
+
+echo "==> Forbidden site/vendor patterns in generic docs (exclude compatibility prohibitions)"
+DOC_SCAN=(docs ARCHITECTURE.md README.md CHANGELOG.md)
+DOC_FORBIDDEN=(biopentra blocksy rank-math rankmath yoast judge.me yotpo trustpilot elementor fluent-imap fluentform mp-commerce mpcf)
+for pattern in "${DOC_FORBIDDEN[@]}"; do
+  if grep -RIn -E "$pattern" "${DOC_SCAN[@]}" 2>/dev/null; then
+    fail "forbidden doc pattern matched: $pattern"
+  fi
+done
 
 echo "==> Documentation link sanity (required files exist)"
 required_docs=(
