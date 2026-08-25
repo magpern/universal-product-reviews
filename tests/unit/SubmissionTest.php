@@ -1,0 +1,82 @@
+<?php
+/**
+ * @package UniversalProductReviews
+ */
+
+declare( strict_types=1 );
+
+namespace UniversalProductReviews\Tests\Unit\Submission;
+
+use PHPUnit\Framework\TestCase;
+use UniversalProductReviews\Submission\GuestSubmissionGuard;
+use UniversalProductReviews\Submission\ReviewAvailability;
+
+final class GuestSubmissionGuardTest extends TestCase {
+
+	protected function tearDown(): void {
+		unset( $GLOBALS['upr_test_post_type'], $GLOBALS['upr_test_logged_in'] );
+		parent::tearDown();
+	}
+
+	public function test_blocks_guest_product_review(): void {
+		$GLOBALS['upr_test_post_type'] = 'product';
+		$GLOBALS['upr_test_logged_in'] = false;
+
+		$this->expectException( \RuntimeException::class );
+		GuestSubmissionGuard::block_guest_product_reviews(
+			array(
+				'comment_post_ID' => 5,
+				'comment_type'    => 'review',
+			)
+		);
+	}
+
+	public function test_allows_guest_non_review_on_product(): void {
+		$GLOBALS['upr_test_post_type'] = 'product';
+		$GLOBALS['upr_test_logged_in'] = false;
+
+		$data = GuestSubmissionGuard::block_guest_product_reviews(
+			array(
+				'comment_post_ID' => 5,
+				'comment_type'    => 'comment',
+			)
+		);
+		$this->assertSame( 'comment', $data['comment_type'] );
+	}
+}
+
+final class ReviewAvailabilityTest extends TestCase {
+
+	protected function tearDown(): void {
+		unset( $GLOBALS['upr_test_options'], $GLOBALS['upr_test_verified_purchase'], $GLOBALS['upr_test_users'] );
+		parent::tearDown();
+	}
+
+	public function test_guest_reason_code(): void {
+		$GLOBALS['upr_test_options'] = array(
+			'woocommerce_enable_reviews' => 'yes',
+		);
+		$result                      = ReviewAvailability::default_availability( array(), 1, 0 );
+		$this->assertFalse( $result['can_submit'] );
+		$this->assertSame( 'guest_requires_invitation', $result['reason_code'] );
+	}
+
+	public function test_not_verified_purchaser_reason_code(): void {
+		$GLOBALS['upr_test_options']            = array(
+			'woocommerce_enable_reviews'                        => 'yes',
+			'woocommerce_review_rating_verification_required'     => 'yes',
+		);
+		$GLOBALS['upr_test_verified_purchase']  = false;
+		$result                                 = ReviewAvailability::default_availability( array(), 1, 7 );
+		$this->assertFalse( $result['can_submit'] );
+		$this->assertSame( 'not_verified_purchaser', $result['reason_code'] );
+	}
+
+	public function test_reviews_disabled_reason_code(): void {
+		$GLOBALS['upr_test_options'] = array(
+			'woocommerce_enable_reviews' => 'no',
+		);
+		$result                      = ReviewAvailability::default_availability( array(), 1, 7 );
+		$this->assertSame( 'reviews_disabled', $result['reason_code'] );
+	}
+}

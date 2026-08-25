@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Universal Product Reviews
  * Plugin URI: https://github.com/magpern/universal-product-reviews
- * Description: Portable WooCommerce product-review operations (invitations, moderation, retention). M0 foundation scaffold — no runtime capability yet.
- * Version: 0.0.0
+ * Description: Portable WooCommerce product-review operations (invitations, moderation, retention). M1 core enablement — review-scoped moderation and guest guard.
+ * Version: 0.1.0
  * Author: magpern
  * License: Proprietary
  * Text Domain: universal-product-reviews
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UPR_VERSION', '0.0.0' );
+define( 'UPR_VERSION', '0.1.0' );
 define( 'UPR_PLUGIN_FILE', __FILE__ );
 define( 'UPR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -29,6 +29,24 @@ if ( is_readable( $upr_autoload ) ) {
 	require_once $upr_autoload;
 }
 
-if ( class_exists( \UniversalProductReviews\Plugin::class ) ) {
-	\UniversalProductReviews\Plugin::init();
-}
+add_action(
+	'before_woocommerce_init',
+	static function (): void {
+		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility(
+				'custom_order_tables',
+				UPR_PLUGIN_FILE,
+				true
+			);
+		}
+	}
+);
+
+add_action(
+	'woocommerce_loaded',
+	static function (): void {
+		if ( class_exists( \UniversalProductReviews\Plugin::class ) ) {
+			\UniversalProductReviews\Plugin::init();
+		}
+	}
+);
