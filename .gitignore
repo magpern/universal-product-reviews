@@ -7,7 +7,6 @@
 /dist/
 /builds/
 *.zip
-composer.lock
 /tests/tmp/
 /tests/wp-tests-config.php
 .phpunit.result.cache

@@ -15,8 +15,9 @@ if [ ! -f "$WP_DIR/wp-settings.php" ]; then
 	echo "Setting up WordPress test environment..."
 	WP_VERSION=$(php -r '
 		$installed = json_decode(file_get_contents("'"$ROOT"'/vendor/composer/installed.json"), true);
-		foreach ($installed["packages"] as $package) {
-			if ("wp-phpunit/wp-phpunit" === $package["name"]) {
+		$packages = $installed["packages"] ?? $installed;
+		foreach ($packages as $package) {
+			if ("wp-phpunit/wp-phpunit" === ($package["name"] ?? "")) {
 				echo $package["version"];
 				exit;
 			}
@@ -27,10 +28,16 @@ if [ ! -f "$WP_DIR/wp-settings.php" ]; then
 		echo "Could not resolve wp-phpunit version" >&2
 		exit 1
 	fi
-	echo "WordPress version: $WP_VERSION"
+	WP_ZIP_VERSION="${WP_VERSION%.*}"
+	echo "WordPress version: $WP_VERSION (zip: $WP_ZIP_VERSION)"
 	mkdir -p "$TMPDIR"
 	cd "$TMPDIR"
-	curl -sSL "https://github.com/WordPress/WordPress/archive/refs/tags/$WP_VERSION.tar.gz" | tar --strip-components=1 -xz
+	curl -fsSL -o wordpress.zip "https://wordpress.org/wordpress-${WP_ZIP_VERSION}.zip"
+	unzip -q wordpress.zip
+	shopt -s dotglob nullglob
+	mv wordpress/* .
+	rmdir wordpress
+	rm wordpress.zip
 	if [ -d "$WP_DIR" ] || [ -L "$WP_DIR" ]; then
 		rm -rf "$WP_DIR"
 	fi
@@ -66,15 +73,16 @@ if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
 	cd "$WP_DIR/wp-content/plugins"
 	TMPZIP=$(mktemp)
 	if [ "$WC_VERSION" = "latest" ]; then
-		curl -sSLo "$TMPZIP" "https://downloads.wordpress.org/plugin/woocommerce.zip"
+		curl -fsSL -o "$TMPZIP" "https://downloads.wordpress.org/plugin/woocommerce.zip"
 	else
-		curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/releases/download/${WC_VERSION}/woocommerce.zip"
+		curl -fsSL -o "$TMPZIP" "https://github.com/woocommerce/woocommerce/releases/download/${WC_VERSION}/woocommerce.zip"
 	fi
 	unzip -q "$TMPZIP"
 	rm "$TMPZIP"
 fi
 
 PLUGIN_TARGET="$WP_DIR/wp-content/plugins/universal-product-reviews"
+rm -rf "$PLUGIN_TARGET"
 mkdir -p "$PLUGIN_TARGET"
 tar -C "$ROOT" -cf - \
 	--exclude=tests/tmp \
