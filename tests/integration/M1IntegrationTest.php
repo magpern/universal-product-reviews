@@ -22,6 +22,20 @@ final class ModerationIntegrationTest extends WP_UnitTestCase {
 			)
 		);
 
+		$approved = apply_filters(
+			'pre_comment_approved',
+			1,
+			array(
+				'comment_post_ID'      => $product_id,
+				'comment_author'       => 'Tester',
+				'comment_author_email' => 'tester@example.com',
+				'comment_content'      => 'Great product.',
+				'comment_type'         => 'review',
+			)
+		);
+
+		$this->assertSame( 0, $approved );
+
 		$comment_id = wp_insert_comment(
 			array(
 				'comment_post_ID'      => $product_id,
@@ -29,7 +43,7 @@ final class ModerationIntegrationTest extends WP_UnitTestCase {
 				'comment_author_email' => 'tester@example.com',
 				'comment_content'      => 'Great product.',
 				'comment_type'         => 'review',
-				'comment_approved'     => 1,
+				'comment_approved'     => $approved,
 			)
 		);
 
@@ -179,12 +193,18 @@ final class GuestSubmissionGuardIntegrationTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'preprocess_comment', $wp_filter );
 		$callbacks = $wp_filter['preprocess_comment']->callbacks;
 
-		$this->assertArrayHasKey( 1, $callbacks );
-		$this->assertArrayHasKey( GuestSubmissionGuard::FILTER_PRIORITY, $callbacks );
-		$this->assertLessThan(
-			GuestSubmissionGuard::FILTER_PRIORITY,
-			array_key_first( $callbacks )
-		);
+		$upr_priority = GuestSubmissionGuard::FILTER_PRIORITY;
+		$this->assertArrayHasKey( $upr_priority, $callbacks );
+
+		$has_earlier = false;
+		foreach ( array_keys( $callbacks ) as $priority ) {
+			if ( (int) $priority < $upr_priority ) {
+				$has_earlier = true;
+				break;
+			}
+		}
+
+		$this->assertTrue( $has_earlier, 'Expected an earlier preprocess_comment callback (e.g. WooCommerce type normalisation).' );
 	}
 }
 

@@ -70,6 +70,7 @@ jobs:
           extensions: mysqli
           coverage: none
       - run: composer install --no-interaction --prefer-dist
+      - run: sudo apt-get update && sudo apt-get install -y unzip
       - run: bash tests/bin/install-wp.sh
       - run: composer test:integration
 
@@ -105,5 +106,6 @@ jobs:
           coverage: none
       - run: composer require --dev wp-phpunit/wp-phpunit:^6.5 --no-interaction --prefer-dist
       - run: composer install --no-interaction --prefer-dist
+      - run: sudo apt-get update && sudo apt-get install -y unzip
       - run: bash tests/bin/install-wp.sh
       - run: composer test:integration

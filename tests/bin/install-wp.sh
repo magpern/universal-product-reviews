@@ -21,11 +21,16 @@ if [ ! -f "$WP_DIR/wp-settings.php" ]; then
 				exit;
 			}
 		}
+		echo "";
 	')
+	if [ -z "$WP_VERSION" ]; then
+		echo "Could not resolve wp-phpunit version" >&2
+		exit 1
+	fi
 	echo "WordPress version: $WP_VERSION"
 	mkdir -p "$TMPDIR"
 	cd "$TMPDIR"
-	curl -sSL "https://github.com/WordPress/WordPress/archive/$WP_VERSION.tar.gz" | tar --strip-components=1 -xz
+	curl -sSL "https://github.com/WordPress/WordPress/archive/refs/tags/$WP_VERSION.tar.gz" | tar --strip-components=1 -xz
 	if [ -d "$WP_DIR" ] || [ -L "$WP_DIR" ]; then
 		rm -rf "$WP_DIR"
 	fi
@@ -43,6 +48,7 @@ define( 'DB_HOST', getenv( 'WP_DB_HOST' ) ?: '127.0.0.1' );
 define( 'DB_CHARSET', 'utf8' );
 define( 'DB_COLLATE', '' );
 $_SERVER['HTTP_HOST'] = 'wordpress.test';
+$_SERVER['SERVER_NAME'] = 'wordpress.test';
 define( 'WP_TESTS_DOMAIN', 'wordpress.test' );
 define( 'WP_TESTS_EMAIL', 'admin@wordpress.test' );
 define( 'WP_TESTS_TITLE', 'WordPress Tests' );
@@ -59,13 +65,21 @@ if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
 	mkdir -p "$WP_DIR/wp-content/plugins"
 	cd "$WP_DIR/wp-content/plugins"
 	TMPZIP=$(mktemp)
-	curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/releases/download/${WC_VERSION}/woocommerce.zip"
+	if [ "$WC_VERSION" = "latest" ]; then
+		curl -sSLo "$TMPZIP" "https://downloads.wordpress.org/plugin/woocommerce.zip"
+	else
+		curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/releases/download/${WC_VERSION}/woocommerce.zip"
+	fi
 	unzip -q "$TMPZIP"
 	rm "$TMPZIP"
 fi
 
-mkdir -p "$WP_DIR/wp-content/plugins/universal-product-reviews"
-rsync -a --delete "$ROOT/" "$WP_DIR/wp-content/plugins/universal-product-reviews/" \
-	--exclude tests/tmp --exclude vendor --exclude .git
+PLUGIN_TARGET="$WP_DIR/wp-content/plugins/universal-product-reviews"
+mkdir -p "$PLUGIN_TARGET"
+tar -C "$ROOT" -cf - \
+	--exclude=tests/tmp \
+	--exclude=vendor \
+	--exclude=.git \
+	. | tar -C "$PLUGIN_TARGET" -xf -
 
 echo "WordPress test environment ready."
