@@ -8,10 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- M0 repository foundation (Rev 6 architecture freeze).
-- Inert plugin scaffold (`0.0.0`) with PSR-4 autoloading.
-- Frozen documentation: `ARCHITECTURE.md`, production replay, runbooks, compatibility, integration guides.
-- CI: PHP lint, structure checks, forbidden Internal API and trademark guards.
+- **M1 plan frozen** — [`docs/milestones/M1-core-enablement.md`](docs/milestones/M1-core-enablement.md) (specification only; no runtime capability at freeze).
+- Submission availability contract: [`docs/integration/submission-availability.md`](docs/integration/submission-availability.md).
+- Updated WooCommerce settings checklist, adapters, compatibility coordinates, moderation runbook for M1.
 
 ## [0.0.0] - M0 foundation
 
