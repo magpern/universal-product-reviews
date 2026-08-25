@@ -1,0 +1,17 @@
+# One pattern per line (extended regex, case-insensitive).
+# Used to detect accidental site/vendor leakage in src/ and docs/.
+# Generic role-based terms (e.g. "SEO plugin", "fulfillment adapter") are allowed.
+
+biopentra
+blocksy
+rank-math
+rankmath
+yoast
+judge\.me
+yotpo
+trustpilot
+elementor
+fluent-imap
+fluentform
+mp-commerce
+mpcf
