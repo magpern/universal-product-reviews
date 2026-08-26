@@ -6,7 +6,7 @@
 
 ## Confirmed defect
 
-M3 WP6 verification ([host evidence](https://github.com/magpern/biopentra-custom-plugins/blob/main/docs/upr-integration/m3-wp6-discontinued-verification.md)) proves:
+M3 WP6 pilot verification (external host integration evidence, frozen 2026-08) proves:
 
 - `ProductReviewability::is_reviewable()` only checks `post_status === 'publish'`.
 - A WooCommerce product with `catalog_visibility = hidden` and `publish` status remains reviewable.
@@ -79,4 +79,4 @@ Revert to `v0.2.0`. No schema migration. Host adapter requires no code change; p
 
 ## M3 host compatibility
 
-Completed `biopentra-upr-host` consumes public UPR contracts only. This correction is generic-core; host must **pin** `v0.2.1+` and rerun WP6 before DEV pilot. No host plugin changes in this milestone.
+Completed M3 host adapter consumes public UPR contracts only. This correction is generic-core; host deployments must **pin** `v0.2.1+` and rerun WP6 before DEV pilot. No host plugin code changes in this milestone.
