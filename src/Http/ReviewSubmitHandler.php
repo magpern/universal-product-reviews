@@ -1,6 +1,6 @@
 <?php
 /**
- * Guest review submit handler.
+ * Guest review submit handler (controlled M2 form POST only).
  *
  * @package UniversalProductReviews
  */
@@ -9,22 +9,31 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Http;
 
-use UniversalProductReviews\Audit\AuditLogger;
+use UniversalProductReviews\Invitations\CompletionService;
 use UniversalProductReviews\Invitations\InviteRepository;
 use UniversalProductReviews\Invitations\ProductReviewability;
 use UniversalProductReviews\Invitations\ScheduleStates;
-use UniversalProductReviews\Scheduling\Jobs;
+use UniversalProductReviews\Invitations\SubmitClaimService;
+use UniversalProductReviews\Submission\GuestSubmitAuthorization;
 use UniversalProductReviews\Tokens\FormSessionAuthenticator;
 use UniversalProductReviews\Tokens\SessionCookie;
 use UniversalProductReviews\Tokens\TokenRepository;
-use UniversalProductReviews\Tokens\TokenService;
 
 defined( 'ABSPATH' ) || exit;
 
 final class ReviewSubmitHandler {
 
+	/**
+	 * Handle POST on the token-free M2 form route only.
+	 */
 	public static function handle(): void {
 		header( 'Referrer-Policy: no-referrer' );
+
+		if ( ! self::is_m2_form_post_route() ) {
+			self::fail( 403, __( 'Invalid review submission route.', 'universal-product-reviews' ) );
+			return;
+		}
+
 		$session = FormSessionAuthenticator::current_session();
 		if ( null === $session ) {
 			self::fail( 403, __( 'Your review session has expired.', 'universal-product-reviews' ) );
@@ -67,6 +76,10 @@ final class ReviewSubmitHandler {
 			self::fail( 409, __( 'This review invitation has already been used.', 'universal-product-reviews' ) );
 			return;
 		}
+		if ( (int) $invite['product_id'] !== $product_id ) {
+			self::fail( 403, __( 'Invalid request.', 'universal-product-reviews' ) );
+			return;
+		}
 
 		$order = wc_get_order( (int) $invite['order_id'] );
 		if ( ! $order ) {
@@ -74,9 +87,17 @@ final class ReviewSubmitHandler {
 			return;
 		}
 
-		$author = $order->get_formatted_billing_full_name();
-		$email  = $order->get_billing_email();
+		$claim = SubmitClaimService::acquire( $order_item_id );
+		if ( null === $claim ) {
+			self::fail( 409, __( 'This review is already being submitted. Please wait.', 'universal-product-reviews' ) );
+			return;
+		}
 
+		$claim_token = $claim['token'];
+		$author      = $order->get_formatted_billing_full_name();
+		$email       = $order->get_billing_email();
+
+		// Ignore arbitrary posted identity — order fields only.
 		$commentdata = array(
 			'comment_post_ID'      => $product_id,
 			'comment_author'       => $author ?: __( 'Customer', 'universal-product-reviews' ),
@@ -88,8 +109,16 @@ final class ReviewSubmitHandler {
 			'user_id'              => 0,
 		);
 
-		$comment_id = wp_new_comment( $commentdata, true );
+		$comment_id = null;
+		try {
+			GuestSubmitAuthorization::arm( $product_id, $order_item_id, $session_id, $claim_token );
+			$comment_id = wp_new_comment( $commentdata, true );
+		} finally {
+			GuestSubmitAuthorization::clear();
+		}
+
 		if ( is_wp_error( $comment_id ) || ! $comment_id ) {
+			SubmitClaimService::release( $order_item_id, $claim_token );
 			self::fail( 500, __( 'Could not save your review.', 'universal-product-reviews' ) );
 			return;
 		}
@@ -101,49 +130,36 @@ final class ReviewSubmitHandler {
 			update_comment_meta( $comment_id, '_upr_variation_id', (int) $invite['variation_id'] );
 		}
 
-		self::persist_upr_completion( $order_item_id, $comment_id, $parent_token, (int) $invite['order_id'] );
+		$finalized = CompletionService::finalize(
+			$order_item_id,
+			$comment_id,
+			(int) $invite['order_id'],
+			$parent_token > 0 ? $parent_token : null,
+			$claim_token
+		);
+
+		if ( ! $finalized ) {
+			// Comment exists; reconcile will repair. Do not create another review.
+			nocache_headers();
+			status_header( 200 );
+			echo esc_html__( 'Thank you. Your review has been submitted and is awaiting moderation.', 'universal-product-reviews' );
+			return;
+		}
 
 		nocache_headers();
 		status_header( 200 );
 		echo esc_html__( 'Thank you. Your review has been submitted and is awaiting moderation.', 'universal-product-reviews' );
 	}
 
-	private static function persist_upr_completion( int $order_item_id, int $comment_id, int $invite_token_id, int $order_id ): void {
-		global $wpdb;
-
-		$wpdb->query( 'START TRANSACTION' );
-		try {
-			$ok = InviteRepository::conditional_update(
-				$order_item_id,
-				array(
-					'schedule_state'      => ScheduleStates::COMPLETED,
-					'review_completed_at' => current_time( 'mysql', true ),
-					'review_comment_id'   => $comment_id,
-				)
-			);
-			if ( ! $ok ) {
-				// Concurrent winner — still attach meta if needed.
-				$wpdb->query( 'ROLLBACK' );
-				return;
-			}
-
-			if ( $invite_token_id > 0 ) {
-				TokenService::redeem_after_submit( $invite_token_id, $order_item_id );
-			} else {
-				TokenRepository::revoke_for_item( $order_item_id );
-				SessionCookie::clear();
-			}
-
-			Jobs::unschedule_item( $order_item_id );
-			AuditLogger::log( 'invite.completed', 'customer', $order_id, $order_item_id, array( 'comment_id' => $comment_id ) );
-			$wpdb->query( 'COMMIT' );
-		} catch ( \Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
-			// Comment exists; reconcile will repair.
-			AuditLogger::log( 'invite.completion_failed', 'system', $order_id, $order_item_id, array( 'comment_id' => $comment_id ) );
+	/**
+	 * True only for the M2 token-free form POST query var route.
+	 */
+	public static function is_m2_form_post_route(): bool {
+		if ( 'POST' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) {
+			return false;
 		}
-
-		// Meta already written above; keep idempotent.
+		$form = get_query_var( 'upr_review_form' );
+		return (bool) $form;
 	}
 
 	private static function fail( int $code, string $message ): void {

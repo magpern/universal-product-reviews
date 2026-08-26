@@ -1,6 +1,6 @@
 <?php
 /**
- * Versioned, locked schema migrator.
+ * Versioned, locked schema migrator with atomic lease lock.
  *
  * @package UniversalProductReviews
  */
@@ -17,6 +17,12 @@ final class Migrator {
 	public const LOCK_KEY       = 'upr_db_migrate_lock';
 	public const LOCK_TTL       = 120;
 
+	/** @var string|null Owner token for the current process lease. */
+	private static ?string $owner_token = null;
+
+	/** @var int Test counter for schema executions. */
+	private static int $schema_runs = 0;
+
 	public static function needs_upgrade(): bool {
 		$installed = (string) get_option( self::OPTION_VERSION, '' );
 		return $installed !== Schema::DB_VERSION;
@@ -32,9 +38,19 @@ final class Migrator {
 			return true;
 		}
 
-		if ( ! self::acquire_lock() ) {
-			// Another process is migrating; re-check shortly.
-			usleep( 200000 );
+		$acquired = false;
+		for ( $attempt = 0; $attempt < 5; $attempt++ ) {
+			if ( self::acquire_lock() ) {
+				$acquired = true;
+				break;
+			}
+			usleep( 100000 );
+			if ( ! self::needs_upgrade() ) {
+				return true;
+			}
+		}
+
+		if ( ! $acquired ) {
 			return ! self::needs_upgrade();
 		}
 
@@ -51,7 +67,7 @@ final class Migrator {
 	}
 
 	/**
-	 * Controlled upgrade entry for admin/cron contexts only.
+	 * Controlled upgrade entry for admin/cron/CLI contexts only.
 	 */
 	public static function maybe_upgrade_controlled(): void {
 		if ( ! self::needs_upgrade() ) {
@@ -69,31 +85,124 @@ final class Migrator {
 		self::upgrade_now();
 	}
 
+	public static function schema_run_count(): int {
+		return self::$schema_runs;
+	}
+
+	public static function reset_schema_run_count(): void {
+		self::$schema_runs = 0;
+	}
+
+	/**
+	 * @return string|null Current process owner token if lock held.
+	 */
+	public static function current_owner_token(): ?string {
+		return self::$owner_token;
+	}
+
+	/**
+	 * Public for tests — attempt to acquire the migrate lock.
+	 */
+	public static function try_acquire_lock(): bool {
+		return self::acquire_lock();
+	}
+
+	/**
+	 * Public for tests — release if still owner.
+	 */
+	public static function try_release_lock(): void {
+		self::release_lock();
+	}
+
 	private static function run_dbdelta(): void {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		foreach ( Schema::table_definitions() as $sql ) {
 			dbDelta( $sql );
 		}
+		++self::$schema_runs;
 	}
 
 	private static function acquire_lock(): bool {
-		$now = time();
-		$lock = get_option( self::LOCK_KEY, null );
-		if ( is_array( $lock ) && isset( $lock['until'] ) && (int) $lock['until'] > $now ) {
+		$token   = wp_generate_uuid4();
+		$payload = array(
+			'owner' => $token,
+			'until' => time() + self::LOCK_TTL,
+		);
+
+		if ( add_option( self::LOCK_KEY, $payload, '', 'no' ) ) {
+			self::$owner_token = $token;
+			return true;
+		}
+
+		$existing = get_option( self::LOCK_KEY, null );
+		if ( ! is_array( $existing ) || ! isset( $existing['until'], $existing['owner'] ) ) {
+			// Corrupt lock — try CAS delete of whatever is stored then add.
+			self::cas_delete_lock( $existing );
+			if ( add_option( self::LOCK_KEY, $payload, '', 'no' ) ) {
+				self::$owner_token = $token;
+				return true;
+			}
 			return false;
 		}
-		$payload = array(
-			'until' => $now + self::LOCK_TTL,
-			'pid'   => getmypid(),
-		);
-		if ( false === get_option( self::LOCK_KEY, false ) ) {
-			return add_option( self::LOCK_KEY, $payload, '', 'no' );
+
+		if ( (int) $existing['until'] > time() ) {
+			return false;
 		}
-		update_option( self::LOCK_KEY, $payload, false );
-		return true;
+
+		// Stale lock: delete only if value still exactly matches observed.
+		if ( ! self::cas_delete_lock( $existing ) ) {
+			return false;
+		}
+
+		if ( add_option( self::LOCK_KEY, $payload, '', 'no' ) ) {
+			self::$owner_token = $token;
+			return true;
+		}
+
+		return false;
 	}
 
 	private static function release_lock(): void {
-		delete_option( self::LOCK_KEY );
+		if ( null === self::$owner_token ) {
+			return;
+		}
+
+		$current = get_option( self::LOCK_KEY, null );
+		if (
+			is_array( $current )
+			&& isset( $current['owner'] )
+			&& (string) $current['owner'] === self::$owner_token
+		) {
+			self::cas_delete_lock( $current );
+		}
+
+		self::$owner_token = null;
+	}
+
+	/**
+	 * Delete lock option only when its serialized value still matches $observed.
+	 *
+	 * @param mixed $observed Previously read option value.
+	 */
+	private static function cas_delete_lock( $observed ): bool {
+		global $wpdb;
+
+		if ( null === $observed || false === $observed ) {
+			return false;
+		}
+
+		$serialized = maybe_serialize( $observed );
+		$n          = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+				self::LOCK_KEY,
+				$serialized
+			)
+		);
+
+		wp_cache_delete( self::LOCK_KEY, 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+
+		return (int) $n >= 1;
 	}
 }

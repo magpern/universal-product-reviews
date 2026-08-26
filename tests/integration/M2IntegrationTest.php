@@ -132,7 +132,7 @@ final class M2GuestSessionPipelineIntegrationTest extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_guest_with_session_can_submit_via_pipeline(): void {
+	public function test_guest_with_session_alone_still_blocked_on_native_pipeline(): void {
 		$product_id = self::factory()->post->create(
 			array(
 				'post_type'   => 'product',
@@ -148,28 +148,25 @@ final class M2GuestSessionPipelineIntegrationTest extends WP_UnitTestCase {
 				'schedule_state' => ScheduleStates::INITIAL_SENT,
 			)
 		);
-		$issued  = TokenService::issue_invite( 2001, $product_id );
+		$issued    = TokenService::issue_invite( 2001, $product_id );
 		$exchanged = TokenService::exchange_invite( $issued['raw'] );
 		$this->assertNotNull( $exchanged );
 		$this->assertTrue( FormSessionAuthenticator::authorize_product( $product_id ) );
 
-		$comment_id = wp_new_comment(
+		$this->expectException( \WPDieException::class );
+		wp_new_comment(
 			array(
 				'comment_post_ID'      => $product_id,
 				'comment_author'       => 'Order Guest',
 				'comment_author_email' => 'buyer@example.com',
 				'comment_author_url'   => '',
-				'comment_content'      => 'Great via invitation',
+				'comment_content'      => 'Must not bypass handler',
 				'comment_type'         => 'review',
 				'comment_approved'     => 1,
 				'user_id'              => 0,
 			),
 			true
 		);
-
-		$this->assertIsInt( $comment_id );
-		$comment = get_comment( $comment_id );
-		$this->assertSame( '0', $comment->comment_approved );
 	}
 }
 

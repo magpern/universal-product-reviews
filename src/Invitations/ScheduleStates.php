@@ -20,6 +20,7 @@ final class ScheduleStates {
 	public const INITIAL_SENT        = 'initial_sent';
 	public const REMINDER_SENDING    = 'reminder_sending';
 	public const REMINDER_SENT       = 'reminder_sent';
+	public const SUBMITTING          = 'submitting';
 	public const COMPLETED           = 'completed';
 	public const SUPPRESSED          = 'suppressed';
 

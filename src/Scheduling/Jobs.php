@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Scheduling;
 
 use UniversalProductReviews\Database\Migrator;
+use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Invitations\BundleSender;
 use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\ReconciliationService;
@@ -22,7 +23,7 @@ final class Jobs {
 	public const GROUP = 'upr';
 
 	public static function register(): void {
-		add_action( 'upr_schedule_order_items', array( self::class, 'handle_schedule_order' ), 10, 2 );
+		add_action( 'upr_schedule_order_items', array( self::class, 'handle_schedule_order' ), 10, 3 );
 		add_action( 'upr_send_initial_bundle', array( self::class, 'handle_send_initial' ), 10, 1 );
 		add_action( 'upr_send_reminder_item', array( self::class, 'handle_send_reminder' ), 10, 1 );
 		add_action( 'upr_reconcile_invitations', array( self::class, 'handle_reconcile' ), 10, 0 );
@@ -40,14 +41,15 @@ final class Jobs {
 		}
 	}
 
-	public static function schedule_order_items( int $order_id, string $source ): void {
+	public static function schedule_order_items( int $order_id, string $source, ?int $source_event_unix = null ): void {
+		$source_event_unix = $source_event_unix ?? time();
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
-			InvitationScheduler::schedule_order( $order_id, $source );
+			InvitationScheduler::schedule_order( $order_id, $source, $source_event_unix );
 			return;
 		}
 		as_enqueue_async_action(
 			'upr_schedule_order_items',
-			array( $order_id, $source ),
+			array( $order_id, $source, $source_event_unix ),
 			self::GROUP,
 			true
 		);
@@ -93,8 +95,8 @@ final class Jobs {
 		as_enqueue_async_action( 'upr_db_upgrade', array(), self::GROUP, true );
 	}
 
-	public static function handle_schedule_order( int $order_id, string $source ): void {
-		InvitationScheduler::schedule_order( $order_id, $source );
+	public static function handle_schedule_order( int $order_id, string $source, int $source_event_unix = 0 ): void {
+		InvitationScheduler::schedule_order( $order_id, $source, $source_event_unix > 0 ? $source_event_unix : null );
 	}
 
 	public static function handle_send_initial( int $order_id ): void {
@@ -111,5 +113,6 @@ final class Jobs {
 
 	public static function handle_db_upgrade(): void {
 		Migrator::upgrade_now();
+		RewriteRules::flush_controlled();
 	}
 }

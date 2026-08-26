@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews;
 
 use UniversalProductReviews\Database\Migrator;
+use UniversalProductReviews\Http\RewriteRules;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -17,7 +18,7 @@ final class Activation {
 
 	public static function activate(): void {
 		Migrator::upgrade_now();
-		update_option( 'upr_rewrite_flushed', '0', true );
-		// Do not schedule invitation storms or send email on activation.
+		// Register rules then flush once during activation (not on frontend).
+		RewriteRules::flush_controlled();
 	}
 }

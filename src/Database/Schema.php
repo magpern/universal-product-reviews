@@ -13,10 +13,10 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260826';
+	public const DB_VERSION = '20260826b';
 
 	/**
-	 * @return array<string, string> table_name => CREATE TABLE SQL (without dbDelta extras handled by caller)
+	 * @return array<string, string> table_name => CREATE TABLE SQL
 	 */
 	public static function table_definitions(): array {
 		global $wpdb;
@@ -33,6 +33,7 @@ final class Schema {
 				product_id bigint(20) unsigned NOT NULL,
 				variation_id bigint(20) unsigned DEFAULT NULL,
 				eligible_at datetime DEFAULT NULL,
+				source_event_at datetime DEFAULT NULL,
 				initial_send_started_at datetime DEFAULT NULL,
 				initial_sent_at datetime DEFAULT NULL,
 				initial_message_id varchar(64) DEFAULT NULL,
@@ -46,6 +47,9 @@ final class Schema {
 				review_completed_at datetime DEFAULT NULL,
 				review_comment_id bigint(20) unsigned DEFAULT NULL,
 				schedule_state varchar(32) NOT NULL,
+				submit_claim_token varchar(64) DEFAULT NULL,
+				submit_claim_expires_at datetime DEFAULT NULL,
+				submit_claim_prior_state varchar(32) DEFAULT NULL,
 				bundle_id varchar(64) DEFAULT NULL,
 				suppression_code varchar(64) DEFAULT NULL,
 				delay_until datetime DEFAULT NULL,
@@ -59,6 +63,7 @@ final class Schema {
 				KEY delay_until (delay_until),
 				KEY bundle_id (bundle_id),
 				KEY initial_message_id (initial_message_id),
+				KEY submit_claim_expires (submit_claim_expires_at),
 				UNIQUE KEY review_comment_id (review_comment_id)
 			) {$charset};",
 			$tokens => "CREATE TABLE {$tokens} (

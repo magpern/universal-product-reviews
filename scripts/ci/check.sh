@@ -42,6 +42,18 @@ if grep -RIn --include='*.php' -E 'upr_review_page_url' src/ universal-product-r
   fail "forbidden public filter receiving raw token"
 fi
 
+echo "==> Rewrite flush must not run from Plugin bootstrap / frontend init"
+if grep -n 'flush_rewrite_rules\|maybe_flush' src/Plugin.php 2>/dev/null; then
+  fail "Plugin.php must not flush rewrite rules on bootstrap"
+fi
+if grep -n "add_action(\s*'init'.*flush\|maybe_flush" src/Http/RewriteRules.php 2>/dev/null; then
+  fail "RewriteRules must not flush on ordinary init"
+fi
+# flush_rewrite_rules allowed only in flush_controlled / Activation
+if ! grep -q 'function flush_controlled' src/Http/RewriteRules.php; then
+  fail "missing RewriteRules::flush_controlled"
+fi
+
 echo "==> Forbidden WooCommerce Internal references"
 if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews|Automattic\\WooCommerce\\Internal\\' src/ universal-product-reviews.php 2>/dev/null; then
   fail "Internal WooCommerce API reference found"

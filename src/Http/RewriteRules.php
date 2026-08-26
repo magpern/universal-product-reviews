@@ -13,10 +13,14 @@ defined( 'ABSPATH' ) || exit;
 
 final class RewriteRules {
 
+	public const VERSION_OPTION = 'upr_rewrite_version';
+	public const VERSION        = '2';
+
 	public static function register(): void {
 		add_action( 'init', array( self::class, 'add_rules' ) );
 		add_filter( 'query_vars', array( self::class, 'query_vars' ) );
 		add_action( 'template_redirect', array( self::class, 'dispatch' ) );
+		add_action( 'admin_init', array( self::class, 'maybe_flush_controlled' ) );
 	}
 
 	public static function add_rules(): void {
@@ -50,11 +54,27 @@ final class RewriteRules {
 		}
 	}
 
-	public static function maybe_flush(): void {
-		if ( get_option( 'upr_rewrite_flushed' ) === UPR_VERSION ) {
+	/**
+	 * Flush rewrite rules only from controlled contexts (activation / admin / CLI).
+	 * Never call from ordinary frontend requests.
+	 */
+	public static function flush_controlled(): void {
+		self::add_rules();
+		flush_rewrite_rules( false );
+		update_option( self::VERSION_OPTION, self::VERSION, true );
+	}
+
+	/**
+	 * Admin/CLI-only rewrite upgrade when version lags.
+	 */
+	public static function maybe_flush_controlled(): void {
+		$allowed = is_admin() || ( defined( 'WP_CLI' ) && WP_CLI );
+		if ( ! $allowed ) {
 			return;
 		}
-		flush_rewrite_rules( false );
-		update_option( 'upr_rewrite_flushed', UPR_VERSION, true );
+		if ( (string) get_option( self::VERSION_OPTION, '' ) === self::VERSION ) {
+			return;
+		}
+		self::flush_controlled();
 	}
 }

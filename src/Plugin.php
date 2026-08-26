@@ -52,7 +52,6 @@ final class Plugin {
 				}
 			}
 		);
-		add_action( 'init', array( RewriteRules::class, 'maybe_flush' ), 99 );
 	}
 
 	/**

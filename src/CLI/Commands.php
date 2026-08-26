@@ -49,6 +49,7 @@ final class Commands {
 
 	public static function db_upgrade(): void {
 		$ok = Migrator::upgrade_now();
+		\UniversalProductReviews\Http\RewriteRules::flush_controlled();
 		if ( $ok ) {
 			\WP_CLI::success( 'Database schema is up to date.' );
 		} else {

@@ -26,7 +26,9 @@ final class GuestSubmissionGuard {
 	}
 
 	/**
-	 * Reject unauthenticated in-scope product reviews unless an M2 form session authorizes the product.
+	 * Reject unauthenticated in-scope product reviews unless both:
+	 * - a valid M2 form session authorizes the exact product; and
+	 * - ReviewSubmitHandler armed a request-local authorization context.
 	 *
 	 * @param array<string, mixed> $commentdata Comment data.
 	 * @return array<string, mixed>
@@ -41,7 +43,11 @@ final class GuestSubmissionGuard {
 		}
 
 		$product_id = (int) ( $commentdata['comment_post_ID'] ?? 0 );
-		if ( $product_id > 0 && FormSessionAuthenticator::authorize_product( $product_id ) ) {
+		if (
+			$product_id > 0
+			&& FormSessionAuthenticator::authorize_product( $product_id )
+			&& GuestSubmitAuthorization::allows_product( $product_id )
+		) {
 			return $commentdata;
 		}
 
