@@ -112,6 +112,13 @@ if ( ! function_exists( 'get_post' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wc_get_product' ) ) {
+	function wc_get_product( $product = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$id = is_object( $product ) ? (int) $product->get_id() : (int) $product;
+		return $GLOBALS['upr_test_wc_products'][ $id ] ?? false;
+	}
+}
+
 if ( ! function_exists( '__' ) ) {
 	function __( $text, $domain = 'default' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		unset( $domain );

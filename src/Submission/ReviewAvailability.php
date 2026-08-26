@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Submission;
 
+use UniversalProductReviews\Invitations\ProductReviewability;
 use UniversalProductReviews\Tokens\FormSessionAuthenticator;
 
 defined( 'ABSPATH' ) || exit;
@@ -28,6 +29,10 @@ final class ReviewAvailability {
 
 		if ( 'yes' !== get_option( 'woocommerce_enable_reviews', 'yes' ) ) {
 			return self::result( false, 'reviews_disabled', $product_id, $user_id );
+		}
+
+		if ( ! ProductReviewability::is_reviewable( $product_id ) ) {
+			return self::result( false, 'product_not_reviewable', $product_id, $user_id );
 		}
 
 		if ( $user_id <= 0 ) {

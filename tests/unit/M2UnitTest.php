@@ -101,7 +101,7 @@ final class MailTransportFactoryTest extends TestCase {
 final class ProductReviewabilityTest extends TestCase {
 
 	protected function tearDown(): void {
-		unset( $GLOBALS['upr_test_posts'] );
+		unset( $GLOBALS['upr_test_posts'], $GLOBALS['upr_test_wc_products'] );
 		parent::tearDown();
 	}
 
@@ -121,5 +121,33 @@ final class ProductReviewabilityTest extends TestCase {
 			'post_status' => 'draft',
 		);
 		$this->assertFalse( ProductReviewability::is_reviewable( 12 ) );
+	}
+
+	public function test_catalog_hidden_published_not_reviewable(): void {
+		$GLOBALS['upr_test_posts'][13] = (object) array(
+			'ID'          => 13,
+			'post_type'   => 'product',
+			'post_status' => 'publish',
+		);
+		$GLOBALS['upr_test_wc_products'][13] = new class() {
+			public function get_catalog_visibility(): string {
+				return 'hidden';
+			}
+		};
+		$this->assertFalse( ProductReviewability::is_reviewable( 13 ) );
+	}
+
+	public function test_catalog_visible_published_reviewable(): void {
+		$GLOBALS['upr_test_posts'][14] = (object) array(
+			'ID'          => 14,
+			'post_type'   => 'product',
+			'post_status' => 'publish',
+		);
+		$GLOBALS['upr_test_wc_products'][14] = new class() {
+			public function get_catalog_visibility(): string {
+				return 'visible';
+			}
+		};
+		$this->assertTrue( ProductReviewability::is_reviewable( 14 ) );
 	}
 }
