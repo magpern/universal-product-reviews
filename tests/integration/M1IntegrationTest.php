@@ -109,6 +109,11 @@ final class ModerationIntegrationTest extends WP_UnitTestCase {
 		$before_moderation = get_option( 'comment_moderation' );
 		$before_approved   = get_option( 'comment_previously_approved' );
 
+		// Frozen M1 policy protects comment_whitelist. WP 5.5+ aliases that key to
+		// comment_previously_approved and emits a get_option deprecation notice.
+		$this->setExpectedDeprecated( 'get_option' );
+		$before_whitelist = get_option( 'comment_whitelist' );
+
 		$product_id = $this->factory->post->create(
 			array(
 				'post_type'   => 'product',
@@ -129,6 +134,7 @@ final class ModerationIntegrationTest extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( $before_moderation, get_option( 'comment_moderation' ) );
+		$this->assertSame( $before_whitelist, get_option( 'comment_whitelist' ) );
 		$this->assertSame( $before_approved, get_option( 'comment_previously_approved' ) );
 	}
 }
