@@ -142,6 +142,13 @@ final class SubmitClaimService {
 			if ( $comment ) {
 				if ( CompletionService::finalize_from_comment( $item_id, $comment, (int) $row['order_id'] ) ) {
 					++$repaired;
+				} else {
+					// Suppression (or other non-submitting terminal) won — discard orphan.
+					$current = InviteRepository::find( $item_id );
+					if ( $current && ScheduleStates::SUPPRESSED === $current['schedule_state'] ) {
+						CompletionService::reject_comment( $comment );
+						CompletionService::clear_claim_fields( $item_id, (string) ( $row['submit_claim_token'] ?? '' ) );
+					}
 				}
 				continue;
 			}

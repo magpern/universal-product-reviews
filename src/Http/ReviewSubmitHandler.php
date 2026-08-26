@@ -78,6 +78,12 @@ final class ReviewSubmitHandler {
 			self::fail( 409, __( 'This review invitation has already been used.', 'universal-product-reviews' ) );
 			return;
 		}
+		if ( ScheduleStates::SUPPRESSED === $invite['schedule_state'] ) {
+			TokenRepository::revoke_for_item( $order_item_id );
+			SessionCookie::clear();
+			self::fail( 410, __( 'This product is no longer accepting reviews.', 'universal-product-reviews' ) );
+			return;
+		}
 		if ( (int) $invite['product_id'] !== $product_id ) {
 			self::fail( 403, __( 'Invalid request.', 'universal-product-reviews' ) );
 			return;
@@ -140,11 +146,16 @@ final class ReviewSubmitHandler {
 			$claim_token
 		);
 
+		if ( ! $finalized && CompletionService::abandon_lost_submission( $order_item_id, $comment_id, $claim_token ) ) {
+			SessionCookie::clear();
+			self::fail( 410, __( 'This product is no longer accepting reviews.', 'universal-product-reviews' ) );
+			return;
+		}
+
 		if ( ! headers_sent() ) {
 			nocache_headers();
 			status_header( 200 );
 		}
-		// Comment exists even if finalize failed; reconcile will repair without a second review.
 		echo esc_html__( 'Thank you. Your review has been submitted and is awaiting moderation.', 'universal-product-reviews' );
 	}
 

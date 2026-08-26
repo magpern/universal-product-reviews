@@ -18,26 +18,58 @@ defined( 'ABSPATH' ) || exit;
 final class SuppressionService {
 
 	public static function suppress_item( int $order_item_id, string $code, ?int $order_id = null ): void {
+		global $wpdb;
+
 		$row = InviteRepository::find( $order_item_id );
-		if ( $row && ScheduleStates::is_terminal( (string) $row['schedule_state'] ) ) {
-			if ( ScheduleStates::COMPLETED === $row['schedule_state'] ) {
-				return;
+		if ( $row && ScheduleStates::COMPLETED === $row['schedule_state'] ) {
+			return;
+		}
+
+		$code  = substr( $code, 0, 64 );
+		$table = InviteRepository::table();
+		$now   = current_time( 'mysql', true );
+
+		if ( ! $row ) {
+			InviteRepository::upsert(
+				$order_item_id,
+				array(
+					'schedule_state'   => ScheduleStates::SUPPRESSED,
+					'suppression_code' => $code,
+					'order_id'         => $order_id ?? 0,
+					'product_id'       => 0,
+				)
+			);
+		} else {
+			// Atomic: never overwrite completed; clear any in-flight submit claim.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+			$n = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$table} SET schedule_state = %s, suppression_code = %s,
+					submit_claim_token = NULL, submit_claim_expires_at = NULL, submit_claim_prior_state = NULL, updated_at = %s
+					WHERE order_item_id = %d AND schedule_state <> %s",
+					ScheduleStates::SUPPRESSED,
+					$code,
+					$now,
+					$order_item_id,
+					ScheduleStates::COMPLETED
+				)
+			);
+			if ( 1 !== (int) $n ) {
+				$again = InviteRepository::find( $order_item_id );
+				if ( $again && ScheduleStates::COMPLETED === $again['schedule_state'] ) {
+					return;
+				}
+				if ( $again && ScheduleStates::SUPPRESSED === $again['schedule_state'] ) {
+					TokenRepository::revoke_for_item( $order_item_id );
+					Jobs::unschedule_item( $order_item_id );
+					return;
+				}
 			}
 		}
 
-		InviteRepository::upsert(
-			$order_item_id,
-			array(
-				'schedule_state'   => ScheduleStates::SUPPRESSED,
-				'suppression_code' => substr( $code, 0, 64 ),
-				'order_id'         => $order_id ?? ( $row['order_id'] ?? 0 ),
-				'product_id'       => $row['product_id'] ?? 0,
-			)
-		);
-
 		TokenRepository::revoke_for_item( $order_item_id );
 		Jobs::unschedule_item( $order_item_id );
-		AuditLogger::log( 'invite.suppressed', 'system', $order_id, $order_item_id, array( 'code' => $code ) );
+		AuditLogger::log( 'invite.suppressed', 'system', $order_id ?? ( $row['order_id'] ?? null ), $order_item_id, array( 'code' => $code ) );
 	}
 
 	public static function suppress_product_not_reviewable( int $product_id ): void {

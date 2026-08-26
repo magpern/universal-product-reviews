@@ -18,8 +18,10 @@ use UniversalProductReviews\Invitations\InviteRepository;
 use UniversalProductReviews\Invitations\ReconciliationService;
 use UniversalProductReviews\Invitations\ScheduleStates;
 use UniversalProductReviews\Invitations\SubmitClaimService;
+use UniversalProductReviews\Invitations\SuppressionService;
 use UniversalProductReviews\Submission\GuestSubmitAuthorization;
 use UniversalProductReviews\Tokens\FormSessionAuthenticator;
+use UniversalProductReviews\Tokens\TokenRepository;
 use UniversalProductReviews\Tokens\TokenService;
 use WP_UnitTestCase;
 
@@ -279,6 +281,94 @@ final class M2SubmitClaimIntegrationTest extends WP_UnitTestCase {
 		$invite = InviteRepository::find( $ctx['order_item_id'] );
 		$this->assertSame( ScheduleStates::COMPLETED, $invite['schedule_state'] );
 		$this->assertSame( (int) $comment_id, (int) $invite['review_comment_id'] );
+	}
+
+	public function test_finalize_loses_to_suppression_discards_comment(): void {
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+		$prep       = $this->upr_prepare_session_invite( $ctx['order_item_id'], $product_id, $ctx['order']->get_id() );
+		$session_id = (int) $prep['session']['id'];
+		$invite_tok = $prep['invite_token_id'];
+
+		$claim = SubmitClaimService::acquire( $ctx['order_item_id'] );
+		$this->assertNotNull( $claim );
+
+		// Mid-flight: item becomes discontinued / suppressed; tokens revoked.
+		SuppressionService::suppress_item( $ctx['order_item_id'], 'product_not_reviewable', $ctx['order']->get_id() );
+		$after_suppress = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertSame( ScheduleStates::SUPPRESSED, $after_suppress['schedule_state'] );
+
+		$tokens = TokenRepository::find_active_invite( $ctx['order_item_id'] );
+		$this->assertNull( $tokens );
+		$parent = TokenRepository::find_by_id( $invite_tok );
+		$this->assertNotNull( $parent );
+		$this->assertNotEmpty( $parent['revoked_at'] );
+
+		GuestSubmitAuthorization::arm( $product_id, $ctx['order_item_id'], $session_id, $claim['token'] );
+		$comment_id = wp_new_comment(
+			array(
+				'comment_post_ID'      => $product_id,
+				'comment_author'       => 'Ada Lovelace',
+				'comment_author_email' => 'buyer@example.com',
+				'comment_author_url'   => '',
+				'comment_content'      => 'Should not complete',
+				'comment_type'         => 'review',
+				'user_id'              => 0,
+			),
+			true
+		);
+		GuestSubmitAuthorization::clear();
+		$this->assertIsInt( $comment_id );
+		update_comment_meta( (int) $comment_id, '_upr_order_item_id', $ctx['order_item_id'] );
+
+		$this->assertFalse(
+			CompletionService::finalize(
+				$ctx['order_item_id'],
+				(int) $comment_id,
+				$ctx['order']->get_id(),
+				$invite_tok,
+				$claim['token']
+			)
+		);
+		$this->assertTrue(
+			CompletionService::abandon_lost_submission(
+				$ctx['order_item_id'],
+				(int) $comment_id,
+				$claim['token']
+			)
+		);
+
+		$invite = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertSame( ScheduleStates::SUPPRESSED, $invite['schedule_state'] );
+		$this->assertEmpty( $invite['review_comment_id'] );
+		$this->assertEmpty( $invite['submit_claim_token'] );
+
+		$comment = get_comment( (int) $comment_id );
+		$this->assertNotFalse( $comment );
+		$this->assertSame( 'spam', $comment->comment_approved );
+
+		// finalize_from_comment / reconcile must not resurrect completion.
+		$this->assertFalse(
+			CompletionService::finalize_from_comment(
+				$ctx['order_item_id'],
+				(int) $comment_id,
+				$ctx['order']->get_id()
+			)
+		);
+		ReconciliationService::run( 90, false );
+		$invite2 = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertSame( ScheduleStates::SUPPRESSED, $invite2['schedule_state'] );
+		$this->assertEmpty( $invite2['review_comment_id'] );
+
+		$visible = get_comments(
+			array(
+				'post_id' => $product_id,
+				'type'    => 'review',
+				'status'  => array( 'approve', 'hold', 'pending' ),
+				'count'   => true,
+			)
+		);
+		$this->assertSame( 0, (int) $visible );
 	}
 
 	public function test_expired_claim_without_comment_is_released(): void {

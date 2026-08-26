@@ -177,6 +177,10 @@ final class ReconciliationService {
 				if ( ScheduleStates::COMPLETED === $invite['schedule_state'] && ! empty( $invite['review_comment_id'] ) ) {
 					continue;
 				}
+				if ( ScheduleStates::SUPPRESSED === $invite['schedule_state'] ) {
+					CompletionService::reject_comment( $comment_id );
+					continue;
+				}
 				if ( ! empty( $invite['review_comment_id'] ) && (int) $invite['review_comment_id'] !== $comment_id ) {
 					continue;
 				}
