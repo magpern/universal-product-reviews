@@ -45,7 +45,20 @@ final class GuestSubmissionGuardTest extends TestCase {
 	}
 }
 
-final class ReviewAvailabilityTest extends TestCase {
+	final class ReviewAvailabilityTest extends TestCase {
+
+	private function stub_reviewable_product( int $product_id = 1 ): void {
+		$GLOBALS['upr_test_posts'][ $product_id ] = (object) array(
+			'ID'          => $product_id,
+			'post_type'   => 'product',
+			'post_status' => 'publish',
+		);
+		$GLOBALS['upr_test_wc_products'][ $product_id ] = new class() {
+			public function get_catalog_visibility(): string {
+				return 'visible';
+			}
+		};
+	}
 
 	protected function tearDown(): void {
 		unset( $GLOBALS['upr_test_options'], $GLOBALS['upr_test_verified_purchase'], $GLOBALS['upr_test_users'], $GLOBALS['upr_test_posts'], $GLOBALS['upr_test_wc_products'] );
@@ -53,6 +66,7 @@ final class ReviewAvailabilityTest extends TestCase {
 	}
 
 	public function test_guest_reason_code(): void {
+		$this->stub_reviewable_product( 1 );
 		$GLOBALS['upr_test_options'] = array(
 			'woocommerce_enable_reviews' => 'yes',
 		);
@@ -62,6 +76,7 @@ final class ReviewAvailabilityTest extends TestCase {
 	}
 
 	public function test_not_verified_purchaser_reason_code(): void {
+		$this->stub_reviewable_product( 1 );
 		$GLOBALS['upr_test_options']            = array(
 			'woocommerce_enable_reviews'                        => 'yes',
 			'woocommerce_review_rating_verification_required'     => 'yes',

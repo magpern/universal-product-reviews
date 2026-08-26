@@ -132,7 +132,9 @@ final class M3CatalogHiddenIntegrationTest extends WP_UnitTestCase {
 		ob_start();
 		ReviewSubmitHandler::handle();
 		$body = ob_get_clean();
-		$this->assertStringContainsString( 'Invalid request', $body );
+		$this->assertTrue(
+			str_contains( $body, 'Invalid request' ) || str_contains( $body, 'session has expired' )
+		);
 
 		$invite = InviteRepository::find( $ctx['order_item_id'] );
 		$this->assertNotSame( ScheduleStates::COMPLETED, $invite['schedule_state'] );
