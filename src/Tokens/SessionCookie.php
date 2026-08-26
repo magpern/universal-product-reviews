@@ -36,10 +36,10 @@ final class SessionCookie {
 	}
 
 	public static function set( string $raw_secret, int $ttl_seconds ): void {
-		$secure   = self::use_host_prefix();
-		$name     = self::cookie_name();
-		$expires  = time() + max( 60, $ttl_seconds );
-		$options  = array(
+		$secure  = self::use_host_prefix();
+		$name    = self::cookie_name();
+		$expires = time() + max( 60, $ttl_seconds );
+		$options = array(
 			'expires'  => $expires,
 			'path'     => '/',
 			'secure'   => $secure,
@@ -47,7 +47,9 @@ final class SessionCookie {
 			'samesite' => 'Lax',
 		);
 		// Never set Domain — required for __Host-.
-		setcookie( $name, $raw_secret, $options );
+		if ( ! headers_sent() ) {
+			setcookie( $name, $raw_secret, $options );
+		}
 		$_COOKIE[ $name ] = $raw_secret;
 	}
 
@@ -66,17 +68,19 @@ final class SessionCookie {
 
 	public static function clear(): void {
 		foreach ( array( self::HOST_NAME, self::DEV_NAME ) as $name ) {
-			setcookie(
-				$name,
-				'',
-				array(
-					'expires'  => time() - 3600,
-					'path'     => '/',
-					'secure'   => self::use_host_prefix(),
-					'httponly' => true,
-					'samesite' => 'Lax',
-				)
-			);
+			if ( ! headers_sent() ) {
+				setcookie(
+					$name,
+					'',
+					array(
+						'expires'  => time() - 3600,
+						'path'     => '/',
+						'secure'   => self::use_host_prefix(),
+						'httponly' => true,
+						'samesite' => 'Lax',
+					)
+				);
+			}
 			unset( $_COOKIE[ $name ] );
 		}
 	}
