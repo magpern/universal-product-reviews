@@ -39,10 +39,11 @@ UPR declares `custom_order_tables` compatibility from M1 via public `FeaturesUti
 
 ## Action Scheduler
 
-Required for invitation scheduling, reconciliation, and retention purge (M2+).
+Required for invitation scheduling and reconciliation (M2); retention purge later (M4+).
 
 - Group name: `upr`
 - Host must run Action Scheduler via WP-Cron or real cron.
+- See [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md).
 
 ## WooCommerce features explicitly not used
 
@@ -54,8 +55,10 @@ Required for invitation scheduling, reconciliation, and retention purge (M2+).
 | Milestone | Coverage |
 |-----------|----------|
 | M1 | Mandatory DEV-aligned leg + unit tests; optional floor leg |
+| M2 | Same mandatory coordinates; invitations/tokens/email/CLI coverage per M2 freeze |
 | M7+ | Full tested minor-version matrix |
 
 ## Related
 
 - [`../milestones/M1-core-enablement.md`](../milestones/M1-core-enablement.md)
+- [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)

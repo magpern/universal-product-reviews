@@ -9,8 +9,9 @@ Public-source, proprietary WooCommerce plugin (`UPR`) for verified-purchase prod
 | Milestone | State |
 |-----------|-------|
 | M0 | Repository foundation and frozen architecture (Rev 6) |
-| M1 | Core enablement — bootstrap, HPOS declare, moderation hold, guest guard, availability filters |
-| M2+ | Not started |
+| M1 | Core enablement — bootstrap, HPOS declare, moderation hold, guest guard, availability filters (`v0.1.0`) |
+| M2 | Invitations plan **frozen** (`m2-invitations-freeze`); runtime not started |
+| M3+ | Not started |
 
 This repository contains the portable plugin core and generic integration documentation. Host-specific adapters, theme CSS, and site configuration live **outside** this repository.
 
@@ -30,6 +31,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 |----------|---------|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Authoritative frozen technical specification (Rev 6) |
 | [`docs/milestones/M1-core-enablement.md`](docs/milestones/M1-core-enablement.md) | Frozen M1 specification |
+| [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) | Frozen M2 invitations specification |
 | [`docs/decisions/ADR-0001-repository-visibility.md`](docs/decisions/ADR-0001-repository-visibility.md) | Public repository governance |
 | [`docs/production-replay.md`](docs/production-replay.md) | Host integration and deployment runbook |
 | [`docs/integration/`](docs/integration/) | Adapter contracts and examples |
@@ -57,5 +59,7 @@ Proprietary — public visibility does not grant an open-source licence. See [`L
 |-----|---------|
 | `plan-rev6-freeze` | Rev 6 architecture baseline |
 | `m1-core-enablement-freeze` | M1 plan freeze (documentation only) |
+| `v0.1.0` | M1 runtime release (accepted) |
+| `m2-invitations-freeze` | M2 plan freeze (documentation only) |
 
-Release tag `v0.1.0` is created only after M1 closure acceptance.
+Release tag `v0.2.0` is created only after M2 closure acceptance.

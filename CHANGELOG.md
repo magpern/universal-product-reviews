@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Documentation
+
+- M2 invitations plan frozen at tag `m2-invitations-freeze`.
+- [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) — authoritative M2 specification (implementation begins only after freeze tag).
+
 ### Fixed
 
 - Remove `upr_test_guest_block_without_die` production test seam from the guest submission guard.
