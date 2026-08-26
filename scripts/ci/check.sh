@@ -35,6 +35,9 @@ fi
 if grep -RIn --include='*.php' -E "add_action\s*\(\s*['\"]pre_comment_on_post" src/ universal-product-reviews.php 2>/dev/null; then
   fail "guest guard must not use pre_comment_on_post"
 fi
+if grep -RIn --include='*.php' -E 'upr_test_guest_block_without_die|should_block_without_die' src/ universal-product-reviews.php 2>/dev/null; then
+  fail "production test seam for guest guard must not exist"
+fi
 
 echo "==> Forbidden WooCommerce Internal OrderReviews references"
 if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews' src/ universal-product-reviews.php 2>/dev/null; then

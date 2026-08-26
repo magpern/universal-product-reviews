@@ -11,14 +11,6 @@ $upr_root = dirname( __DIR__, 2 );
 
 require_once $upr_root . '/vendor/autoload.php';
 
-if ( ! defined( 'UPR_VERSION' ) ) {
-	define( 'UPR_VERSION', '0.0.0-test' );
-}
-
-if ( ! defined( 'UPR_PLUGIN_FILE' ) ) {
-	define( 'UPR_PLUGIN_FILE', $upr_root . '/universal-product-reviews.php' );
-}
-
 $upr_tests_dir = getenv( 'WP_TESTS_DIR' ) ?: $upr_root . '/vendor/wp-phpunit/wp-phpunit';
 
 if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) ) {
@@ -34,18 +26,37 @@ tests_add_filter(
 	}
 );
 
+/*
+ * Declare HPOS compatibility before WooCommerce finishes bootstrapping.
+ * Use the install-wp.sh copy under WP_PLUGIN_DIR so FeaturesUtil plugin IDs match.
+ */
 tests_add_filter(
-	'setup_theme',
+	'before_woocommerce_init',
 	static function (): void {
-		if ( class_exists( 'WC_Install' ) ) {
-			\WC_Install::install();
+		if ( ! class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+			return;
 		}
-		$GLOBALS['wp_roles'] = new \WP_Roles(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+		$plugin_file = WP_PLUGIN_DIR . '/universal-product-reviews/universal-product-reviews.php';
+		if ( ! is_readable( $plugin_file ) ) {
+			return;
+		}
+
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility(
+			'custom_order_tables',
+			$plugin_file,
+			true
+		);
 	}
 );
 
 require_once $upr_tests_dir . '/includes/bootstrap.php';
 
-require_once UPR_PLUGIN_FILE;
+$upr_plugin_file = WP_PLUGIN_DIR . '/universal-product-reviews/universal-product-reviews.php';
+if ( ! is_readable( $upr_plugin_file ) ) {
+	$upr_plugin_file = $upr_root . '/universal-product-reviews.php';
+}
+
+require_once $upr_plugin_file;
 
 \UniversalProductReviews\Plugin::init();
