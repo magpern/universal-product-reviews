@@ -287,7 +287,6 @@ final class M2SubmitClaimIntegrationTest extends WP_UnitTestCase {
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
 		$prep       = $this->upr_prepare_session_invite( $ctx['order_item_id'], $product_id, $ctx['order']->get_id() );
-		$session_id = (int) $prep['session']['id'];
 		$invite_tok = $prep['invite_token_id'];
 
 		$claim = SubmitClaimService::acquire( $ctx['order_item_id'] );
@@ -304,8 +303,8 @@ final class M2SubmitClaimIntegrationTest extends WP_UnitTestCase {
 		$this->assertNotNull( $parent );
 		$this->assertNotEmpty( $parent['revoked_at'] );
 
-		GuestSubmitAuthorization::arm( $product_id, $ctx['order_item_id'], $session_id, $claim['token'] );
-		$comment_id = wp_new_comment(
+		// Comment already past preprocess (race window); insert without re-checking session.
+		$comment_id = wp_insert_comment(
 			array(
 				'comment_post_ID'      => $product_id,
 				'comment_author'       => 'Ada Lovelace',
@@ -313,12 +312,12 @@ final class M2SubmitClaimIntegrationTest extends WP_UnitTestCase {
 				'comment_author_url'   => '',
 				'comment_content'      => 'Should not complete',
 				'comment_type'         => 'review',
+				'comment_approved'     => 0,
 				'user_id'              => 0,
-			),
-			true
+			)
 		);
-		GuestSubmitAuthorization::clear();
 		$this->assertIsInt( $comment_id );
+		$this->assertGreaterThan( 0, (int) $comment_id );
 		update_comment_meta( (int) $comment_id, '_upr_order_item_id', $ctx['order_item_id'] );
 
 		$this->assertFalse(
@@ -364,7 +363,7 @@ final class M2SubmitClaimIntegrationTest extends WP_UnitTestCase {
 			array(
 				'post_id' => $product_id,
 				'type'    => 'review',
-				'status'  => array( 'approve', 'hold', 'pending' ),
+				'status'  => array( 'approve', 'hold' ),
 				'count'   => true,
 			)
 		);
