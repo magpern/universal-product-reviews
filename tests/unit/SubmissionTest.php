@@ -48,7 +48,7 @@ final class GuestSubmissionGuardTest extends TestCase {
 final class ReviewAvailabilityTest extends TestCase {
 
 	protected function tearDown(): void {
-		unset( $GLOBALS['upr_test_options'], $GLOBALS['upr_test_verified_purchase'], $GLOBALS['upr_test_users'] );
+		unset( $GLOBALS['upr_test_options'], $GLOBALS['upr_test_verified_purchase'], $GLOBALS['upr_test_users'], $GLOBALS['upr_test_posts'], $GLOBALS['upr_test_wc_products'] );
 		parent::tearDown();
 	}
 
@@ -78,5 +78,24 @@ final class ReviewAvailabilityTest extends TestCase {
 		);
 		$result                      = ReviewAvailability::default_availability( array(), 1, 7 );
 		$this->assertSame( 'reviews_disabled', $result['reason_code'] );
+	}
+
+	public function test_product_not_reviewable_reason_code(): void {
+		$GLOBALS['upr_test_options'] = array(
+			'woocommerce_enable_reviews' => 'yes',
+		);
+		$GLOBALS['upr_test_posts'][21] = (object) array(
+			'ID'          => 21,
+			'post_type'   => 'product',
+			'post_status' => 'publish',
+		);
+		$GLOBALS['upr_test_wc_products'][21] = new class() {
+			public function get_catalog_visibility(): string {
+				return 'hidden';
+			}
+		};
+		$result = ReviewAvailability::default_availability( array(), 21, 7 );
+		$this->assertFalse( $result['can_submit'] );
+		$this->assertSame( 'product_not_reviewable', $result['reason_code'] );
 	}
 }

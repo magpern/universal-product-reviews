@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-26
+
+### Fixed
+
+- Treat WooCommerce catalogue-hidden (`catalog_visibility = hidden`) published products as non-reviewable in `ProductReviewability`.
+- Suppress/revoke outstanding invitation state when catalogue visibility changes via `woocommerce_product_set_visibility` and `_visibility` meta fallback.
+- Block logged-in native submission availability for non-reviewable products via `ReviewAvailability`.
+- Reject in-flight review comments immediately when suppression wins (catalogue-hidden and other non-reviewable transitions).
+
+### Documentation
+
+- M3 catalogue-hidden correction plan frozen at tag `m3-catalog-hidden-correction-freeze`.
+- [`docs/roadmap/m3-catalog-hidden-product-non-reviewable.md`](docs/roadmap/m3-catalog-hidden-product-non-reviewable.md).
+
+## [0.2.0]
+
 ### Fixed
 
 - Prevent concurrent duplicate guest reviews via durable per-item submit claim acquired before `wp_new_comment`.
@@ -16,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
-- M2 invitations runtime: line-item invite state, HMAC tokens, form sessions, Action Scheduler jobs, guest invitation submit, mail transport abstraction, CLI reconcile/db-upgrade (plugin version `0.2.0` unreleased; no `v0.2.0` git tag yet).
+- M2 invitations runtime: line-item invite state, HMAC tokens, form sessions, Action Scheduler jobs, guest invitation submit, mail transport abstraction, CLI reconcile/db-upgrade.
 
 ### Documentation
 

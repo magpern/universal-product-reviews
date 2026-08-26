@@ -69,6 +69,7 @@ final class SuppressionService {
 
 		TokenRepository::revoke_for_item( $order_item_id );
 		Jobs::unschedule_item( $order_item_id );
+		self::reject_inflight_review_comments( $order_item_id );
 		AuditLogger::log( 'invite.suppressed', 'system', $order_id ?? ( $row['order_id'] ?? null ), $order_item_id, array( 'code' => $code ) );
 	}
 
@@ -86,6 +87,8 @@ final class SuppressionService {
 		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'on_order_cancelled' ), 10, 1 );
 		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'on_partial_refund' ), 10, 2 );
 		add_action( 'transition_post_status', array( self::class, 'on_product_status' ), 10, 3 );
+		add_action( 'woocommerce_product_set_visibility', array( self::class, 'on_product_visibility' ), 10, 2 );
+		add_action( 'updated_post_meta', array( self::class, 'on_visibility_meta' ), 10, 4 );
 	}
 
 	public static function on_order_cancelled( int $order_id ): void {
@@ -114,6 +117,63 @@ final class SuppressionService {
 		}
 		if ( ! ProductReviewability::is_reviewable( (int) $post->ID ) ) {
 			self::suppress_product_not_reviewable( (int) $post->ID );
+		}
+	}
+
+	public static function on_product_visibility( int $product_id, string $visibility ): void {
+		unset( $visibility );
+		if ( ! ProductReviewability::is_reviewable( $product_id ) ) {
+			self::suppress_product_not_reviewable( $product_id );
+		}
+	}
+
+	/**
+	 * Fallback when `_visibility` meta is updated without the product object API.
+	 *
+	 * @param mixed $meta_value
+	 */
+	public static function on_visibility_meta( int $meta_id, int $object_id, string $meta_key, $meta_value ): void {
+		unset( $meta_id, $meta_value );
+		if ( '_visibility' !== $meta_key ) {
+			return;
+		}
+		$post = get_post( $object_id );
+		if ( ! $post || 'product' !== $post->post_type ) {
+			return;
+		}
+		if ( ! ProductReviewability::is_reviewable( $object_id ) ) {
+			self::suppress_product_not_reviewable( $object_id );
+		}
+	}
+
+	/**
+	 * Reject review comments linked to a non-completed invite when suppression wins.
+	 */
+	private static function reject_inflight_review_comments( int $order_item_id ): void {
+		global $wpdb;
+
+		$invite = InviteRepository::find( $order_item_id );
+		if ( $invite && ScheduleStates::COMPLETED === $invite['schedule_state'] ) {
+			return;
+		}
+
+		$completed_comment = ( $invite && ! empty( $invite['review_comment_id'] ) ) ? (int) $invite['review_comment_id'] : 0;
+		$comment_ids       = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = %s AND meta_value = %d",
+				'_upr_order_item_id',
+				$order_item_id
+			)
+		);
+		if ( ! $comment_ids ) {
+			return;
+		}
+		foreach ( $comment_ids as $comment_id ) {
+			$comment_id = (int) $comment_id;
+			if ( $completed_comment > 0 && $comment_id === $completed_comment ) {
+				continue;
+			}
+			CompletionService::reject_comment( $comment_id );
 		}
 	}
 }

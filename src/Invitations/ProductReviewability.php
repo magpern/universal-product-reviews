@@ -22,6 +22,12 @@ final class ProductReviewability {
 			return false;
 		}
 		$default = ( 'publish' === $post->post_status );
+		if ( $default && function_exists( 'wc_get_product' ) ) {
+			$product = wc_get_product( $product_id );
+			if ( $product && 'hidden' === $product->get_catalog_visibility() ) {
+				$default = false;
+			}
+		}
 		return (bool) apply_filters( 'upr_product_is_reviewable', $default, $product_id );
 	}
 
