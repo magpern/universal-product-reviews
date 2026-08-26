@@ -23,14 +23,16 @@ Completed approved reviews are preserved. Restoring visibility does not resurrec
 | Freeze plan | [`docs/roadmap/m3-catalog-hidden-product-non-reviewable.md`](roadmap/m3-catalog-hidden-product-non-reviewable.md) |
 | Freeze PR | [#10](https://github.com/magpern/universal-product-reviews/pull/10) |
 | Freeze merge commit | `be025941f040352700e457fb9467e9fab4a84249` |
-| Freeze tag | `m3-catalog-hidden-correction-freeze` → `be02594` |
+| Freeze tag | `m3-catalog-hidden-correction-freeze` (annotated) → `be02594` |
 | Implementation PR | [#11](https://github.com/magpern/universal-product-reviews/pull/11) |
 | Implementation merge commit | `e5b9636a42db7aaf0837c7b6034a24b062fd4275` |
-| Release tag | `v0.2.1` → `e5b9636` |
+| Release tag | `v0.2.1` (annotated) → `e5b9636` |
 
 ## Validation
 
+- CI run (freeze PR): [33011822703](https://github.com/magpern/universal-product-reviews/actions/runs/33011822703) — all required checks pass.
 - CI run (implementation PR): [33012205155](https://github.com/magpern/universal-product-reviews/actions/runs/33012205155) — all required checks pass (M1 lint, unit PHP 8.1/8.4, integration WC 11.0.1).
+- CI run (post-merge main): [33012366169](https://github.com/magpern/universal-product-reviews/actions/runs/33012366169) — all required checks pass.
 - Integration matrix: `tests/integration/M3CatalogHiddenIntegrationTest.php` (11 cases covering mandatory matrix items).
 - Unit coverage: `ProductReviewabilityTest`, `ReviewAvailabilityTest`.
 
