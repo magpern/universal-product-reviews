@@ -50,6 +50,30 @@ Guidelines:
 - **`delay`:** open support ticket, dissatisfaction without compliance tag — reschedule only.
 - **`none`:** send when otherwise eligible.
 
+## Mail transport adapter (M2 contract)
+
+**Purpose:** Replace or wrap the default mail transport. Host SES/SMTP adapters live **outside** this repository.
+
+```php
+apply_filters( 'upr_mail_transport', ?MailTransport $transport );
+```
+
+- Production default: `WpMailTransport` (`wp_mail`) — **at-least-once**, not exactly-once.
+- Non-production default: logging/fake transport (no real email).
+- Messages carry a stable UPR `message_id` for provider-side idempotency.
+
+See [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md).
+
+## Review link builder (M2 contract)
+
+Hosts may supply a `ReviewLinkBuilder` via `upr_review_link_builder`, or override the token-free form base via `upr_review_form_base_url`.
+
+**Forbidden:** public filters that receive raw invite or session secrets.
+
+## Host security duties (M2)
+
+When M2 runtime is enabled, hosts **must** redact or exclude `/upr-review/{token}/` from web-server access logs. See [`../runbooks/token-incidents.md`](../runbooks/token-incidents.md).
+
 ## Storefront adapter
 
 Optional filter for PDP summary data:
@@ -67,6 +91,8 @@ Host storefront plugin renders markup; UPR does not output theme HTML.
 
 **M1:** UPR enforces policy via `preprocess_comment` (guest block) and exposes filters only. Host adapters **may** read filters for diagnostics or minimal copy; polished PDP unavailable-form UI is **M3**.
 
+**M2:** Guests with a valid form-session cookie may submit via the invitation form path; native PDP remains default-deny without that session.
+
 **M3:** Host storefront or theme adapter renders messaging when `can_submit` is false.
 
 ### Filters (UPR provides defaults)
@@ -82,7 +108,7 @@ See [`submission-availability.md`](submission-availability.md) for reason codes:
 - `guest_requires_invitation`
 - `not_verified_purchaser`
 
-Host adapters render markup; UPR never calls `wc_add_notice` or theme template hooks in M1.
+Host adapters render markup; UPR never calls `wc_add_notice` or theme template hooks in M1/M2 core for PDP messaging.
 
 ## Theme adapter
 

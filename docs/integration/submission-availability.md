@@ -1,16 +1,15 @@
 # Submission availability contract (M1+)
 
-UPR exposes **read-only, data-only** eligibility information for host adapters. The generic core **does not** render HTML, call `wc_add_notice`, hook theme templates, or implement guest-token submission in M1.
+UPR exposes **read-only, data-only** eligibility information for host adapters. The generic core **does not** render HTML, call `wc_add_notice`, or hook theme templates for PDP messaging. Guest invitation submission is specified in M2 ([`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)).
 
-## Interim M1 policy
+## Policy by milestone
 
-| Actor | Can submit product review (M1) | Enforcement |
-|-------|-------------------------------|-------------|
-| Logged-in verified purchaser | Yes (native WC PDP) | WC verification + UPR moderation hold |
-| Logged-in non-verified purchaser | No | WC verified-owner check |
-| Guest | No | UPR `preprocess_comment` guard (until M2 token flow) |
-
-**M2:** Signed-token guest submission for invitation holders.
+| Actor | M1 | M2 (frozen; runtime post-freeze) |
+|-------|----|----------------------------------|
+| Logged-in verified purchaser | Native WC PDP | Unchanged |
+| Logged-in non-verified purchaser | Blocked by WC | Unchanged |
+| Guest (native PDP) | Blocked | **Default-deny** unless active form-session cookie for that product |
+| Guest (invitation form) | N/A | Allowed via token exchange → session → form; M1 hold still applies |
 
 **M3:** Host storefront/theme adapter renders polished unavailable-form messaging using these filters.
 
@@ -49,7 +48,8 @@ UPR reads WooCommerce review settings; it **never** writes options.
 | Condition | `can_submit` | `reason_code` |
 |-----------|--------------|---------------|
 | `woocommerce_enable_reviews !== 'yes'` | `false` | `reviews_disabled` |
-| Guest (`user_id === 0`) | `false` | `guest_requires_invitation` |
+| Guest (`user_id === 0`) without active M2 form session for product | `false` | `guest_requires_invitation` |
+| Guest with active M2 form session for product | `true` | `null` (context may include `authorization: form_session`) |
 | Logged-in, verification required, not purchased | `false` | `not_verified_purchaser` |
 | Logged-in, verification required, purchased | `true` | `null` |
 | Logged-in, verification not required | `true` | `null` |
@@ -61,7 +61,7 @@ When verification is required, UPR uses public `wc_customer_bought_product()` ag
 | Code | Meaning |
 |------|---------|
 | `reviews_disabled` | Product reviews disabled in WooCommerce settings |
-| `guest_requires_invitation` | Guest must use invitation flow (M2+); blocked in M1 |
+| `guest_requires_invitation` | Guest must use invitation flow; blocked on native PDP without session |
 | `not_verified_purchaser` | Logged-in user has not verified purchase of this product |
 
 Hosts may extend `$availability['context']` via filter callbacks for adapter-specific data (without site-specific identifiers in the generic core).
@@ -94,18 +94,18 @@ UPR returns `null` by default. Host adapters decide presentation (storefront mod
 | Milestone | Adapter role |
 |-----------|--------------|
 | **M1** | May consume filters for diagnostics or minimal messaging; enforcement is in core guards |
+| **M2** | Guest invitation path: session cookie authorizes submit for exact product; hosts redact `/upr-review/{token}/` from access logs |
 | **M3** | Polished PDP unavailable-form UI using reason codes |
-| **M2** | Guest invitation path bypasses native guest block for valid token holders |
 
 See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter.
 
 ---
 
-## What UPR must not do (M1)
+## What UPR must not do
 
-- Echo HTML or JavaScript for review forms
-- Call `wc_add_notice` or WooCommerce template hooks for review UI
-- Register rewrite rules for `/upr-review/{token}/` (M2+)
+- Echo HTML or JavaScript for native PDP review forms (invitation form markup is M2 core, not theme PDP)
+- Call `wc_add_notice` or WooCommerce template hooks for review UI messaging
+- Expose raw invite/session secrets via public filters
 - Mutate WooCommerce or WordPress comment-policy options
 
 ---
@@ -114,3 +114,4 @@ See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter
 
 - [`woocommerce-settings.md`](woocommerce-settings.md) — host replay checklist
 - [`../milestones/M1-core-enablement.md`](../milestones/M1-core-enablement.md) — frozen M1 specification
+- [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md) — frozen M2 specification

@@ -2,32 +2,47 @@
 
 ## Purpose
 
-Backfill missed invitation schedules when delivery events were missed (plugin downtime, adapter gaps).
+Backfill missed invitation schedules, recover abandoned send claims, revoke ineligible items, and repair orphaned review associations. Authoritative behaviour: [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md).
 
-## Command
+## Commands
 
 ```bash
 wp upr reconcile-invitations [--lookback-days=90] [--dry-run]
+wp upr db-upgrade
 ```
 
 ## When to run
 
-- After plugin upgrade or activation on site with order history
+- After plugin upgrade or activation on a site with order history
 - After delivery adapter deployment
-- Nightly AS job `upr_reconcile_invitations` (automatic, M2+)
+- Nightly Action Scheduler job `upr_reconcile_invitations` (automatic in M2 runtime)
 - Manual run after incident recovery
+- When schema version lags (`wp upr db-upgrade`)
 
 ## Procedure
 
-1. Run with `--dry-run`; review proposed schedules.
-2. Confirm count aligns with expected delivered orders in look-back window.
+1. Run with `--dry-run`; review the stdout summary.
+2. Confirm counts align with expected delivered/completed orders in the look-back window.
 3. Run without `--dry-run`.
-4. Verify idempotency — second run schedules nothing new.
+4. Verify idempotency — second run schedules nothing unexpected.
+
+### Dry-run rules
+
+`--dry-run` must perform **zero writes**, including **no audit rows**. Output is stdout only. Audit `reconcile.completed` is written only on non-dry-run executions.
+
+## Repair themes
+
+- Missing invite rows for eligible line items
+- Abandoned `initial_sending` / `reminder_sending` claims past stale window
+- Refunded/cancelled/opted-out/not-reviewable items → suppress + revoke tokens/sessions
+- Orphaned comments with association meta but incomplete UPR state → attach `review_comment_id` and complete; **never** re-invite
 
 ## Filters
 
-Delivery adapter must implement `upr_is_order_delivered` for accurate reconciliation.
+Delivery adapter must implement `upr_is_order_delivered` for accurate reconciliation. Support adapter may return `delay` / `suppress` via `upr_review_invitation_action`.
 
 ## Related
 
 - [`invitation-failures.md`](invitation-failures.md)
+- [`token-incidents.md`](token-incidents.md)
+- [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)
