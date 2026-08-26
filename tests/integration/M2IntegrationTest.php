@@ -158,6 +158,7 @@ final class M2GuestSessionPipelineIntegrationTest extends WP_UnitTestCase {
 				'comment_post_ID'      => $product_id,
 				'comment_author'       => 'Order Guest',
 				'comment_author_email' => 'buyer@example.com',
+				'comment_author_url'   => '',
 				'comment_content'      => 'Great via invitation',
 				'comment_type'         => 'review',
 				'comment_approved'     => 1,
