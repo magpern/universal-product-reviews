@@ -43,15 +43,20 @@ if grep -RIn --include='*.php' -E 'upr_review_page_url' src/ universal-product-r
 fi
 
 echo "==> Rewrite flush must not run from Plugin bootstrap / frontend init"
-if grep -n 'flush_rewrite_rules\|maybe_flush' src/Plugin.php 2>/dev/null; then
+if grep -n 'flush_rewrite_rules\|function maybe_flush(' src/Plugin.php 2>/dev/null; then
   fail "Plugin.php must not flush rewrite rules on bootstrap"
 fi
-if grep -n "add_action(\s*'init'.*flush\|maybe_flush" src/Http/RewriteRules.php 2>/dev/null; then
-  fail "RewriteRules must not flush on ordinary init"
+if grep -n "function maybe_flush(" src/Http/RewriteRules.php 2>/dev/null; then
+  fail "RewriteRules::maybe_flush (frontend) must not exist"
 fi
-# flush_rewrite_rules allowed only in flush_controlled / Activation
+if grep -RIn --include='*.php' -E "RewriteRules::class,\s*'maybe_flush'" src/ 2>/dev/null; then
+  fail "maybe_flush must not be registered"
+fi
 if ! grep -q 'function flush_controlled' src/Http/RewriteRules.php; then
   fail "missing RewriteRules::flush_controlled"
+fi
+if ! grep -q "add_action( 'admin_init', array( self::class, 'maybe_flush_controlled' )" src/Http/RewriteRules.php; then
+  fail "controlled rewrite flush must be admin_init only"
 fi
 
 echo "==> Forbidden WooCommerce Internal references"

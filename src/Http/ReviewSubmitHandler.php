@@ -27,7 +27,9 @@ final class ReviewSubmitHandler {
 	 * Handle POST on the token-free M2 form route only.
 	 */
 	public static function handle(): void {
-		header( 'Referrer-Policy: no-referrer' );
+		if ( ! headers_sent() ) {
+			header( 'Referrer-Policy: no-referrer' );
+		}
 
 		if ( ! self::is_m2_form_post_route() ) {
 			self::fail( 403, __( 'Invalid review submission route.', 'universal-product-reviews' ) );
@@ -138,16 +140,11 @@ final class ReviewSubmitHandler {
 			$claim_token
 		);
 
-		if ( ! $finalized ) {
-			// Comment exists; reconcile will repair. Do not create another review.
+		if ( ! headers_sent() ) {
 			nocache_headers();
 			status_header( 200 );
-			echo esc_html__( 'Thank you. Your review has been submitted and is awaiting moderation.', 'universal-product-reviews' );
-			return;
 		}
-
-		nocache_headers();
-		status_header( 200 );
+		// Comment exists even if finalize failed; reconcile will repair without a second review.
 		echo esc_html__( 'Thank you. Your review has been submitted and is awaiting moderation.', 'universal-product-reviews' );
 	}
 
@@ -163,8 +160,10 @@ final class ReviewSubmitHandler {
 	}
 
 	private static function fail( int $code, string $message ): void {
-		status_header( $code );
-		nocache_headers();
+		if ( ! headers_sent() ) {
+			status_header( $code );
+			nocache_headers();
+		}
 		echo esc_html( $message );
 	}
 }
