@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# M1 CI checks — lint, policy guards, and documentation structure.
+# M2 CI checks — lint, policy guards, and documentation structure.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -20,17 +20,17 @@ test -f universal-product-reviews.php || fail "missing plugin bootstrap"
 test -f src/Plugin.php || fail "missing src/Plugin.php"
 test -f ARCHITECTURE.md || fail "missing ARCHITECTURE.md"
 test -f docs/milestones/M1-core-enablement.md || fail "missing M1 milestone spec"
+test -f docs/milestones/M2-invitations.md || fail "missing M2 milestone spec"
 test -f docs/production-replay.md || fail "missing docs/production-replay.md"
 grep -q 'Plugin Name: Universal Product Reviews' universal-product-reviews.php || fail "plugin header"
-grep -q 'Version: 0.1.0' universal-product-reviews.php || fail "expected M1 version 0.1.0"
+grep -q 'Version: 0.2.0' universal-product-reviews.php || fail "expected M2 version 0.2.0"
 grep -q 'namespace UniversalProductReviews' src/Plugin.php || fail "namespace"
+test -f src/Database/Schema.php || fail "missing Schema.php"
+test -f src/Database/Migrator.php || fail "missing Migrator.php"
 
-echo "==> M1 scope guards (no M2+ artefacts)"
-if grep -RIn --include='*.php' -E 'dbDelta|CREATE TABLE|as_schedule|WP_CLI::add_command|upr_invite|upr_tokens' src/ universal-product-reviews.php 2>/dev/null; then
-  fail "M2+ artefact detected"
-fi
-if grep -RIn --include='*.php' -E 'wc_add_notice|woocommerce_single_product_summary|wp_enqueue_style|register_activation_hook' src/ universal-product-reviews.php 2>/dev/null; then
-  fail "forbidden UI/activation hook detected"
+echo "==> M2 scope guards (forbidden UI / Internal / bypass seams)"
+if grep -RIn --include='*.php' -E 'wc_add_notice|woocommerce_single_product_summary' src/ universal-product-reviews.php 2>/dev/null; then
+  fail "forbidden PDP UI hooks detected"
 fi
 if grep -RIn --include='*.php' -E "add_action\s*\(\s*['\"]pre_comment_on_post" src/ universal-product-reviews.php 2>/dev/null; then
   fail "guest guard must not use pre_comment_on_post"
@@ -38,10 +38,13 @@ fi
 if grep -RIn --include='*.php' -E 'upr_test_guest_block_without_die|should_block_without_die' src/ universal-product-reviews.php 2>/dev/null; then
   fail "production test seam for guest guard must not exist"
 fi
+if grep -RIn --include='*.php' -E 'upr_review_page_url' src/ universal-product-reviews.php 2>/dev/null; then
+  fail "forbidden public filter receiving raw token"
+fi
 
-echo "==> Forbidden WooCommerce Internal OrderReviews references"
-if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews' src/ universal-product-reviews.php 2>/dev/null; then
-  fail "Internal OrderReviews reference found"
+echo "==> Forbidden WooCommerce Internal references"
+if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews|Automattic\\WooCommerce\\Internal\\' src/ universal-product-reviews.php 2>/dev/null; then
+  fail "Internal WooCommerce API reference found"
 fi
 
 echo "==> Forbidden site/vendor patterns in src/"
@@ -65,6 +68,7 @@ done
 echo "==> Documentation link sanity (required files exist)"
 required_docs=(
   docs/milestones/M1-core-enablement.md
+  docs/milestones/M2-invitations.md
   docs/integration/adapters.md
   docs/integration/schema-acceptance.md
   docs/integration/submission-availability.md
@@ -87,4 +91,4 @@ echo "==> CI workflow asserts DEV integration coordinates"
 grep -q '11.0.1' .github/workflows/ci.yml || fail "WC 11.0.1 mandatory leg missing from CI"
 grep -q '8.4' .github/workflows/ci.yml || fail "PHP 8.4 mandatory leg missing from CI"
 
-echo "==> All M1 CI checks passed"
+echo "==> All M2 CI checks passed"

@@ -76,3 +76,46 @@ if ( ! function_exists( 'wp_die' ) ) {
 		throw new RuntimeException( (string) $message );
 	}
 }
+
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+	define( 'DAY_IN_SECONDS', 86400 );
+}
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+	define( 'MINUTE_IN_SECONDS', 60 );
+}
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
+	define( 'HOUR_IN_SECONDS', 3600 );
+}
+
+if ( ! function_exists( 'wp_salt' ) ) {
+	function wp_salt( $scheme = 'auth' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return 'upr-test-salt-' . $scheme;
+	}
+}
+
+if ( ! function_exists( 'wp_get_environment_type' ) ) {
+	function wp_get_environment_type() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $GLOBALS['upr_test_env'] ?? 'production';
+	}
+}
+
+if ( ! function_exists( 'is_ssl' ) ) {
+	function is_ssl() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return (bool) ( $GLOBALS['upr_test_ssl'] ?? true );
+	}
+}
+
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $post = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$id = is_object( $post ) ? (int) $post->ID : (int) $post;
+		return $GLOBALS['upr_test_posts'][ $id ] ?? null;
+	}
+}
+
+if ( ! function_exists( '__' ) ) {
+	function __( $text, $domain = 'default' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $domain );
+		return $text;
+	}
+}
+

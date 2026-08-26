@@ -6,10 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- M2 invitations runtime: line-item invite state, HMAC tokens, form sessions, Action Scheduler jobs, guest invitation submit, mail transport abstraction, CLI reconcile/db-upgrade (plugin version `0.2.0` unreleased; no `v0.2.0` git tag yet).
+
 ### Documentation
 
 - M2 invitations plan frozen at tag `m2-invitations-freeze`.
-- [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) — authoritative M2 specification (implementation begins only after freeze tag).
+- [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) — authoritative M2 specification.
 
 ### Fixed
 

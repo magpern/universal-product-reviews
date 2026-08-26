@@ -1,6 +1,6 @@
 <?php
 /**
- * Interim M1 guest submission guard for product reviews.
+ * Guest submission guard for product reviews.
  *
  * @package UniversalProductReviews
  */
@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Submission;
 
 use UniversalProductReviews\Moderation\ReviewScope;
+use UniversalProductReviews\Tokens\FormSessionAuthenticator;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -25,7 +26,7 @@ final class GuestSubmissionGuard {
 	}
 
 	/**
-	 * Reject unauthenticated in-scope product reviews before persistence.
+	 * Reject unauthenticated in-scope product reviews unless an M2 form session authorizes the product.
 	 *
 	 * @param array<string, mixed> $commentdata Comment data.
 	 * @return array<string, mixed>
@@ -39,8 +40,13 @@ final class GuestSubmissionGuard {
 			return $commentdata;
 		}
 
+		$product_id = (int) ( $commentdata['comment_post_ID'] ?? 0 );
+		if ( $product_id > 0 && FormSessionAuthenticator::authorize_product( $product_id ) ) {
+			return $commentdata;
+		}
+
 		wp_die(
-			esc_html__( 'Product reviews require a logged-in account.', 'universal-product-reviews' ),
+			esc_html__( 'Product reviews require a logged-in account or a valid review invitation.', 'universal-product-reviews' ),
 			esc_html__( 'Review submission unavailable', 'universal-product-reviews' ),
 			array( 'response' => 403 )
 		);

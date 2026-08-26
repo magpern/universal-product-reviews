@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Universal Product Reviews
  * Plugin URI: https://github.com/magpern/universal-product-reviews
- * Description: Portable WooCommerce product-review operations (invitations, moderation, retention). M1 core enablement — review-scoped moderation and guest guard.
- * Version: 0.1.0
+ * Description: Portable WooCommerce product-review operations (invitations, moderation, retention). M2 invitations and guest authorization.
+ * Version: 0.2.0
  * Author: magpern
  * License: Proprietary
  * Text Domain: universal-product-reviews
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UPR_VERSION', '0.1.0' );
+define( 'UPR_VERSION', '0.2.0' );
 define( 'UPR_PLUGIN_FILE', __FILE__ );
 define( 'UPR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -28,6 +28,15 @@ $upr_autoload = UPR_PLUGIN_DIR . 'vendor/autoload.php';
 if ( is_readable( $upr_autoload ) ) {
 	require_once $upr_autoload;
 }
+
+register_activation_hook(
+	__FILE__,
+	static function (): void {
+		if ( class_exists( \UniversalProductReviews\Activation::class ) ) {
+			\UniversalProductReviews\Activation::activate();
+		}
+	}
+);
 
 add_action(
 	'before_woocommerce_init',

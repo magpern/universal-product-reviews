@@ -2,7 +2,7 @@
 
 Public-source, proprietary WooCommerce plugin (`UPR`) for verified-purchase product reviews, line-item invitation lifecycle, moderation, retention, and host adapter integration.
 
-**Version:** `0.1.0` (M1 core enablement — review-scoped moderation and guest guard)
+**Version:** `0.2.0` (M2 invitations — unreleased; awaiting closure acceptance before `v0.2.0` tag)
 
 ## Status
 
@@ -10,7 +10,7 @@ Public-source, proprietary WooCommerce plugin (`UPR`) for verified-purchase prod
 |-----------|-------|
 | M0 | Repository foundation and frozen architecture (Rev 6) |
 | M1 | Core enablement — bootstrap, HPOS declare, moderation hold, guest guard, availability filters (`v0.1.0`) |
-| M2 | Invitations plan **frozen** (`m2-invitations-freeze`); runtime not started |
+| M2 | Invitations runtime implemented on `feat/m2-invitations` (frozen at `m2-invitations-freeze`; not tagged `v0.2.0`) |
 | M3+ | Not started |
 
 This repository contains the portable plugin core and generic integration documentation. Host-specific adapters, theme CSS, and site configuration live **outside** this repository.
