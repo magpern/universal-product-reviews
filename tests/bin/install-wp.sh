@@ -48,6 +48,11 @@ CONFIG_FILE="${ROOT}/tests/wp-tests-config.php"
 if [ ! -f "$CONFIG_FILE" ]; then
 	cat > "$CONFIG_FILE" << 'EOF'
 <?php
+/**
+ * WordPress PHPUnit database configuration.
+ *
+ * Do not load wp-settings.php here — wp-phpunit's includes/bootstrap.php does that.
+ */
 define( 'DB_NAME', getenv( 'WP_DB_NAME' ) ?: 'wordpress_test' );
 define( 'DB_USER', getenv( 'WP_DB_USER' ) ?: 'root' );
 define( 'DB_PASSWORD', getenv( 'WP_DB_PASS' ) ?: 'root' );
@@ -63,7 +68,6 @@ define( 'WP_PHP_BINARY', 'php' );
 define( 'ABSPATH', __DIR__ . '/tmp/wordpress/' );
 define( 'WP_DEBUG_DISPLAY', false );
 $table_prefix = getenv( 'WP_PHPUNIT__TABLE_PREFIX' ) ?: 'wptests_';
-require_once ABSPATH . 'wp-settings.php';
 EOF
 fi
 

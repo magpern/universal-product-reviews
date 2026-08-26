@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove `upr_test_guest_block_without_die` production test seam from the guest submission guard.
+- Strengthen guest-guard integration coverage via the real `wp_new_comment` / `preprocess_comment` pipeline, including WC type-normalisation ordering and non-persistence assertions.
+- Fix integration bootstrap so HPOS declaration and wp-phpunit config load correctly under WooCommerce 11.0.1.
+
 ## [0.1.0] - M1 core enablement
 
 ### Added
