@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Submission;
 
+use UniversalProductReviews\Tokens\FormSessionAuthenticator;
+
 defined( 'ABSPATH' ) || exit;
 
 final class ReviewAvailability {
@@ -29,6 +31,11 @@ final class ReviewAvailability {
 		}
 
 		if ( $user_id <= 0 ) {
+			if ( FormSessionAuthenticator::authorize_product( $product_id ) ) {
+				$result = self::result( true, null, $product_id, $user_id );
+				$result['context']['authorization'] = 'form_session';
+				return $result;
+			}
 			return self::result( false, 'guest_requires_invitation', $product_id, $user_id );
 		}
 

@@ -6,16 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent concurrent duplicate guest reviews via durable per-item submit claim acquired before `wp_new_comment`.
+- Require request-local M2 handler authorization in addition to form-session cookie (block native comment-route bypass).
+- Replace migrator read-then-update lock with atomic option lease (`add_option` + CAS delete).
+- Paginate reconciliation beyond 200 orders; derive `eligible_at` from source event time (not reconcile-now).
+- Flush rewrite rules only on activation / controlled admin-CLI paths (never ordinary frontend `init`).
+
+### Added
+
+- M2 invitations runtime: line-item invite state, HMAC tokens, form sessions, Action Scheduler jobs, guest invitation submit, mail transport abstraction, CLI reconcile/db-upgrade (plugin version `0.2.0` unreleased; no `v0.2.0` git tag yet).
+
 ### Documentation
 
 - M2 invitations plan frozen at tag `m2-invitations-freeze`.
-- [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) — authoritative M2 specification (implementation begins only after freeze tag).
-
-### Fixed
-
-- Remove `upr_test_guest_block_without_die` production test seam from the guest submission guard.
-- Strengthen guest-guard integration coverage via the real `wp_new_comment` / `preprocess_comment` pipeline, including WC type-normalisation ordering and non-persistence assertions.
-- Fix integration bootstrap so HPOS declaration and wp-phpunit config load correctly under WooCommerce 11.0.1.
+- [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) — authoritative M2 specification.
 
 ## [0.1.0] - M1 core enablement
 
