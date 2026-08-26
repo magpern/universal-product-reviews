@@ -25,7 +25,24 @@ final class Migrator {
 
 	public static function needs_upgrade(): bool {
 		$installed = (string) get_option( self::OPTION_VERSION, '' );
-		return $installed !== Schema::DB_VERSION;
+		if ( $installed !== Schema::DB_VERSION ) {
+			return true;
+		}
+		return ! self::tables_exist();
+	}
+
+	/**
+	 * True when all schema tables are present.
+	 */
+	public static function tables_exist(): bool {
+		global $wpdb;
+		foreach ( array_keys( Schema::table_definitions() ) as $table ) {
+			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			if ( $found !== $table ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -34,6 +51,8 @@ final class Migrator {
 	 * @return bool True if schema is at target version after call.
 	 */
 	public static function upgrade_now(): bool {
+		self::reap_expired_lock();
+
 		if ( ! self::needs_upgrade() ) {
 			return true;
 		}
@@ -45,6 +64,7 @@ final class Migrator {
 				break;
 			}
 			usleep( 100000 );
+			self::reap_expired_lock();
 			if ( ! self::needs_upgrade() ) {
 				return true;
 			}
@@ -60,7 +80,7 @@ final class Migrator {
 			}
 			self::run_dbdelta();
 			update_option( self::OPTION_VERSION, Schema::DB_VERSION, true );
-			return true;
+			return self::tables_exist();
 		} finally {
 			self::release_lock();
 		}
@@ -204,5 +224,23 @@ final class Migrator {
 		wp_cache_delete( 'alloptions', 'options' );
 
 		return (int) $n >= 1;
+	}
+
+	/**
+	 * Drop an expired or corrupt lock via CAS so a fresh add_option can proceed.
+	 */
+	private static function reap_expired_lock(): void {
+		$existing = get_option( self::LOCK_KEY, null );
+		if ( null === $existing || false === $existing ) {
+			return;
+		}
+		if ( ! is_array( $existing ) || ! isset( $existing['until'] ) ) {
+			self::cas_delete_lock( $existing );
+			return;
+		}
+		if ( (int) $existing['until'] > time() ) {
+			return;
+		}
+		self::cas_delete_lock( $existing );
 	}
 }

@@ -98,6 +98,20 @@ trait M2TestHelpers {
 			'session'         => $session,
 		);
 	}
+
+	/**
+	 * Ensure schema tables exist. Clears any orphaned migrate lock left by PHPUnit
+	 * rolling back the options-table DELETE from a prior Migrator::release_lock().
+	 */
+	protected function upr_ensure_schema(): void {
+		delete_option( Migrator::LOCK_KEY );
+		$ref  = new \ReflectionClass( Migrator::class );
+		$prop = $ref->getProperty( 'owner_token' );
+		$prop->setAccessible( true );
+		$prop->setValue( null );
+		$this->assertTrue( Migrator::upgrade_now(), 'schema upgrade must succeed' );
+		$this->assertTrue( Migrator::tables_exist(), 'upr schema tables must exist' );
+	}
 }
 
 final class M2GuestAuthContextIntegrationTest extends WP_UnitTestCase {
@@ -105,7 +119,7 @@ final class M2GuestAuthContextIntegrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		Migrator::upgrade_now();
+		$this->upr_ensure_schema();
 		wp_set_current_user( 0 );
 		GuestSubmitAuthorization::clear();
 		$_SERVER['REQUEST_METHOD'] = 'GET';
@@ -203,7 +217,7 @@ final class M2SubmitClaimIntegrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		Migrator::upgrade_now();
+		$this->upr_ensure_schema();
 		wp_set_current_user( 0 );
 		GuestSubmitAuthorization::clear();
 	}
@@ -398,7 +412,7 @@ final class M2ReconcilePaginationIntegrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		Migrator::upgrade_now();
+		$this->upr_ensure_schema();
 	}
 
 	public function test_eligible_at_from_past_source_event_not_now_plus_delay(): void {

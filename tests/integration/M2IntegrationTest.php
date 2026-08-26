@@ -24,6 +24,7 @@ use WP_UnitTestCase;
 final class M2SchemaIntegrationTest extends WP_UnitTestCase {
 
 	public function test_migrator_creates_tables(): void {
+		delete_option( Migrator::LOCK_KEY );
 		delete_option( Migrator::OPTION_VERSION );
 		$this->assertTrue( Migrator::upgrade_now() );
 		$this->assertSame( Schema::DB_VERSION, get_option( Migrator::OPTION_VERSION ) );
@@ -44,6 +45,7 @@ final class M2TokenExchangeIntegrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+		delete_option( Migrator::LOCK_KEY );
 		Migrator::upgrade_now();
 		LoggingMailTransport::reset();
 	}
@@ -105,6 +107,7 @@ final class M2GuestSessionPipelineIntegrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+		delete_option( Migrator::LOCK_KEY );
 		Migrator::upgrade_now();
 		wp_set_current_user( 0 );
 	}
@@ -174,6 +177,7 @@ final class M2ReconcileDryRunIntegrationTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+		delete_option( Migrator::LOCK_KEY );
 		Migrator::upgrade_now();
 	}
 
