@@ -16,7 +16,7 @@ jobs:
     name: M1 lint and policy checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -32,7 +32,7 @@ jobs:
       matrix:
         php: ['8.1', '8.4']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -63,7 +63,7 @@ jobs:
       WP_DB_PASS: root
       WC_VERSION: '11.0.1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -98,7 +98,7 @@ jobs:
       WP_DB_PASS: root
       WC_VERSION: '8.2.0'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
