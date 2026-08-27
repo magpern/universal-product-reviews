@@ -12,6 +12,8 @@ namespace UniversalProductReviews\Tests\Integration;
 use UniversalProductReviews\Admin\AdminCache;
 use UniversalProductReviews\Admin\Diagnostics\DiagnosticsService;
 use UniversalProductReviews\Admin\OverviewRepository;
+use UniversalProductReviews\Admin\SettingsPage;
+use UniversalProductReviews\Admin\SiteHealth;
 use UniversalProductReviews\Admin\SupportExport;
 use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Config\Options;
@@ -228,5 +230,52 @@ final class M4OperatorControlsIntegrationTest extends WP_UnitTestCase {
 				$this->assertDoesNotMatchRegularExpression( '/\bbiopentra\b/i', $src, $path );
 			}
 		}
+	}
+
+	public function test_settings_post_without_confirm_cannot_enable_emails(): void {
+		delete_option( Options::INVITATION_EMAILS_ENABLED );
+		$_POST = array(
+			Options::INVITATION_EMAILS_ENABLED => 'yes',
+			// Intentionally omit SettingsPage::CONFIRM_ENABLE_EMAILS.
+		);
+
+		$returned = SettingsPage::sanitize_enabled( 'yes' );
+		$this->assertSame( 'no', $returned );
+		$this->assertFalse( Options::invitation_emails_enabled() );
+	}
+
+	public function test_settings_post_without_confirm_cannot_activate_pause(): void {
+		delete_option( Options::INVITATION_EMERGENCY_PAUSE );
+		$_POST = array(
+			Options::INVITATION_EMERGENCY_PAUSE => 'yes',
+			// Intentionally omit SettingsPage::CONFIRM_EMERGENCY_PAUSE.
+		);
+
+		$returned = SettingsPage::sanitize_pause( 'yes' );
+		$this->assertSame( 'no', $returned );
+		$this->assertFalse( Options::invitation_emergency_pause() );
+	}
+
+	public function test_matching_db_version_with_missing_table_reports_schema_warning(): void {
+		global $wpdb;
+		$this->assertTrue( Migrator::upgrade_now() );
+		update_option( Migrator::OPTION_VERSION, Schema::DB_VERSION, true );
+
+		$table = $wpdb->prefix . 'upr_invite_items';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test fixture DROP of fixed table name.
+		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+		$this->assertFalse( Migrator::tables_exist() );
+		$this->assertTrue( Migrator::needs_upgrade() );
+
+		AdminCache::invalidate();
+		$d4 = DiagnosticsService::check_d4();
+		$this->assertSame( 'warning', $d4['status'] );
+		$this->assertSame( 'schema_tables_missing', $d4['evidence_code'] );
+
+		$site = SiteHealth::test_schema();
+		$this->assertSame( 'recommended', $site['status'] );
+
+		// Restore schema for later tests in the suite.
+		$this->assertTrue( Migrator::upgrade_now() );
 	}
 }

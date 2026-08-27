@@ -65,6 +65,13 @@ final class RewriteRules {
 	}
 
 	/**
+	 * True when stored rewrite version lags the plugin constant.
+	 */
+	public static function needs_flush(): bool {
+		return (string) get_option( self::VERSION_OPTION, '' ) !== self::VERSION;
+	}
+
+	/**
 	 * Admin/CLI-only rewrite upgrade when version lags.
 	 */
 	public static function maybe_flush_controlled(): void {
@@ -72,7 +79,7 @@ final class RewriteRules {
 		if ( ! $allowed ) {
 			return;
 		}
-		if ( (string) get_option( self::VERSION_OPTION, '' ) === self::VERSION ) {
+		if ( ! self::needs_flush() ) {
 			return;
 		}
 		self::flush_controlled();

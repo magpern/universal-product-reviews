@@ -172,17 +172,33 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 		/** @var string */
 		public $commentmeta = 'wp_commentmeta';
 
+		public function get_charset_collate() {
+			return 'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
+		}
+
 		public function insert( $table, $data, $format = null ) {
 			unset( $table, $data, $format );
 			return 1;
 		}
 
 		public function prepare( $query, ...$args ) {
-			unset( $args );
-			return $query;
+			$out = (string) $query;
+			foreach ( $args as $arg ) {
+				$out = preg_replace( '/%[sdfF]/', (string) $arg, $out, 1 ) ?? $out;
+			}
+			return $out;
 		}
 
 		public function get_var( $query = null ) {
+			if ( is_string( $query ) && false !== stripos( $query, 'SHOW TABLES LIKE' ) ) {
+				if ( ! empty( $GLOBALS['upr_test_missing_tables'] ) ) {
+					return null;
+				}
+				if ( preg_match( '/SHOW TABLES LIKE\s+(\S+)/i', $query, $m ) ) {
+					return trim( $m[1], "'\"`" );
+				}
+				return 'wp_upr_stub';
+			}
 			unset( $query );
 			return null;
 		}

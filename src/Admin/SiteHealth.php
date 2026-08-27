@@ -11,7 +11,6 @@ namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
-use UniversalProductReviews\Database\Schema;
 use UniversalProductReviews\WooCommerce\WooCommerceGate;
 
 defined( 'ABSPATH' ) || exit;
@@ -59,8 +58,7 @@ final class SiteHealth {
 	 * @return array<string, mixed>
 	 */
 	public static function test_schema(): array {
-		$installed = (string) get_option( Migrator::OPTION_VERSION, '' );
-		$ok        = $installed === Schema::DB_VERSION;
+		$ok = ! Migrator::needs_upgrade();
 
 		return array(
 			'label'       => __( 'UPR database schema', 'universal-product-reviews' ),
@@ -70,8 +68,8 @@ final class SiteHealth {
 				'color' => $ok ? 'blue' : 'orange',
 			),
 			'description' => $ok
-				? '<p>' . esc_html__( 'UPR database schema version matches the plugin target.', 'universal-product-reviews' ) . '</p>'
-				: '<p>' . esc_html__( 'UPR database schema is behind the plugin target. Run the controlled database upgrade from Product Reviews → Controls.', 'universal-product-reviews' ) . '</p>',
+				? '<p>' . esc_html__( 'UPR database schema version matches the plugin target and required tables exist.', 'universal-product-reviews' ) . '</p>'
+				: '<p>' . esc_html__( 'UPR database schema is behind target or tables are missing. Run the controlled database upgrade from Product Reviews → Controls.', 'universal-product-reviews' ) . '</p>',
 			'actions'     => '',
 			'test'        => 'upr_schema',
 		);

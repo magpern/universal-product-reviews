@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Config\Options;
-use UniversalProductReviews\Database\Schema;
+use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Invitations\InviteRepository;
 use UniversalProductReviews\Invitations\ScheduleStates;
 
@@ -228,7 +228,6 @@ final class OverviewRepository {
 	}
 
 	public static function schema_is_current(): bool {
-		$installed = (string) get_option( \UniversalProductReviews\Database\Migrator::OPTION_VERSION, '' );
-		return $installed === Schema::DB_VERSION;
+		return ! Migrator::needs_upgrade();
 	}
 }

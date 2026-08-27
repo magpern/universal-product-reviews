@@ -126,17 +126,22 @@ final class DiagnosticsService {
 	 * @return array{id:string,status:string,severity:string,message:string,evidence_code:string}
 	 */
 	public static function check_d4(): array {
-		$installed = (string) get_option( Migrator::OPTION_VERSION, '' );
-		if ( $installed !== Schema::DB_VERSION ) {
+		if ( Migrator::needs_upgrade() ) {
+			$installed = (string) get_option( Migrator::OPTION_VERSION, '' );
+			$code      = ( $installed === Schema::DB_VERSION && ! Migrator::tables_exist() )
+				? 'schema_tables_missing'
+				: 'schema_behind';
 			return self::result(
 				'D4',
 				'warning',
 				'Warning',
-				'Database schema version is behind the plugin target.',
-				'schema_behind'
+				'schema_tables_missing' === $code
+					? 'Database schema tables are missing despite a matching version option.'
+					: 'Database schema version is behind the plugin target.',
+				$code
 			);
 		}
-		return self::result( 'D4', 'pass', 'Pass', 'Database schema version matches the plugin target.', 'schema_current' );
+		return self::result( 'D4', 'pass', 'Pass', 'Database schema version matches the plugin target and tables exist.', 'schema_current' );
 	}
 
 	/**

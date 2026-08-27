@@ -11,7 +11,6 @@ namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
-use UniversalProductReviews\Database\Schema;
 use UniversalProductReviews\Invitations\EmergencyPause;
 use UniversalProductReviews\Invitations\InvitationEmailControls;
 
@@ -20,6 +19,12 @@ defined( 'ABSPATH' ) || exit;
 final class SettingsPage {
 
 	public const MENU_SLUG = 'universal-product-reviews';
+
+	/** Posted confirmation required to enable invitation emails. */
+	public const CONFIRM_ENABLE_EMAILS = 'upr_confirm_enable_emails';
+
+	/** Posted confirmation required to activate emergency pause. */
+	public const CONFIRM_EMERGENCY_PAUSE = 'upr_confirm_emergency_pause';
 
 	/**
 	 * Register Settings API options only (menu owned by AdminController).
@@ -57,6 +62,13 @@ final class SettingsPage {
 	 */
 	public static function sanitize_enabled( $value ): string {
 		$enabled = self::is_checked( $value );
+		$was     = Options::invitation_emails_enabled();
+
+		// Enabling requires a verified posted confirmation field (JS confirm alone is not enough).
+		if ( $enabled && ! $was && ! self::posted_confirm( self::CONFIRM_ENABLE_EMAILS ) ) {
+			return $was ? 'yes' : 'no';
+		}
+
 		InvitationEmailControls::set_emails_enabled( $enabled );
 		return $enabled ? 'yes' : 'no';
 	}
@@ -66,12 +78,29 @@ final class SettingsPage {
 	 */
 	public static function sanitize_pause( $value ): string {
 		$paused = self::is_checked( $value );
+		$was    = Options::invitation_emergency_pause();
+
+		// Activating pause requires a verified posted confirmation field.
+		if ( $paused && ! $was && ! self::posted_confirm( self::CONFIRM_EMERGENCY_PAUSE ) ) {
+			return $was ? 'yes' : 'no';
+		}
+
 		$reason = '';
 		if ( isset( $_POST['upr_invitation_emergency_pause_reason'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$reason = sanitize_text_field( wp_unslash( (string) $_POST['upr_invitation_emergency_pause_reason'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		}
 		EmergencyPause::set_paused( $paused, $reason );
 		return $paused ? 'yes' : 'no';
+	}
+
+	/**
+	 * True when the named confirmation checkbox was posted as "1".
+	 */
+	public static function posted_confirm( string $field ): bool {
+		if ( empty( $_POST[ $field ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return false;
+		}
+		return '1' === (string) wp_unslash( $_POST[ $field ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
@@ -96,7 +125,7 @@ final class SettingsPage {
 		$enabled      = Options::invitation_emails_enabled();
 		$paused       = Options::invitation_emergency_pause();
 		$meta         = EmergencyPause::meta();
-		$schema_ok    = (string) get_option( Migrator::OPTION_VERSION, '' ) === Schema::DB_VERSION;
+		$schema_ok    = ! Migrator::needs_upgrade();
 		$admin_post   = admin_url( 'admin-post.php' );
 		?>
 		<div class="upr-controls">
@@ -140,6 +169,12 @@ final class SettingsPage {
 							<p class="description">
 								<?php echo esc_html__( 'Default is disabled. When disabled, outstanding invitation links remain valid, but no new invitation email is scheduled or sent.', 'universal-product-reviews' ); ?>
 							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_EMAILS ); ?>" value="1" id="upr_confirm_enable_emails" />
+									<?php echo esc_html__( 'I confirm enabling invitation emails (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
 						</td>
 					</tr>
 					<tr>
@@ -153,6 +188,12 @@ final class SettingsPage {
 							<p class="description" style="color:#b32d2e;">
 								<strong><?php echo esc_html__( 'Warning:', 'universal-product-reviews' ); ?></strong>
 								<?php echo esc_html__( 'This is an emergency stop. While paused, invitation emails will not send, and outstanding invitation tokens and form sessions are revoked.', 'universal-product-reviews' ); ?>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_EMERGENCY_PAUSE ); ?>" value="1" id="upr_confirm_emergency_pause" />
+									<?php echo esc_html__( 'I confirm activating emergency pause (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
 							</p>
 							<p>
 								<label for="upr_invitation_emergency_pause_reason">
@@ -187,13 +228,25 @@ final class SettingsPage {
 				form.addEventListener('submit', function (e) {
 					var emails = document.getElementById('upr_invitation_emails_enabled');
 					var pause = document.getElementById('upr_invitation_emergency_pause');
+					var confirmEmails = document.getElementById('upr_confirm_enable_emails');
+					var confirmPause = document.getElementById('upr_confirm_emergency_pause');
 					if (emails && emails.checked && emails.getAttribute('data-upr-was') === '0') {
+						if (!confirmEmails || !confirmEmails.checked) {
+							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to enable invitation emails.', 'universal-product-reviews' ) ); ?>);
+							e.preventDefault();
+							return;
+						}
 						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable invitation emails? This refreshes the no-retro-send scheduling boundary.', 'universal-product-reviews' ) ); ?>)) {
 							e.preventDefault();
 							return;
 						}
 					}
 					if (pause && pause.checked && pause.getAttribute('data-upr-was') === '0') {
+						if (!confirmPause || !confirmPause.checked) {
+							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to activate emergency pause.', 'universal-product-reviews' ) ); ?>);
+							e.preventDefault();
+							return;
+						}
 						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable emergency pause? This revokes outstanding tokens and cancels pending invitation sends.', 'universal-product-reviews' ) ); ?>)) {
 							e.preventDefault();
 						}

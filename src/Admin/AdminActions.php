@@ -11,7 +11,6 @@ namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Database\Migrator;
-use UniversalProductReviews\Database\Schema;
 use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Invitations\ReconciliationService;
 
@@ -97,12 +96,16 @@ final class AdminActions {
 
 		$from = (string) get_option( Migrator::OPTION_VERSION, '' );
 		$ok   = Migrator::upgrade_now();
-		RewriteRules::flush_controlled();
-		$to      = (string) get_option( Migrator::OPTION_VERSION, '' );
-		$current = ( $to === Schema::DB_VERSION ) && $ok;
+		$to   = (string) get_option( Migrator::OPTION_VERSION, '' );
+		// Success = upgrade_now reported ok and schema is current (version + tables).
+		$current = $ok && ! Migrator::needs_upgrade();
 		$actor   = (int) get_current_user_id();
 
 		if ( $current ) {
+			// Flush only after verified success, and only when rewrite version actually lags.
+			if ( RewriteRules::needs_flush() ) {
+				RewriteRules::flush_controlled();
+			}
 			AuditLogger::log(
 				'schema.upgraded',
 				'hook',

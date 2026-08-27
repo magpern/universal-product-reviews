@@ -20,7 +20,7 @@ Distinguish these on Controls:
 2. **Emergency pause active** — blocks scheduling/sending; revokes outstanding tokens on pause.
 3. **Sending not authorised** — host filter `upr_invitation_send_authorisation` may still deny; **cannot be toggled in UPR admin**.
 
-Enabling emails or unpausing refreshes the no-retro-send scheduling boundary. Enabling emails or enabling pause requires confirmation in the Controls UI.
+Enabling emails or unpausing refreshes the no-retro-send scheduling boundary. Enabling emails or enabling pause requires a **posted confirmation checkbox** verified server-side (browser `confirm()` alone is not sufficient).
 
 ## Diagnostics (D1–D11)
 
@@ -37,7 +37,7 @@ Controls → **Download support export**. Schema `upr-support-export/v1`. Allowl
 | Action | Cap | Nonce | Confirmation |
 |--------|-----|-------|--------------|
 | View Overview / Diagnostics / Controls | `manage_woocommerce` | n/a | n/a |
-| Save enable / pause settings | `manage_woocommerce` | Settings API | JS confirm on enable emails / enable pause |
+| Save enable / pause settings | `manage_woocommerce` | Settings API | Server-side `upr_confirm_enable_emails` / `upr_confirm_emergency_pause` required when enabling; JS is UX only |
 | Reconcile dry-run | `manage_woocommerce` | `upr_reconcile_dry_run` | no |
 | Reconcile apply | `manage_woocommerce` | `upr_reconcile_apply` | `upr_confirm=1` |
 | Controlled DB upgrade | `manage_woocommerce` | `upr_db_upgrade` | `upr_confirm=1` |

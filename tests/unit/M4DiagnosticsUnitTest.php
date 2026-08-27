@@ -114,6 +114,7 @@ final class M4DiagnosticsUnitTest extends TestCase {
 		$GLOBALS['upr_test_options'][ Options::INVITATION_EMERGENCY_PAUSE ]        = 'no';
 		$GLOBALS['upr_test_options'][ Options::INVITATION_SCHEDULING_BOUNDARY_AT ] = '0';
 		$GLOBALS['upr_test_options'][ Migrator::OPTION_VERSION ]                   = Schema::DB_VERSION;
+		unset( $GLOBALS['upr_test_missing_tables'] );
 
 		AdminCache::invalidate();
 		$results = DiagnosticsService::run( false );
@@ -140,6 +141,15 @@ final class M4DiagnosticsUnitTest extends TestCase {
 		// Cache path: AdminCache get returns false initially after invalidate; second run with cache uses set value.
 		$cached = DiagnosticsService::run( true );
 		$this->assertCount( 11, $cached );
+	}
+
+	public function test_d4_warns_when_version_matches_but_tables_missing(): void {
+		$GLOBALS['upr_test_options'][ Migrator::OPTION_VERSION ] = Schema::DB_VERSION;
+		$GLOBALS['upr_test_missing_tables']                      = true;
+		$r = DiagnosticsService::check_d4();
+		$this->assertSame( 'warning', $r['status'] );
+		$this->assertSame( 'schema_tables_missing', $r['evidence_code'] );
+		unset( $GLOBALS['upr_test_missing_tables'] );
 	}
 
 	/**
