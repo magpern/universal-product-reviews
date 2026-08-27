@@ -160,7 +160,8 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_allowed_flow_sends_via_logging_transport(): void {
-		update_option( Options::INVITATION_EMAILS_ENABLED, 'yes', false );
+		$this->upr_enable_invitation_emails();
+		$this->upr_use_logging_mail_transport();
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
 		$past       = time() - ( 30 * DAY_IN_SECONDS );
