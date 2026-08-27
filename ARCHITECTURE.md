@@ -4,6 +4,8 @@
 
 **Repository governance:** The repository is public and proprietary, as decided by [ADR-0001](docs/decisions/ADR-0001-repository-visibility.md). This later governance decision overrides Rev 6's private-repository assumption without changing the frozen technical scope.
 
+**Productization boundary:** Two layers only — this WooCommerce core plus external host adapters — as decided by [ADR-0002](docs/decisions/ADR-0002-productization-boundary.md). Do not introduce a third reusable WooCommerce companion package.
+
 **Product scope:** Portable WooCommerce product-review operations. Site-, theme-, fulfillment-, support-desk-, and SEO-plugin-specific wiring is **external** — host adapters documented in [`docs/integration/`](docs/integration/).
 
 ---
@@ -47,11 +49,14 @@
 
 - Per–order-line-item invitation state (`upr_invite_items`)
 - Signed tokens + session exchange + guest/account submission handlers
+- Availability contract (`upr_product_review_availability`) and availability-aligned native product-comment enforcement (see [ADR-0002](docs/decisions/ADR-0002-productization-boundary.md); B1 target `v0.2.2`)
 - Review-scoped moderation for product reviews
 - Deterministic spam rules, `upr_audit`, `PurgeContext` retention
 - 7-day edit authorization and re-moderation
 - Admin queue, invitations grid, settings, reconcile tool
 - Public extension API (documented below)
+
+Core **must not** use `comments_open` as an availability or submission gate.
 
 ### 3.2 External adapter roles
 
