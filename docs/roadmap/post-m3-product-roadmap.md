@@ -16,6 +16,8 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - Mail, cron, adapter, and Site Health diagnostics.
 - Installation wizard and compatibility preflight.
 
+**M4.1 freeze:** [`m4-operator-controls-and-diagnostics.md`](m4-operator-controls-and-diagnostics.md).
+
 ## M5 — Review Moderation Operations
 
 - Moderation filters, bulk actions, product/order context.
