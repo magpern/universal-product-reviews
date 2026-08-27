@@ -228,16 +228,15 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 
 	public function test_new_eligible_event_after_enable_allows_normal_flow(): void {
 		$this->upr_use_logging_mail_transport();
+		// Boundary slightly in the past so a post-boundary source can already be delay-due.
+		$boundary = time() - ( 2 * DAY_IN_SECONDS );
 		InvitationEmailControls::set_emails_enabled( true );
-		$boundary = Options::invitation_scheduling_boundary_unix();
-		$this->assertGreaterThan( 0, $boundary );
+		Options::refresh_scheduling_boundary( $boundary );
+		update_option( Options::DELAY_AFTER_DELIVERY, 0, false );
 
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
-		// Source after boundary but old enough that delay window is already due.
-		$event = $boundary + 1;
-		// Force delay to 0 for this assertion path via temporary option.
-		update_option( Options::DELAY_AFTER_DELIVERY, 0, false );
+		$event      = $boundary + DAY_IN_SECONDS;
 
 		$ctx['order']->update_meta_data( InvitationScheduler::META_DELIVERY_CONFIRMED_AT, gmdate( 'Y-m-d H:i:s', $event ) );
 		$ctx['order']->save();
