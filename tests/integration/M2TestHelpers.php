@@ -104,4 +104,21 @@ trait M2TestHelpers {
 		$this->assertTrue( Migrator::upgrade_now(), 'schema upgrade must succeed' );
 		$this->assertTrue( Migrator::tables_exist(), 'upr schema tables must exist' );
 	}
+
+	/**
+	 * Opt into invitation email scheduling/sending (fail-closed default is off since v0.3.0).
+	 */
+	protected function upr_enable_invitation_emails(): void {
+		update_option( \UniversalProductReviews\Config\Options::INVITATION_EMAILS_ENABLED, 'yes', false );
+	}
+
+	protected function upr_use_logging_mail_transport(): void {
+		\UniversalProductReviews\Email\LoggingMailTransport::reset();
+		add_filter(
+			'upr_mail_transport',
+			static function () {
+				return new \UniversalProductReviews\Email\LoggingMailTransport();
+			}
+		);
+	}
 }
