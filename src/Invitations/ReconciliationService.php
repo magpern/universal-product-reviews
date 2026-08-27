@@ -72,10 +72,11 @@ final class ReconciliationService {
 
 				$auth = InvitationAuthorisation::evaluate(
 					array(
-						'order_id'      => $order_id,
-						'order_item_id' => $item_id,
-						'product_id'    => (int) ( $eval['product_id'] ?? 0 ),
-						'operation'     => InvitationAuthorisation::OP_SCHEDULE,
+						'order_id'          => $order_id,
+						'order_item_id'     => $item_id,
+						'product_id'        => (int) ( $eval['product_id'] ?? 0 ),
+						'operation'         => InvitationAuthorisation::OP_SCHEDULE,
+						'source_event_unix' => $event_at,
 					)
 				);
 				if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {

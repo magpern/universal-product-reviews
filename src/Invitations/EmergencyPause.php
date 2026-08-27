@@ -51,6 +51,8 @@ final class EmergencyPause {
 			Jobs::cancel_pending_invitation_sends();
 			AuditLogger::log( 'invite.emergency_pause', 'hook', null, null, $payload );
 		} else {
+			// Unpause refreshes boundary so pre-pause source events cannot retro-send via reconcile.
+			Options::refresh_scheduling_boundary();
 			AuditLogger::log( 'invite.emergency_unpause', 'hook', null, null, $payload );
 		}
 	}

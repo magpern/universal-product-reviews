@@ -75,6 +75,7 @@ final class Commands {
 					'invitation_emails_enabled'  => Options::invitation_emails_enabled(),
 					'invitation_emergency_pause' => Options::invitation_emergency_pause(),
 					'controls_epoch'             => Options::invitation_controls_epoch(),
+					'scheduling_boundary_unix'   => Options::invitation_scheduling_boundary_unix(),
 					'pause_meta'                 => array(
 						'reason'     => $meta['reason'],
 						'actor_id'   => $meta['actor_id'],

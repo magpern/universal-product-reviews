@@ -27,8 +27,10 @@ final class InvitationAuthorisation {
 	public const OP_INITIAL_SEND   = 'initial_send';
 	public const OP_REMINDER_SEND  = 'reminder_send';
 
+	public const REASON_OUTSIDE_SCHEDULING_BOUNDARY = 'outside_scheduling_boundary';
+
 	/**
-	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string} $context
+	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string,source_event_unix?:int} $context
 	 * @return array{decision:string,reason_code?:string}
 	 */
 	public static function evaluate( array $context ): array {
@@ -42,13 +44,21 @@ final class InvitationAuthorisation {
 			return array( 'decision' => self::DECISION_EMAIL_DISABLED );
 		}
 
+		// Fail-closed no-retro-send: pre-enable / pre-unpause source events cannot proceed.
+		if ( ! Options::is_source_event_within_scheduling_boundary( $context['source_event_unix'] ) ) {
+			return array(
+				'decision'    => self::DECISION_NOT_AUTHORISED,
+				'reason_code' => self::REASON_OUTSIDE_SCHEDULING_BOUNDARY,
+			);
+		}
+
 		$provisional = array( 'decision' => self::DECISION_ALLOW );
 
 		/**
 		 * Host may further restrict an otherwise allowed invitation operation.
 		 *
 		 * @param array{decision:string,reason_code?:string} $provisional
-		 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string} $context
+		 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string,source_event_unix:int} $context
 		 */
 		$filtered = apply_filters( self::FILTER, $provisional, $context );
 		if ( ! is_array( $filtered ) ) {
@@ -74,7 +84,7 @@ final class InvitationAuthorisation {
 	}
 
 	/**
-	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string} $context
+	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string,source_event_unix?:int} $context
 	 */
 	public static function is_allowed( array $context ): bool {
 		return self::DECISION_ALLOW === self::evaluate( $context )['decision'];
@@ -83,7 +93,7 @@ final class InvitationAuthorisation {
 	/**
 	 * Evaluate and optionally audit a denial on live schedule/send paths.
 	 *
-	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string} $context
+	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string,source_event_unix?:int} $context
 	 * @return array{decision:string,reason_code?:string}
 	 */
 	public static function evaluate_and_audit( array $context, bool $audit_denials = true ): array {
@@ -95,8 +105,19 @@ final class InvitationAuthorisation {
 	}
 
 	/**
+	 * Parse a GMT mysql datetime to unix (0 if unusable).
+	 */
+	public static function gmt_to_unix( ?string $gmt ): int {
+		if ( null === $gmt || '' === $gmt ) {
+			return 0;
+		}
+		$ts = strtotime( $gmt . ' UTC' );
+		return $ts ? (int) $ts : 0;
+	}
+
+	/**
 	 * @param array{decision:string,reason_code?:string} $decision
-	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string} $context
+	 * @param array{order_id:int,order_item_id:int,product_id:int,operation:string,source_event_unix?:int} $context
 	 */
 	public static function maybe_audit_denied( array $decision, array $context ): void {
 		$context  = self::normalise_context( $context );
@@ -104,7 +125,8 @@ final class InvitationAuthorisation {
 		$item_id  = $context['order_item_id'];
 		$op       = $context['operation'];
 		$dec      = $decision['decision'];
-		$dedupe   = sprintf( 'upr_auth_deny_%d_%s_%s_%d', $item_id, $op, $dec, $epoch );
+		$reason   = (string) ( $decision['reason_code'] ?? '' );
+		$dedupe   = sprintf( 'upr_auth_deny_%d_%s_%s_%s_%d', $item_id, $op, $dec, $reason, $epoch );
 
 		if ( get_transient( $dedupe ) ) {
 			return;
@@ -115,8 +137,8 @@ final class InvitationAuthorisation {
 			'decision'  => $dec,
 			'operation' => $op,
 		);
-		if ( ! empty( $decision['reason_code'] ) ) {
-			$payload['reason_code'] = $decision['reason_code'];
+		if ( '' !== $reason ) {
+			$payload['reason_code'] = $reason;
 		}
 
 		AuditLogger::log(
@@ -130,7 +152,7 @@ final class InvitationAuthorisation {
 
 	/**
 	 * @param array<string, mixed> $context
-	 * @return array{order_id:int,order_item_id:int,product_id:int,operation:string}
+	 * @return array{order_id:int,order_item_id:int,product_id:int,operation:string,source_event_unix:int}
 	 */
 	private static function normalise_context( array $context ): array {
 		$operation = (string) ( $context['operation'] ?? '' );
@@ -140,10 +162,11 @@ final class InvitationAuthorisation {
 		}
 
 		return array(
-			'order_id'      => (int) ( $context['order_id'] ?? 0 ),
-			'order_item_id' => (int) ( $context['order_item_id'] ?? 0 ),
-			'product_id'    => (int) ( $context['product_id'] ?? 0 ),
-			'operation'     => $operation,
+			'order_id'           => (int) ( $context['order_id'] ?? 0 ),
+			'order_item_id'      => (int) ( $context['order_item_id'] ?? 0 ),
+			'product_id'         => (int) ( $context['product_id'] ?? 0 ),
+			'operation'          => $operation,
+			'source_event_unix'  => (int) ( $context['source_event_unix'] ?? 0 ),
 		);
 	}
 }

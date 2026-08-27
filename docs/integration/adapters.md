@@ -61,7 +61,8 @@ Guidelines:
  *   order_id:int,
  *   order_item_id:int,
  *   product_id:int,
- *   operation:'schedule'|'initial_send'|'reminder_send'
+ *   operation:'schedule'|'initial_send'|'reminder_send',
+ *   source_event_unix:int
  * } $context
  * @return array{decision:'allow'|'email_disabled'|'paused'|'not_authorised', reason_code?:string}
  */
@@ -72,9 +73,11 @@ Rules:
 
 - Evaluated before schedule (delivery / completed fallback / reconcile) and immediately before initial/reminder send.
 - Core does **not** call the host filter when master enable is off or emergency pause is on.
+- Core also denies with `not_authorised` / `outside_scheduling_boundary` when `source_event_unix` is before `upr_invitation_scheduling_boundary_at` (refreshed on enable and on unpause). Host filter is not called for that deny.
 - Hosts may only change provisional `allow` → `not_authorised` (or keep `allow`).
 - Denied decisions must not invoke mail transport or write sent-state / `email.sent` success audits.
 - Do not implement denial by dropping mail in a transport wrapper after UPR would mark sent.
+- Deliberate pilot invite of a pre-boundary order must be an explicit operator action that supplies a post-boundary source timestamp; reconciliation must not backfill those events.
 
 See [`../roadmap/m3-invitation-email-controls.md`](../roadmap/m3-invitation-email-controls.md).
 

@@ -61,7 +61,7 @@ Options::invitation_emergency_pause(): bool  // true only when explicitly paused
 | Fresh install | Both controls absent → emails **disabled**, pause **off**. |
 | Upgrade from ≤ `v0.2.2` with no stored keys | Same fail-closed defaults (**disabled**, pause **off**). Deliberate behaviour change: sites that previously sent whenever eligible must explicitly enable. |
 | Explicit stored `true` / `false` | Honoured. |
-| Re-enable after disable, or unpause after pause | Does **not** retroactively bulk-send work denied/paused while controls blocked it. Future eligibility paths may schedule new work only if controls allow at evaluation time. |
+| Re-enable after disable, or unpause after pause | Does **not** retroactively bulk-send work denied/paused while controls blocked it. Enabling and unpausing each refresh `upr_invitation_scheduling_boundary_at` to “now”; only source events at/after that boundary may schedule/send via normal paths (including reconciliation). Explicit host-pilot invite of a pre-boundary order requires a deliberate operator action that supplies a post-boundary source timestamp — never an accidental reconcile backfill. |
 
 No schema migration is required for these options. No activation-time email or invitation storm.
 
@@ -170,7 +170,7 @@ Authorisation is evaluated:
 - No initial/reminder sent-state or successful-send audit.
 - Existing **approved** (and other completed) reviews unchanged.
 - Already-issued invite tokens / form sessions **remain valid**.
-- Re-enabling does not retroactively bulk-send denied work.
+- Re-enabling refreshes `upr_invitation_scheduling_boundary_at` to the enable instant. Delivery/completion timestamps recorded while disabled remain stored, but reconcile/schedule/send must not create invitation email work for source events before that boundary.
 
 ### B. Emergency pause on (`paused`) — takes precedence
 
@@ -178,8 +178,19 @@ Authorisation is evaluated:
 - Outstanding invite tokens and form sessions are **revoked/invalidated** (reuse `TokenRepository::revoke_*` patterns; site-wide outstanding non-redeemed invite + session tokens).
 - Pending UPR invitation actions cancelled where possible; handlers always no-op if raced.
 - Existing completed reviews untouched.
-- Unpausing does not retroactively send previously denied/paused work.
+- Unpausing refreshes the scheduling boundary to “now” and does not retroactively send previously denied/paused work (including reminders whose `initial_sent_at` is before the new boundary).
 - UI warning: emergency stop that **revokes outstanding invitation access**.
+
+### Scheduling boundary (locked)
+
+| Option | Behaviour |
+|--------|-----------|
+| `upr_invitation_scheduling_boundary_at` | Unix timestamp persisted on **enable** (disabled→enabled) and **unpause** (paused→unpaused). Absent/0 is fail-closed. |
+| Source for schedule / initial send | Delivery or completed-fallback event unix (`source_event_at`) |
+| Source for reminder send | `initial_sent_at` unix |
+| Decision when source &lt; boundary | `not_authorised` + `reason_code=outside_scheduling_boundary` (host filter not invoked) |
+
+Host pilot allowlists may further restrict post-boundary work. Inviting a pre-boundary cohort must be an **explicit** operator path that supplies a post-boundary source timestamp — never nightly reconciliation alone.
 
 ---
 
@@ -240,7 +251,10 @@ Hosts implement `upr_invitation_send_authorisation` only. They must **not** dupl
 | T3 | Disabled master control blocks: delivery scheduling, completed fallback, reconciliation send/schedule progression, initial send, reminder send, sent-state and success audit |
 | T4 | No host filter result can override `email_disabled` or `paused` to allow |
 | T5 | Host-style `not_authorised` blocks scheduling/send without mail transport or sent-state |
-| T6 | Emergency pause: blocks scheduling and raced action execution; invalidates outstanding token/session access; preserves completed reviews; prevents later retro-send after unpause; records actor/reason audit; pending UPR actions cancel or safely no-op |
+| T6 | Emergency pause: blocks scheduling and raced action execution; invalidates outstanding token/session access; preserves completed reviews; prevents later retro-send after unpause (including reminder); records actor/reason audit; pending UPR actions cancel or safely no-op |
+| T6b | Delivery/completion while disabled → enable → reconcile → no invite/action/mail/sent-state |
+| T6c | Delivery/completion while paused → unpause → reconcile → no invite/action/mail/sent-state |
+| T6d | Genuinely new eligible source event after enable/unpause → normal allowed schedule/send |
 | T7 | Existing allowed flow still sends through test/logging transport and reaches correct pending-moderation review lifecycle |
 | T8 | Reconciliation remains idempotent; no broad denied work or audit storms |
 | T9 | No native comment-route / M2 guest-auth regression |

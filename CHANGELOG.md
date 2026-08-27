@@ -12,9 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Master setting **Enable review invitation emails** (`upr_invitation_emails_enabled`), default disabled (fail-closed for fresh installs and upgrades without an explicit store).
 - **Emergency pause invitations** (`upr_invitation_emergency_pause`): blocks schedule/send, revokes outstanding invite tokens and form sessions, cancels pending invitation Action Scheduler work when possible.
-- Public host contract `upr_invitation_send_authorisation` with decisions `allow` | `email_disabled` | `paused` | `not_authorised`.
+- Scheduling boundary `upr_invitation_scheduling_boundary_at` refreshed on enable and unpause so reconciliation cannot retro-send pre-enable/pre-unpause source events.
+- Public host contract `upr_invitation_send_authorisation` with decisions `allow` | `email_disabled` | `paused` | `not_authorised` (context includes `source_event_unix`).
 - Generic WooCommerce admin settings page for the new controls (`manage_woocommerce`).
-- WP-CLI `wp upr invitation-controls` status (flags / pause meta only; no PII).
+- WP-CLI `wp upr invitation-controls` status (flags / pause meta / boundary only; no PII).
 
 ### Changed
 

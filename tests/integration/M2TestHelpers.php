@@ -107,9 +107,15 @@ trait M2TestHelpers {
 
 	/**
 	 * Opt into invitation email scheduling/sending (fail-closed default is off since v0.3.0).
+	 *
+	 * @param int|null $scheduling_boundary_unix Boundary for no-retro-send. Default: now (production-like).
+	 *                                           Pass a past unix (e.g. 1) only for tests that need historical source events.
 	 */
-	protected function upr_enable_invitation_emails(): void {
-		update_option( \UniversalProductReviews\Config\Options::INVITATION_EMAILS_ENABLED, 'yes', false );
+	protected function upr_enable_invitation_emails( ?int $scheduling_boundary_unix = null ): void {
+		\UniversalProductReviews\Invitations\InvitationEmailControls::set_emails_enabled( true );
+		if ( null !== $scheduling_boundary_unix ) {
+			\UniversalProductReviews\Config\Options::refresh_scheduling_boundary( $scheduling_boundary_unix );
+		}
 	}
 
 	protected function upr_use_logging_mail_transport(): void {

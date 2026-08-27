@@ -24,6 +24,7 @@ final class Options {
 	public const INVITATION_EMERGENCY_PAUSE      = 'upr_invitation_emergency_pause';
 	public const INVITATION_EMERGENCY_PAUSE_META = 'upr_invitation_emergency_pause_meta';
 	public const INVITATION_CONTROLS_EPOCH       = 'upr_invitation_controls_epoch';
+	public const INVITATION_SCHEDULING_BOUNDARY_AT = 'upr_invitation_scheduling_boundary_at';
 
 	/**
 	 * Master invitation-email control. Absent / unset = disabled (fail-closed).
@@ -45,6 +46,32 @@ final class Options {
 
 	public static function bump_controls_epoch(): void {
 		update_option( self::INVITATION_CONTROLS_EPOCH, self::invitation_controls_epoch() + 1, false );
+	}
+
+	/**
+	 * Unix timestamp: source events strictly before this must not create invitation email work.
+	 * Absent / 0 = fail-closed (no historical source is schedulable).
+	 */
+	public static function invitation_scheduling_boundary_unix(): int {
+		return max( 0, (int) get_option( self::INVITATION_SCHEDULING_BOUNDARY_AT, 0 ) );
+	}
+
+	/**
+	 * Persist the no-retro-send boundary (typically "now" on enable / unpause).
+	 */
+	public static function refresh_scheduling_boundary( ?int $unix = null ): void {
+		update_option( self::INVITATION_SCHEDULING_BOUNDARY_AT, (string) ( $unix ?? time() ), false );
+	}
+
+	/**
+	 * True when the source event is at/after the scheduling boundary.
+	 */
+	public static function is_source_event_within_scheduling_boundary( int $source_event_unix ): bool {
+		$boundary = self::invitation_scheduling_boundary_unix();
+		if ( $boundary <= 0 || $source_event_unix <= 0 ) {
+			return false;
+		}
+		return $source_event_unix >= $boundary;
 	}
 
 	/**

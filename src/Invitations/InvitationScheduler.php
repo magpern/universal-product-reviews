@@ -84,6 +84,12 @@ final class InvitationScheduler {
 		}
 
 		$source_event_unix = $source_event_unix ?? self::resolve_source_event_unix( $order, $delivery_source );
+
+		// Order-level fail-closed: pre-boundary source events must not create invitation email work.
+		if ( ! Options::is_source_event_within_scheduling_boundary( $source_event_unix ) ) {
+			return;
+		}
+
 		$delay_days        = 'adapter' === $delivery_source
 			? Options::delay_days_after_delivery()
 			: Options::delay_days_fallback_completed();
@@ -108,10 +114,11 @@ final class InvitationScheduler {
 
 			$auth = InvitationAuthorisation::evaluate_and_audit(
 				array(
-					'order_id'      => $order_id,
-					'order_item_id' => $order_item_id,
-					'product_id'    => (int) $eval['product_id'],
-					'operation'     => InvitationAuthorisation::OP_SCHEDULE,
+					'order_id'          => $order_id,
+					'order_item_id'     => $order_item_id,
+					'product_id'        => (int) $eval['product_id'],
+					'operation'         => InvitationAuthorisation::OP_SCHEDULE,
+					'source_event_unix' => $source_event_unix,
 				)
 			);
 			if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {

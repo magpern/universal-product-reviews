@@ -11,6 +11,7 @@ namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Invitations\EmergencyPause;
+use UniversalProductReviews\Invitations\InvitationEmailControls;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -63,10 +64,7 @@ final class SettingsPage {
 	 */
 	public static function sanitize_enabled( $value ): string {
 		$enabled = self::is_checked( $value );
-		$prev    = Options::invitation_emails_enabled();
-		if ( $enabled !== $prev ) {
-			Options::bump_controls_epoch();
-		}
+		InvitationEmailControls::set_emails_enabled( $enabled );
 		return $enabled ? 'yes' : 'no';
 	}
 

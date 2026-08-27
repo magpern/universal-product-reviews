@@ -414,10 +414,10 @@ final class M2ReconcilePaginationIntegrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_eligible_at_from_past_source_event_not_now_plus_delay(): void {
-		$this->upr_enable_invitation_emails();
+		$past = time() - ( 20 * DAY_IN_SECONDS );
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
-		$past       = time() - ( 20 * DAY_IN_SECONDS );
 		$ctx['order']->update_meta_data( InvitationScheduler::META_DELIVERY_CONFIRMED_AT, gmdate( 'Y-m-d H:i:s', $past ) );
 		$ctx['order']->save();
 		$order = wc_get_order( $ctx['order']->get_id() );

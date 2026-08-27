@@ -39,12 +39,14 @@ final class BundleSender {
 				continue;
 			}
 
-			$auth = InvitationAuthorisation::evaluate_and_audit(
+			$source_unix = InvitationAuthorisation::gmt_to_unix( isset( $row['source_event_at'] ) ? (string) $row['source_event_at'] : null );
+			$auth        = InvitationAuthorisation::evaluate_and_audit(
 				array(
-					'order_id'      => $order_id,
-					'order_item_id' => $item_id,
-					'product_id'    => (int) $row['product_id'],
-					'operation'     => InvitationAuthorisation::OP_INITIAL_SEND,
+					'order_id'          => $order_id,
+					'order_item_id'     => $item_id,
+					'product_id'        => (int) $row['product_id'],
+					'operation'         => InvitationAuthorisation::OP_INITIAL_SEND,
+					'source_event_unix' => $source_unix,
 				)
 			);
 			if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
@@ -69,7 +71,7 @@ final class BundleSender {
 			return;
 		}
 
-		// Re-check after claim (race with pause/disable/host deny).
+		// Re-check after claim (race with pause/disable/host deny / boundary).
 		$sendable = array();
 		foreach ( $claim['claimed'] as $item_id ) {
 			$row = InviteRepository::find( $item_id );
@@ -77,22 +79,17 @@ final class BundleSender {
 				SendClaimService::fail_initial( $item_id, 'authorisation_denied' );
 				continue;
 			}
-			$auth = InvitationAuthorisation::evaluate(
-				array(
-					'order_id'      => $order_id,
-					'order_item_id' => $item_id,
-					'product_id'    => (int) $row['product_id'],
-					'operation'     => InvitationAuthorisation::OP_INITIAL_SEND,
-				)
+			$ctx = array(
+				'order_id'          => $order_id,
+				'order_item_id'     => $item_id,
+				'product_id'        => (int) $row['product_id'],
+				'operation'         => InvitationAuthorisation::OP_INITIAL_SEND,
+				'source_event_unix' => InvitationAuthorisation::gmt_to_unix( isset( $row['source_event_at'] ) ? (string) $row['source_event_at'] : null ),
 			);
+			$auth = InvitationAuthorisation::evaluate( $ctx );
 			if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
 				SendClaimService::fail_initial( $item_id, 'authorisation_denied' );
-				InvitationAuthorisation::maybe_audit_denied( $auth, array(
-					'order_id'      => $order_id,
-					'order_item_id' => $item_id,
-					'product_id'    => (int) $row['product_id'],
-					'operation'     => InvitationAuthorisation::OP_INITIAL_SEND,
-				) );
+				InvitationAuthorisation::maybe_audit_denied( $auth, $ctx );
 				continue;
 			}
 			$sendable[] = $item_id;

@@ -14,6 +14,7 @@ use UniversalProductReviews\Email\LoggingMailTransport;
 use UniversalProductReviews\Invitations\BundleSender;
 use UniversalProductReviews\Invitations\EmergencyPause;
 use UniversalProductReviews\Invitations\InvitationAuthorisation;
+use UniversalProductReviews\Invitations\InvitationEmailControls;
 use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\InviteRepository;
 use UniversalProductReviews\Invitations\ReconciliationService;
@@ -34,6 +35,7 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 		delete_option( Options::INVITATION_EMERGENCY_PAUSE );
 		delete_option( Options::INVITATION_EMERGENCY_PAUSE_META );
 		delete_option( Options::INVITATION_CONTROLS_EPOCH );
+		delete_option( Options::INVITATION_SCHEDULING_BOUNDARY_AT );
 		remove_all_filters( InvitationAuthorisation::FILTER );
 	}
 
@@ -57,10 +59,11 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 		InviteRepository::upsert(
 			$ctx['order_item_id'],
 			array(
-				'order_id'       => $order->get_id(),
-				'product_id'     => $product_id,
-				'schedule_state' => ScheduleStates::SCHEDULED,
-				'eligible_at'    => gmdate( 'Y-m-d H:i:s', $past ),
+				'order_id'        => $order->get_id(),
+				'product_id'      => $product_id,
+				'schedule_state'  => ScheduleStates::SCHEDULED,
+				'eligible_at'     => gmdate( 'Y-m-d H:i:s', $past ),
+				'source_event_at' => gmdate( 'Y-m-d H:i:s', $past ),
 			)
 		);
 		BundleSender::send_for_order( $order->get_id() );
@@ -71,7 +74,8 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_host_not_authorised_blocks_without_mail_or_sent_state(): void {
-		update_option( Options::INVITATION_EMAILS_ENABLED, 'yes', false );
+		$past = time() - ( 30 * DAY_IN_SECONDS );
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
 		add_filter(
 			InvitationAuthorisation::FILTER,
 			static function () {
@@ -84,17 +88,17 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
-		$past       = time() - ( 30 * DAY_IN_SECONDS );
 		InvitationScheduler::schedule_order( $ctx['order']->get_id(), 'adapter', $past );
 		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
 
 		InviteRepository::upsert(
 			$ctx['order_item_id'],
 			array(
-				'order_id'       => $ctx['order']->get_id(),
-				'product_id'     => $product_id,
-				'schedule_state' => ScheduleStates::SCHEDULED,
-				'eligible_at'    => gmdate( 'Y-m-d H:i:s', $past ),
+				'order_id'        => $ctx['order']->get_id(),
+				'product_id'      => $product_id,
+				'schedule_state'  => ScheduleStates::SCHEDULED,
+				'eligible_at'     => gmdate( 'Y-m-d H:i:s', $past ),
+				'source_event_at' => gmdate( 'Y-m-d H:i:s', $past ),
 			)
 		);
 		BundleSender::send_for_order( $ctx['order']->get_id() );
@@ -103,20 +107,91 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 		$this->assertEmpty( $row['initial_sent_at'] );
 	}
 
-	public function test_emergency_pause_revokes_tokens_and_blocks_raced_send(): void {
-		update_option( Options::INVITATION_EMAILS_ENABLED, 'yes', false );
+	public function test_delivery_while_disabled_then_enable_reconcile_does_not_retro_send(): void {
+		$this->upr_use_logging_mail_transport();
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
 		$past       = time() - ( 30 * DAY_IN_SECONDS );
 
+		InvitationScheduler::on_delivery_confirmed(
+			$ctx['order']->get_id(),
+			array( 'delivered_at' => $past )
+		);
+		$order = wc_get_order( $ctx['order']->get_id() );
+		$this->assertNotEmpty( $order->get_meta( InvitationScheduler::META_DELIVERY_CONFIRMED_AT ) );
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+
+		InvitationEmailControls::set_emails_enabled( true );
+		$this->assertGreaterThan( $past, Options::invitation_scheduling_boundary_unix() );
+
+		$summary = ReconciliationService::run( 90, false );
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+		$this->assertSame( 0, count( LoggingMailTransport::$sent ) );
+		$this->assertGreaterThan( 0, (int) $summary['authorisation_denied_skipped'] );
+
+		BundleSender::send_for_order( $ctx['order']->get_id() );
+		ReminderSender::send_for_item( $ctx['order_item_id'] );
+		$this->assertSame( 0, count( LoggingMailTransport::$sent ) );
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+	}
+
+	public function test_completed_while_disabled_then_enable_reconcile_does_not_retro_send(): void {
+		$this->upr_use_logging_mail_transport();
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+
+		InvitationScheduler::on_order_completed( $ctx['order']->get_id() );
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+
+		InvitationEmailControls::set_emails_enabled( true );
+		ReconciliationService::run( 90, false );
+
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+		$this->assertSame( 0, count( LoggingMailTransport::$sent ) );
+	}
+
+	public function test_delivery_while_paused_then_unpause_reconcile_does_not_retro_send(): void {
+		$this->upr_use_logging_mail_transport();
+		$past = time() - ( 30 * DAY_IN_SECONDS );
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
+
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user_id );
+		EmergencyPause::set_paused( true, 'ops incident', $user_id );
+
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+		InvitationScheduler::on_delivery_confirmed(
+			$ctx['order']->get_id(),
+			array( 'delivered_at' => $past )
+		);
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+
+		EmergencyPause::set_paused( false, 'cleared', $user_id );
+		$this->assertGreaterThan( $past, Options::invitation_scheduling_boundary_unix() );
+
+		ReconciliationService::run( 90, false );
+		$this->assertNull( InviteRepository::find( $ctx['order_item_id'] ) );
+		$this->assertSame( 0, count( LoggingMailTransport::$sent ) );
+	}
+
+	public function test_emergency_pause_revokes_tokens_and_blocks_retro_reminder_after_unpause(): void {
+		$this->upr_use_logging_mail_transport();
+		$past = time() - ( 30 * DAY_IN_SECONDS );
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
+
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+
 		InviteRepository::upsert(
 			$ctx['order_item_id'],
 			array(
-				'order_id'        => $ctx['order']->get_id(),
-				'product_id'      => $product_id,
-				'schedule_state'  => ScheduleStates::INITIAL_SENT,
-				'initial_sent_at' => gmdate( 'Y-m-d H:i:s', $past ),
-				'eligible_at'     => gmdate( 'Y-m-d H:i:s', $past ),
+				'order_id'         => $ctx['order']->get_id(),
+				'product_id'       => $product_id,
+				'schedule_state'   => ScheduleStates::INITIAL_SENT,
+				'initial_sent_at'  => gmdate( 'Y-m-d H:i:s', $past ),
+				'source_event_at'  => gmdate( 'Y-m-d H:i:s', $past ),
+				'eligible_at'      => gmdate( 'Y-m-d H:i:s', $past ),
 			)
 		);
 		$issued = TokenService::issue_invite( $ctx['order_item_id'], $product_id );
@@ -130,7 +205,6 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 		$invite = TokenRepository::find_by_id( (int) $issued['id'] );
 		$this->assertNotEmpty( $invite['revoked_at'] );
 
-		// Completed reviews untouched: none yet; ensure pause does not wipe invite row completion fields.
 		$row = InviteRepository::find( $ctx['order_item_id'] );
 		$this->assertSame( ScheduleStates::INITIAL_SENT, $row['schedule_state'] );
 
@@ -138,19 +212,12 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 0, count( LoggingMailTransport::$sent ) );
 
 		EmergencyPause::set_paused( false, 'cleared', $user_id );
-		// Unpause must not retro-send without a new authorised schedule/send path.
-		ReminderSender::send_for_item( $ctx['order_item_id'] );
-		// Reminder may send after unpause if still INITIAL_SENT and emails enabled — freeze says
-		// unpausing does not retroactively send *previously denied/paused work* that was never sent.
-		// A reminder that was never attempted while paused is still eligible; block by leaving pause
-		// semantics: pending actions cancelled; this direct call after unpause is a new evaluation.
-		// For freeze T6 "prevents later retro-send after unpause" — work denied while paused must not
-		// auto-flush. Direct ReminderSender after unpause with emails still on is intentional new work.
-		// Re-disable to assert no automatic storm from pause cycle itself:
-		update_option( Options::INVITATION_EMAILS_ENABLED, 'no', false );
 		LoggingMailTransport::reset();
 		ReminderSender::send_for_item( $ctx['order_item_id'] );
-		$this->assertSame( 0, count( LoggingMailTransport::$sent ) );
+		$this->assertSame( 0, count( LoggingMailTransport::$sent ), 'unpause must not retro-send reminder for pre-boundary initial_sent' );
+		$row = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertEmpty( $row['reminder_sent_at'] );
+		$this->assertSame( ScheduleStates::INITIAL_SENT, $row['schedule_state'] );
 
 		global $wpdb;
 		$pause_events = (int) $wpdb->get_var(
@@ -159,12 +226,40 @@ final class InvitationEmailControlsIntegrationTest extends WP_UnitTestCase {
 		$this->assertGreaterThanOrEqual( 1, $pause_events );
 	}
 
+	public function test_new_eligible_event_after_enable_allows_normal_flow(): void {
+		$this->upr_use_logging_mail_transport();
+		InvitationEmailControls::set_emails_enabled( true );
+		$boundary = Options::invitation_scheduling_boundary_unix();
+		$this->assertGreaterThan( 0, $boundary );
+
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+		// Source after boundary but old enough that delay window is already due.
+		$event = $boundary + 1;
+		// Force delay to 0 for this assertion path via temporary option.
+		update_option( Options::DELAY_AFTER_DELIVERY, 0, false );
+
+		$ctx['order']->update_meta_data( InvitationScheduler::META_DELIVERY_CONFIRMED_AT, gmdate( 'Y-m-d H:i:s', $event ) );
+		$ctx['order']->save();
+
+		InvitationScheduler::schedule_order( $ctx['order']->get_id(), 'adapter', $event );
+		$row = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertNotNull( $row );
+		$this->assertSame( ScheduleStates::SCHEDULED, $row['schedule_state'] );
+
+		BundleSender::send_for_order( $ctx['order']->get_id() );
+		$this->assertSame( 1, count( LoggingMailTransport::$sent ) );
+		$row = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertSame( ScheduleStates::INITIAL_SENT, $row['schedule_state'] );
+		$this->assertNotEmpty( $row['initial_sent_at'] );
+	}
+
 	public function test_allowed_flow_sends_via_logging_transport(): void {
-		$this->upr_enable_invitation_emails();
+		$past = time() - ( 30 * DAY_IN_SECONDS );
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
 		$this->upr_use_logging_mail_transport();
 		$product_id = $this->upr_create_product();
 		$ctx        = $this->upr_create_order_with_item( $product_id );
-		$past       = time() - ( 30 * DAY_IN_SECONDS );
 		$ctx['order']->update_meta_data( InvitationScheduler::META_DELIVERY_CONFIRMED_AT, gmdate( 'Y-m-d H:i:s', $past ) );
 		$ctx['order']->save();
 
