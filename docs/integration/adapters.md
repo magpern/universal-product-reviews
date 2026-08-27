@@ -97,7 +97,7 @@ Host storefront plugin renders markup; UPR does not output theme HTML.
 
 **M3:** Host storefront or theme adapter renders messaging when `can_submit` is false. Hosts **must not** set `comments_open` to false to express unavailable submission — that suppresses approved review lists in stock WooCommerce templates.
 
-**B1+ (target `v0.2.2`):** Core adds availability-aligned native denial for all identities and a generic native-PDP form display helper. Hosts consume the helper for form visibility; they must not reimplement availability-aligned native POST denial as long-term security.
+**B1+ (`v0.2.2`):** Core adds availability-aligned native denial for all identities (`NativeSubmissionGuard`) and display-only `NativePdpForm::should_render()`. Hosts consume the helper for form visibility; they must not reimplement availability-aligned native POST denial as long-term security. UPR does not use `comments_open` as an availability gate. M2 guest forms remain exclusively on `/upr-review/form/`.
 
 ### Filters (UPR provides defaults)
 

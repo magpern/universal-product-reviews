@@ -25,7 +25,9 @@ UPR **does not** write these options. Hosts configure via replay tooling (WP adm
 ## UPR runtime behaviour (M1+)
 
 - New product reviews (`comment_type = review` on `product` posts) enter **pending** moderation via `pre_comment_approved`.
-- Guest product-review submissions on the **native PDP** are **blocked** (`preprocess_comment` guard).
+- Guest product-review submissions on the **native PDP** are **blocked** (`GuestSubmissionGuard` on `preprocess_comment`).
+- Logged-in native product-review submissions are denied when UPR availability reports `can_submit=false` (`NativeSubmissionGuard`).
+- UPR does **not** close `comments_open` for availability; keep comments open so approved review lists remain visible.
 - **M2** (after runtime ships): guests may submit only via invitation token exchange → form session → token-free form; M1 hold still applies. Hosts must keep `customer_review_request` disabled and redact `/upr-review/{token}/` from access logs.
 - Global WordPress comment policy options are **not** modified by UPR.
 

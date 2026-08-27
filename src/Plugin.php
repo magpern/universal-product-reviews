@@ -17,6 +17,7 @@ use UniversalProductReviews\Invitations\SuppressionService;
 use UniversalProductReviews\Moderation\ReviewModeration;
 use UniversalProductReviews\Scheduling\Jobs;
 use UniversalProductReviews\Submission\GuestSubmissionGuard;
+use UniversalProductReviews\Submission\NativeSubmissionGuard;
 use UniversalProductReviews\Submission\ReviewAvailability;
 use UniversalProductReviews\WooCommerce\WooCommerceGate;
 
@@ -35,6 +36,7 @@ final class Plugin {
 
 		ReviewModeration::register();
 		GuestSubmissionGuard::register();
+		NativeSubmissionGuard::register();
 		ReviewAvailability::register();
 
 		InvitationScheduler::register();

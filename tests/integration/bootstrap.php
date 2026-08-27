@@ -10,6 +10,7 @@ declare( strict_types=1 );
 $upr_root = dirname( __DIR__, 2 );
 
 require_once $upr_root . '/vendor/autoload.php';
+require_once dirname( __FILE__ ) . '/M2TestHelpers.php';
 
 $upr_tests_dir = getenv( 'WP_TESTS_DIR' ) ?: $upr_root . '/vendor/wp-phpunit/wp-phpunit';
 
