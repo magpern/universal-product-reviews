@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-27
+
+### Added
+
+- Master setting **Enable review invitation emails** (`upr_invitation_emails_enabled`), default disabled (fail-closed for fresh installs and upgrades without an explicit store).
+- **Emergency pause invitations** (`upr_invitation_emergency_pause`): blocks schedule/send, revokes outstanding invite tokens and form sessions, cancels pending invitation Action Scheduler work when possible.
+- Public host contract `upr_invitation_send_authorisation` with decisions `allow` | `email_disabled` | `paused` | `not_authorised`.
+- Generic WooCommerce admin settings page for the new controls (`manage_woocommerce`).
+- WP-CLI `wp upr invitation-controls` status (flags / pause meta only; no PII).
+
+### Changed
+
+- Invitation scheduling, initial/reminder send, sent-state success, and reconciliation now enforce core controls and the host authorisation filter fail-closed.
+- Deliberate behaviour change from ≤0.2.2: invitation email work no longer proceeds unless the master enable setting is explicitly on (and not emergency-paused / host-denied).
+
+### Documentation
+
+- Freeze: [`docs/roadmap/m3-invitation-email-controls.md`](docs/roadmap/m3-invitation-email-controls.md) (`upr-invitation-email-controls-freeze`).
+- Adapter contract documented in [`docs/integration/adapters.md`](docs/integration/adapters.md).
+
 ## [0.2.2] - 2026-08-27
 
 ### Added

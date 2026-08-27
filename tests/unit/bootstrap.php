@@ -70,6 +70,12 @@ if ( ! function_exists( 'get_current_user_id' ) ) {
 
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $tag, $value, ...$args ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		if ( isset( $GLOBALS['upr_test_filters'][ $tag ] ) && is_array( $GLOBALS['upr_test_filters'][ $tag ] ) ) {
+			foreach ( $GLOBALS['upr_test_filters'][ $tag ] as $cb ) {
+				$value = $cb( $value, ...$args );
+			}
+			return $value;
+		}
 		if ( 'upr_product_review_availability' === $tag ) {
 			$product_id = (int) ( $args[0] ?? 0 );
 			$user_id    = (int) ( $args[1] ?? 0 );
@@ -82,9 +88,54 @@ if ( ! function_exists( 'apply_filters' ) ) {
 }
 
 if ( ! function_exists( 'add_filter' ) ) {
-	function add_filter( ...$args ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
-		unset( $args );
+	function add_filter( $tag, $callback, $priority = 10, $accepted_args = 1 ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $priority, $accepted_args );
+		$GLOBALS['upr_test_filters'][ $tag ][] = $callback;
 		return true;
+	}
+}
+
+if ( ! function_exists( 'remove_all_filters' ) ) {
+	function remove_all_filters( $tag, $priority = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $priority );
+		unset( $GLOBALS['upr_test_filters'][ $tag ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$key = strtolower( (string) $key );
+		return preg_replace( '/[^a-z0-9_\-]/', '', $key ) ?? '';
+	}
+}
+
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $transient ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $GLOBALS['upr_test_transients'][ $transient ] ?? false;
+	}
+}
+
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $transient, $value, $expiration = 0 ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $expiration );
+		$GLOBALS['upr_test_transients'][ $transient ] = $value;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $option, $value, $autoload = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $autoload );
+		$GLOBALS['upr_test_options'][ $option ] = $value;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( $capability ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$caps = $GLOBALS['upr_test_caps'] ?? array();
+		return ! empty( $caps[ $capability ] );
 	}
 }
 

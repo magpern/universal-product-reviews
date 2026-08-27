@@ -20,6 +20,47 @@ final class Options {
 	public const FORM_SESSION_TTL_MIN     = 'upr_form_session_ttl_minutes';
 	public const SEND_CLAIM_STALE_MIN     = 'upr_send_claim_stale_minutes';
 
+	public const INVITATION_EMAILS_ENABLED       = 'upr_invitation_emails_enabled';
+	public const INVITATION_EMERGENCY_PAUSE      = 'upr_invitation_emergency_pause';
+	public const INVITATION_EMERGENCY_PAUSE_META = 'upr_invitation_emergency_pause_meta';
+	public const INVITATION_CONTROLS_EPOCH       = 'upr_invitation_controls_epoch';
+
+	/**
+	 * Master invitation-email control. Absent / unset = disabled (fail-closed).
+	 */
+	public static function invitation_emails_enabled(): bool {
+		return self::option_is_truthy( get_option( self::INVITATION_EMAILS_ENABLED, 'no' ) );
+	}
+
+	/**
+	 * Emergency pause. Absent / unset = not paused.
+	 */
+	public static function invitation_emergency_pause(): bool {
+		return self::option_is_truthy( get_option( self::INVITATION_EMERGENCY_PAUSE, 'no' ) );
+	}
+
+	public static function invitation_controls_epoch(): int {
+		return max( 0, (int) get_option( self::INVITATION_CONTROLS_EPOCH, 0 ) );
+	}
+
+	public static function bump_controls_epoch(): void {
+		update_option( self::INVITATION_CONTROLS_EPOCH, self::invitation_controls_epoch() + 1, false );
+	}
+
+	/**
+	 * @param mixed $value Raw option value.
+	 */
+	public static function option_is_truthy( $value ): bool {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_int( $value ) ) {
+			return 1 === $value;
+		}
+		$v = strtolower( trim( (string) $value ) );
+		return in_array( $v, array( '1', 'yes', 'true', 'on' ), true );
+	}
+
 	public static function delay_days_after_delivery(): int {
 		return max( 0, (int) get_option( self::DELAY_AFTER_DELIVERY, 10 ) );
 	}

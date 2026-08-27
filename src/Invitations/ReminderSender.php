@@ -37,8 +37,26 @@ final class ReminderSender {
 			return;
 		}
 
+		$context = array(
+			'order_id'      => (int) $row['order_id'],
+			'order_item_id' => $order_item_id,
+			'product_id'    => (int) $row['product_id'],
+			'operation'     => InvitationAuthorisation::OP_REMINDER_SEND,
+		);
+		$auth = InvitationAuthorisation::evaluate_and_audit( $context );
+		if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
+			return;
+		}
+
 		$claim = SendClaimService::claim_reminder( $order_item_id );
 		if ( ! $claim ) {
+			return;
+		}
+
+		$auth = InvitationAuthorisation::evaluate( $context );
+		if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
+			SendClaimService::fail_reminder( $order_item_id, 'authorisation_denied' );
+			InvitationAuthorisation::maybe_audit_denied( $auth, $context );
 			return;
 		}
 

@@ -1,8 +1,8 @@
 # M3 — Invitation email controls (generic core freeze)
 
-**Status:** Frozen authoritative specification for generic UPR invitation-email controls.  
+**Status:** Frozen at `upr-invitation-email-controls-freeze`. Implementation on branch `feat/m3-invitation-email-controls` (target minor `v0.3.0`; release tag deferred).  
 **Freeze branch:** `docs/m3-invitation-email-controls-freeze`  
-**Freeze tag (after docs merge):** `upr-invitation-email-controls-freeze` (annotated; points at the documentation merge commit).  
+**Freeze tag:** `upr-invitation-email-controls-freeze` (annotated; points at the documentation merge commit).  
 **Baseline:** `main` @ UPR `v0.2.2`; M2 invitations frozen at [`M2-invitations.md`](../milestones/M2-invitations.md); productization boundary [ADR-0002](../decisions/ADR-0002-productization-boundary.md).  
 **Target implementation release:** minor **`v0.3.0`** (deliberate fail-closed behaviour change). Release tag, GitHub Release, and ZIP are **not** authorised by this freeze.
 
