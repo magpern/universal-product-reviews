@@ -30,9 +30,29 @@ if ( ! function_exists( 'get_option' ) ) {
 	}
 }
 
+if ( ! class_exists( 'WP_User', false ) ) {
+	class WP_User { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedClassFound
+		/** @var int */
+		public $ID = 0;
+		/** @var string */
+		public $user_email = '';
+	}
+}
+
 if ( ! function_exists( 'get_userdata' ) ) {
 	function get_userdata( $user_id ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
-		return $GLOBALS['upr_test_users'][ $user_id ] ?? false;
+		$user_id = (int) $user_id;
+		if ( ! isset( $GLOBALS['upr_test_users'][ $user_id ] ) ) {
+			return false;
+		}
+		$raw = $GLOBALS['upr_test_users'][ $user_id ];
+		if ( $raw instanceof \WP_User ) {
+			return $raw;
+		}
+		$user             = new \WP_User();
+		$user->ID         = $user_id;
+		$user->user_email = (string) ( $raw->user_email ?? '' );
+		return $user;
 	}
 }
 
@@ -42,8 +62,20 @@ if ( ! function_exists( 'is_user_logged_in' ) ) {
 	}
 }
 
+if ( ! function_exists( 'get_current_user_id' ) ) {
+	function get_current_user_id() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return (int) ( $GLOBALS['upr_test_user_id'] ?? 0 );
+	}
+}
+
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $tag, $value, ...$args ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		if ( 'upr_product_review_availability' === $tag ) {
+			$product_id = (int) ( $args[0] ?? 0 );
+			$user_id    = (int) ( $args[1] ?? 0 );
+			$base       = is_array( $value ) ? $value : array();
+			return \UniversalProductReviews\Submission\ReviewAvailability::default_availability( $base, $product_id, $user_id );
+		}
 		unset( $tag, $args );
 		return $value;
 	}

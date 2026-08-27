@@ -1,9 +1,10 @@
 # B1 — Native submission enforcement and PDP display helper
 
-**Status:** Frozen implementation plan (authoritative after tag `upr-productization-boundary-freeze`).  
+**Status:** Implemented on branch `feat/b1-native-submission-enforcement` (target patch `v0.2.2`; release tag deferred).  
 **Baseline release:** `v0.2.1` @ `e5b9636a42db7aaf0837c7b6034a24b062fd4275`  
 **Target release:** patch `v0.2.2` (additive security + helper; no schema migration).  
 **Architecture decision:** [ADR-0002](../decisions/ADR-0002-productization-boundary.md).
+**Freeze:** `upr-productization-boundary-freeze`.
 
 ## Scope
 

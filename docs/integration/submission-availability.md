@@ -6,14 +6,49 @@ UPR exposes **read-only, data-only** eligibility information for host adapters. 
 
 ## Policy by milestone
 
-| Actor | M1 | M2 (frozen; runtime post-freeze) | B1+ (target `v0.2.2`) |
-|-------|----|----------------------------------|------------------------|
-| Logged-in verified purchaser | Native WC PDP | Unchanged | Native PDP when reviewable; core availability guard |
+| Actor | M1 | M2 (frozen; runtime post-freeze) | B1+ (`v0.2.2`) |
+|-------|----|----------------------------------|----------------|
+| Logged-in verified purchaser | Native WC PDP | Unchanged | Native PDP when reviewable; `NativeSubmissionGuard` |
 | Logged-in non-verified purchaser | Blocked by WC | Unchanged | Also denied by core when availability `can_submit=false` |
-| Guest (native PDP) | Blocked | **Default-deny** unless active form-session cookie for that product | Unchanged; display helper never shows native form for guests |
-| Guest (invitation form) | N/A | Allowed via token exchange → session → form; M1 hold still applies | Unchanged |
+| Guest (native PDP) | Blocked | **Default-deny** unless active form-session cookie for that product | Unchanged; `NativePdpForm::should_render()` always false for guests |
+| Guest (invitation form) | N/A | Allowed via token exchange → session → form; M1 hold still applies | Unchanged — exclusively `/upr-review/form/` |
 
-**M3 UI:** Host storefront/theme adapter renders polished unavailable-form messaging using these filters. Hosts **must not** close WordPress `comments_open` to express unavailable submission: that hides approved review lists in stock WooCommerce templates. Keep `comments_open` open for list display; gate the native form via the core display helper (B1) and host/theme markup.
+**M3 UI:** Host storefront/theme adapter renders polished unavailable-form messaging using these filters. Hosts **must not** close WordPress `comments_open` to express unavailable submission: that hides approved review lists in stock WooCommerce templates. Keep `comments_open` open for list display; gate the native form via `NativePdpForm::should_render()` and host/theme markup.
+
+**UPR does not use `comments_open` as an availability gate.** Native product-comment enforcement aligns to `upr_product_review_availability` via `NativeSubmissionGuard`.
+
+---
+
+## Native enforcement (`NativeSubmissionGuard`)
+
+Hook: `preprocess_comment` priority **15** (after `GuestSubmissionGuard` at 5 and WC type normalisation at 1).
+
+- Scope: WooCommerce **product** posts with comment type `review` (after WC normalisation).
+- When `ReviewAvailability::allows_submit( $product_id, $user_id )` is false → `wp_die` HTTP 403 (fail closed on malformed availability).
+- Guests still require M2 form session **and** request-local arm (`GuestSubmissionGuard`); this guard does not create a native guest PDP route.
+- M2 guest forms remain exclusively on `/upr-review/form/`.
+
+---
+
+## Display helper: `NativePdpForm::should_render( int $product_id ): bool`
+
+**Display-only** — not a submission authorization API. Themes/storefronts use this to decide whether to render the native WooCommerce review form.
+
+| Condition | Result |
+|-----------|--------|
+| `$product_id <= 0` | `false` |
+| Guest (`user_id === 0`), including valid M2 form session | `false` |
+| Availability `can_submit` false / malformed | `false` |
+| `context.authorization === form_session` | `false` |
+| Logged-in and availability allows | `true` |
+
+```php
+use UniversalProductReviews\Submission\NativePdpForm;
+
+if ( NativePdpForm::should_render( $product_id ) ) {
+    // Render native #review_form_wrapper
+}
+```
 
 ---
 

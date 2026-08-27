@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-27
+
+### Added
+
+- Availability-aligned native product-review enforcement for logged-in identities via `NativeSubmissionGuard` (`preprocess_comment` priority 15).
+- Display-only native PDP form helper `NativePdpForm::should_render()` for theme/storefront integrations.
+- `ReviewAvailability::resolve()` / `allows_submit()` fail-closed helpers for shared availability reads.
+
+### Security
+
+- Native product-review inserts are rejected when `upr_product_review_availability` reports `can_submit=false` (including non-purchasers and catalogue-hidden products).
+- Guests remain gated by `GuestSubmissionGuard` (session + request-local arm); no native guest PDP submit route.
+- UPR does not register a `comments_open` availability/submission gate.
+
+### Documentation
+
+- Productization boundary ADR-0002 and B1 roadmap remain authoritative; integration docs updated for the display helper and enforcement alignment.
+
 ## [0.2.1] - 2026-08-26
 
 ### Fixed
