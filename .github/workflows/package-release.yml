@@ -1,0 +1,50 @@
+# Private release package build (workflow_dispatch)
+
+# Builds a SHA-verified UPR ZIP from an immutable tag and uploads it as a
+# private Actions artifact. Does NOT create a GitHub Release or public ZIP.
+
+name: Package release (private artifact)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Immutable Git tag (e.g. v0.3.0)
+        required: true
+        default: v0.3.0
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # Build tooling lives on main; package content comes from the immutable tag via git archive.
+          ref: main
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer
+
+      - name: Ensure package ref is present
+        run: git fetch --tags origin && git rev-parse "${{ github.event.inputs.ref }}^{commit}"
+
+      - name: Build package from immutable ref
+        run: bash scripts/build-release-package.sh "${{ github.event.inputs.ref }}"
+
+      - name: Upload private artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: upr-package-${{ github.event.inputs.ref }}
+          path: |
+            builds/*.zip
+            builds/*.SHA256SUMS
+            builds/*.release.meta.json
+          if-no-files-found: error
+          retention-days: 30

@@ -10,3 +10,4 @@
 /tests/tmp/
 /tests/wp-tests-config.php
 .phpunit.result.cache
+/release.meta.json

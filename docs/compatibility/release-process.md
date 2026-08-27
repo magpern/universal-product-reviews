@@ -46,3 +46,7 @@ Install previous ZIP version or deactivate plugin. See production replay rollbac
 - WordPress / WooCommerce / PHP versions
 - HPOS declaration visible in WooCommerce features screen
 - Adapter plugins present if delivery/support integration required
+
+## Packaged installs
+
+See [`docs/package-meta.md`](../package-meta.md) and `scripts/build-release-package.sh` for private SHA-verified ZIPs with embedded `release.meta.json`. Do not create a public GitHub Release for M3 invitation packaging.
