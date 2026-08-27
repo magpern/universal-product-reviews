@@ -135,11 +135,13 @@ final class InvitationEmailControlsUnitTest extends TestCase {
 	}
 
 	public function test_settings_capability_constant_is_manage_woocommerce(): void {
-		$ref  = new \ReflectionMethod( SettingsPage::class, 'add_menu' );
+		$ref  = new \ReflectionMethod( \UniversalProductReviews\Admin\AdminController::class, 'add_menu' );
 		$file = file_get_contents( (string) $ref->getFileName() );
 		$this->assertNotFalse( $file );
 		$this->assertStringContainsString( "'manage_woocommerce'", $file );
-		$this->assertStringContainsString( 'Enable review invitation emails', $file );
-		$this->assertStringContainsString( 'Emergency pause invitations', $file );
+		$settings = file_get_contents( (string) ( new \ReflectionClass( SettingsPage::class ) )->getFileName() );
+		$this->assertNotFalse( $settings );
+		$this->assertStringContainsString( 'Enable review invitation emails', $settings );
+		$this->assertStringContainsString( 'Emergency pause invitations', $settings );
 	}
 }

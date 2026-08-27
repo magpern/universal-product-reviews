@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- M4.1 operator Overview / Diagnostics / Controls tabs under WooCommerce → Product Reviews (`manage_woocommerce`).
+- Diagnostics catalogue D1–D11 with pass / warning / information / unavailable and ≤60s site transient cache.
+- Site Health tests (schema, WooCommerce, Action Scheduler APIs, pause, invitation email status).
+- Controlled database-upgrade admin action (never on page load) with confirm + audit.
+- Allowlisted local support export (`upr-support-export/v1`, 7-day window; no order IDs / PII).
+- Audit events `invite.emails_enabled` / `invite.emails_disabled`.
+- Runbooks: [`docs/runbooks/operator-controls.md`](docs/runbooks/operator-controls.md), [`docs/runbooks/support-export.md`](docs/runbooks/support-export.md).
+
+### Changed
+
+- Admin settings experience evolved into the Controls tab (same options model); page-load / `admin_init` auto-migration hooks removed from bootstrap.
+
 ## [0.3.0] - 2026-08-27
 
 ### Added

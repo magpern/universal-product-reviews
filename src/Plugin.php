@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin service bootstrap (M1 + M2).
+ * Plugin service bootstrap (M1 + M2 + M4).
  *
  * @package UniversalProductReviews
  */
@@ -9,9 +9,8 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews;
 
-use UniversalProductReviews\Admin\SettingsPage;
+use UniversalProductReviews\Admin\AdminController;
 use UniversalProductReviews\CLI\Commands;
-use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\SuppressionService;
@@ -45,17 +44,7 @@ final class Plugin {
 		Jobs::register();
 		RewriteRules::register();
 		Commands::register();
-		SettingsPage::register();
-
-		add_action( 'admin_init', array( Migrator::class, 'maybe_upgrade_controlled' ) );
-		add_action(
-			'admin_init',
-			static function (): void {
-				if ( Migrator::needs_upgrade() && current_user_can( 'manage_woocommerce' ) ) {
-					Jobs::schedule_db_upgrade_once();
-				}
-			}
-		);
+		AdminController::register();
 	}
 
 	/**

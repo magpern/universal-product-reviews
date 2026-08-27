@@ -96,9 +96,12 @@ required_docs=(
   docs/runbooks/moderation.md
   docs/runbooks/invitation-failures.md
   docs/runbooks/reconciliation.md
+  docs/runbooks/operator-controls.md
+  docs/runbooks/support-export.md
   docs/runbooks/retention.md
   docs/runbooks/token-incidents.md
   docs/runbooks/ai-outage.md
+  docs/roadmap/m4-operator-controls-and-diagnostics.md
 )
 for f in "${required_docs[@]}"; do
   test -f "$f" || fail "missing $f"
