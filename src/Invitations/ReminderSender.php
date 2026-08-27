@@ -37,8 +37,28 @@ final class ReminderSender {
 			return;
 		}
 
+		// Reminder chain is gated by initial_sent_at vs scheduling boundary (no retro-reminder after unpause/enable).
+		$context = array(
+			'order_id'          => (int) $row['order_id'],
+			'order_item_id'     => $order_item_id,
+			'product_id'        => (int) $row['product_id'],
+			'operation'         => InvitationAuthorisation::OP_REMINDER_SEND,
+			'source_event_unix' => InvitationAuthorisation::gmt_to_unix( isset( $row['initial_sent_at'] ) ? (string) $row['initial_sent_at'] : null ),
+		);
+		$auth = InvitationAuthorisation::evaluate_and_audit( $context );
+		if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
+			return;
+		}
+
 		$claim = SendClaimService::claim_reminder( $order_item_id );
 		if ( ! $claim ) {
+			return;
+		}
+
+		$auth = InvitationAuthorisation::evaluate( $context );
+		if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
+			SendClaimService::fail_reminder( $order_item_id, 'authorisation_denied' );
+			InvitationAuthorisation::maybe_audit_denied( $auth, $context );
 			return;
 		}
 

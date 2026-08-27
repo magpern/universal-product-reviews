@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews;
 
+use UniversalProductReviews\Admin\SettingsPage;
 use UniversalProductReviews\CLI\Commands;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
@@ -44,6 +45,7 @@ final class Plugin {
 		Jobs::register();
 		RewriteRules::register();
 		Commands::register();
+		SettingsPage::register();
 
 		add_action( 'admin_init', array( Migrator::class, 'maybe_upgrade_controlled' ) );
 		add_action(

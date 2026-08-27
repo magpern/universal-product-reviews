@@ -35,6 +35,9 @@ final class InvitationScheduler {
 			$order->update_meta_data( self::META_DELIVERY_CONFIRMED_AT, gmdate( 'Y-m-d H:i:s', $event_at ) );
 			$order->save();
 		}
+		if ( ! self::core_controls_allow_scheduling() ) {
+			return;
+		}
 		Jobs::schedule_order_items( $order_id, 'adapter', $event_at );
 	}
 
@@ -49,6 +52,9 @@ final class InvitationScheduler {
 	public static function on_order_completed( int $order_id ): void {
 		$delivered = (bool) apply_filters( 'upr_is_order_delivered', false, $order_id );
 		if ( $delivered ) {
+			return;
+		}
+		if ( ! self::core_controls_allow_scheduling() ) {
 			return;
 		}
 		$order    = wc_get_order( $order_id );
@@ -68,12 +74,22 @@ final class InvitationScheduler {
 	 * @param int|null $source_event_unix Unix timestamp of delivery/completion event.
 	 */
 	public static function schedule_order( int $order_id, string $delivery_source, ?int $source_event_unix = null ): void {
+		if ( ! self::core_controls_allow_scheduling() ) {
+			return;
+		}
+
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
 			return;
 		}
 
 		$source_event_unix = $source_event_unix ?? self::resolve_source_event_unix( $order, $delivery_source );
+
+		// Order-level fail-closed: pre-boundary source events must not create invitation email work.
+		if ( ! Options::is_source_event_within_scheduling_boundary( $source_event_unix ) ) {
+			return;
+		}
+
 		$delay_days        = 'adapter' === $delivery_source
 			? Options::delay_days_after_delivery()
 			: Options::delay_days_fallback_completed();
@@ -83,6 +99,7 @@ final class InvitationScheduler {
 		$eligible_at     = gmdate( 'Y-m-d H:i:s', $eligible_ts );
 		// Past-due → schedule immediately.
 		$send_at = max( time(), $eligible_ts );
+		$any_scheduled = false;
 
 		foreach ( $order->get_items() as $item ) {
 			$order_item_id = (int) $item->get_id();
@@ -92,6 +109,19 @@ final class InvitationScheduler {
 				if ( $existing && ! ScheduleStates::is_terminal( (string) $existing['schedule_state'] ) ) {
 					SuppressionService::suppress_item( $order_item_id, (string) ( $eval['reason'] ?? 'ineligible' ), $order_id );
 				}
+				continue;
+			}
+
+			$auth = InvitationAuthorisation::evaluate_and_audit(
+				array(
+					'order_id'          => $order_id,
+					'order_item_id'     => $order_item_id,
+					'product_id'        => (int) $eval['product_id'],
+					'operation'         => InvitationAuthorisation::OP_SCHEDULE,
+					'source_event_unix' => $source_event_unix,
+				)
+			);
+			if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
 				continue;
 			}
 
@@ -130,6 +160,7 @@ final class InvitationScheduler {
 			}
 
 			InviteRepository::upsert( $order_item_id, $data );
+			$any_scheduled = true;
 
 			if ( ! $existing || empty( $existing['eligible_at'] ) ) {
 				AuditLogger::log(
@@ -146,7 +177,19 @@ final class InvitationScheduler {
 			}
 		}
 
-		Jobs::schedule_initial_bundle( $order_id, gmdate( 'Y-m-d H:i:s', $send_at ) );
+		if ( $any_scheduled ) {
+			Jobs::schedule_initial_bundle( $order_id, gmdate( 'Y-m-d H:i:s', $send_at ) );
+		}
+	}
+
+	/**
+	 * Core master/pause gate before any schedule enqueue (host filter applied per-item).
+	 */
+	public static function core_controls_allow_scheduling(): bool {
+		if ( Options::invitation_emergency_pause() ) {
+			return false;
+		}
+		return Options::invitation_emails_enabled();
 	}
 
 	/**

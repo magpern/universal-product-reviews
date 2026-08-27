@@ -42,6 +42,9 @@ final class Jobs {
 	}
 
 	public static function schedule_order_items( int $order_id, string $source, ?int $source_event_unix = null ): void {
+		if ( ! InvitationScheduler::core_controls_allow_scheduling() ) {
+			return;
+		}
 		$source_event_unix = $source_event_unix ?? time();
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 			InvitationScheduler::schedule_order( $order_id, $source, $source_event_unix );
@@ -56,6 +59,9 @@ final class Jobs {
 	}
 
 	public static function schedule_initial_bundle( int $order_id, string $eligible_at_gmt ): void {
+		if ( ! InvitationScheduler::core_controls_allow_scheduling() ) {
+			return;
+		}
 		$ts = strtotime( $eligible_at_gmt . ' UTC' );
 		if ( ! $ts ) {
 			$ts = time();
@@ -67,6 +73,9 @@ final class Jobs {
 	}
 
 	public static function schedule_reminder( int $order_item_id, int $days ): void {
+		if ( ! InvitationScheduler::core_controls_allow_scheduling() ) {
+			return;
+		}
 		if ( ! function_exists( 'as_schedule_single_action' ) ) {
 			return;
 		}
@@ -83,6 +92,19 @@ final class Jobs {
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions( 'upr_send_reminder_item', array( $order_item_id ), self::GROUP );
 		}
+	}
+
+	/**
+	 * Best-effort cancel of pending invitation schedule/send actions (emergency pause).
+	 * Handlers must still no-op if a raced action executes.
+	 */
+	public static function cancel_pending_invitation_sends(): void {
+		if ( ! function_exists( 'as_unschedule_all_actions' ) ) {
+			return;
+		}
+		as_unschedule_all_actions( 'upr_send_initial_bundle', null, self::GROUP );
+		as_unschedule_all_actions( 'upr_send_reminder_item', null, self::GROUP );
+		as_unschedule_all_actions( 'upr_schedule_order_items', null, self::GROUP );
 	}
 
 	public static function schedule_db_upgrade_once(): void {

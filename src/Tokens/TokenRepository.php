@@ -148,6 +148,22 @@ final class TokenRepository {
 	}
 
 	/**
+	 * Revoke all outstanding invite tokens and form sessions (emergency pause).
+	 *
+	 * Redeemed invite tokens are left unchanged. Returns rows touched.
+	 */
+	public static function revoke_all_outstanding(): int {
+		global $wpdb;
+		$n = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::table() . ' SET revoked_at = %s WHERE revoked_at IS NULL AND redeemed_at IS NULL',
+				current_time( 'mysql', true )
+			)
+		);
+		return is_int( $n ) ? $n : 0;
+	}
+
+	/**
 	 * @return array<string, mixed>|null Active invite for item.
 	 */
 	public static function find_active_invite( int $order_item_id ): ?array {

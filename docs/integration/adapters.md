@@ -50,6 +50,37 @@ Guidelines:
 - **`delay`:** open support ticket, dissatisfaction without compliance tag — reschedule only.
 - **`none`:** send when otherwise eligible.
 
+## Invitation send authorisation (M3 contract)
+
+**Purpose:** Host policy may further restrict invitation **scheduling and sending** after core master enable and emergency pause allow the operation. Core remains authoritative for `email_disabled` and `paused`.
+
+```php
+/**
+ * @param array{decision:string,reason_code?:string} $decision
+ * @param array{
+ *   order_id:int,
+ *   order_item_id:int,
+ *   product_id:int,
+ *   operation:'schedule'|'initial_send'|'reminder_send',
+ *   source_event_unix:int
+ * } $context
+ * @return array{decision:'allow'|'email_disabled'|'paused'|'not_authorised', reason_code?:string}
+ */
+apply_filters( 'upr_invitation_send_authorisation', $decision, $context );
+```
+
+Rules:
+
+- Evaluated before schedule (delivery / completed fallback / reconcile) and immediately before initial/reminder send.
+- Core does **not** call the host filter when master enable is off or emergency pause is on.
+- Core also denies with `not_authorised` / `outside_scheduling_boundary` when `source_event_unix` is before `upr_invitation_scheduling_boundary_at` (refreshed on enable and on unpause). Host filter is not called for that deny.
+- Hosts may only change provisional `allow` → `not_authorised` (or keep `allow`).
+- Denied decisions must not invoke mail transport or write sent-state / `email.sent` success audits.
+- Do not implement denial by dropping mail in a transport wrapper after UPR would mark sent.
+- Deliberate pilot invite of a pre-boundary order must be an explicit operator action that supplies a post-boundary source timestamp; reconciliation must not backfill those events.
+
+See [`../roadmap/m3-invitation-email-controls.md`](../roadmap/m3-invitation-email-controls.md).
+
 ## Mail transport adapter (M2 contract)
 
 **Purpose:** Replace or wrap the default mail transport. Host SES/SMTP adapters live **outside** this repository.

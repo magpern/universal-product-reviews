@@ -24,13 +24,14 @@ final class ReconciliationService {
 	 */
 	public static function run( int $lookback_days = 90, bool $dry_run = false ): array {
 		$summary = array(
-			'orders_scanned'          => 0,
-			'rows_upserted'           => 0,
-			'suppressed'              => 0,
-			'claims_recovered'        => 0,
-			'orphans_repaired'        => 0,
-			'submit_claims_released'  => 0,
-			'actions'                 => array(),
+			'orders_scanned'               => 0,
+			'rows_upserted'                => 0,
+			'suppressed'                   => 0,
+			'claims_recovered'             => 0,
+			'orphans_repaired'             => 0,
+			'submit_claims_released'       => 0,
+			'authorisation_denied_skipped' => 0,
+			'actions'                      => array(),
 		);
 
 		$after_ts = time() - ( $lookback_days * DAY_IN_SECONDS );
@@ -40,6 +41,11 @@ final class ReconciliationService {
 			++$summary['orders_scanned'];
 			$order = wc_get_order( $order_id );
 			if ( ! $order ) {
+				continue;
+			}
+
+			if ( ! InvitationScheduler::core_controls_allow_scheduling() ) {
+				++$summary['authorisation_denied_skipped'];
 				continue;
 			}
 
@@ -61,6 +67,20 @@ final class ReconciliationService {
 						}
 						++$summary['suppressed'];
 					}
+					continue;
+				}
+
+				$auth = InvitationAuthorisation::evaluate(
+					array(
+						'order_id'          => $order_id,
+						'order_item_id'     => $item_id,
+						'product_id'        => (int) ( $eval['product_id'] ?? 0 ),
+						'operation'         => InvitationAuthorisation::OP_SCHEDULE,
+						'source_event_unix' => $event_at,
+					)
+				);
+				if ( InvitationAuthorisation::DECISION_ALLOW !== $auth['decision'] ) {
+					++$summary['authorisation_denied_skipped'];
 					continue;
 				}
 
@@ -102,12 +122,13 @@ final class ReconciliationService {
 			null,
 			null,
 			array(
-				'orders_scanned'         => $summary['orders_scanned'],
-				'rows_upserted'          => $summary['rows_upserted'],
-				'suppressed'             => $summary['suppressed'],
-				'claims_recovered'       => $summary['claims_recovered'],
-				'orphans_repaired'       => $summary['orphans_repaired'],
-				'submit_claims_released' => $summary['submit_claims_released'],
+				'orders_scanned'               => $summary['orders_scanned'],
+				'rows_upserted'                => $summary['rows_upserted'],
+				'suppressed'                   => $summary['suppressed'],
+				'claims_recovered'             => $summary['claims_recovered'],
+				'orphans_repaired'             => $summary['orphans_repaired'],
+				'submit_claims_released'       => $summary['submit_claims_released'],
+				'authorisation_denied_skipped' => $summary['authorisation_denied_skipped'],
 			)
 		);
 
