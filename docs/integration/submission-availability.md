@@ -2,16 +2,18 @@
 
 UPR exposes **read-only, data-only** eligibility information for host adapters. The generic core **does not** render HTML, call `wc_add_notice`, or hook theme templates for PDP messaging. Guest invitation submission is specified in M2 ([`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)).
 
+**Productization boundary:** [ADR-0002](../decisions/ADR-0002-productization-boundary.md). Filter `upr_product_review_availability` is the **core source of truth** for whether a product review may be submitted for a given `(product_id, user_id)`. Future native product-comment enforcement in core **must align** with that contract (`can_submit=false` → native product-review insert denied for all identities, without weakening the M2 armed guest invitation path).
+
 ## Policy by milestone
 
-| Actor | M1 | M2 (frozen; runtime post-freeze) |
-|-------|----|----------------------------------|
-| Logged-in verified purchaser | Native WC PDP | Unchanged |
-| Logged-in non-verified purchaser | Blocked by WC | Unchanged |
-| Guest (native PDP) | Blocked | **Default-deny** unless active form-session cookie for that product |
-| Guest (invitation form) | N/A | Allowed via token exchange → session → form; M1 hold still applies |
+| Actor | M1 | M2 (frozen; runtime post-freeze) | B1+ (target `v0.2.2`) |
+|-------|----|----------------------------------|------------------------|
+| Logged-in verified purchaser | Native WC PDP | Unchanged | Native PDP when reviewable; core availability guard |
+| Logged-in non-verified purchaser | Blocked by WC | Unchanged | Also denied by core when availability `can_submit=false` |
+| Guest (native PDP) | Blocked | **Default-deny** unless active form-session cookie for that product | Unchanged; display helper never shows native form for guests |
+| Guest (invitation form) | N/A | Allowed via token exchange → session → form; M1 hold still applies | Unchanged |
 
-**M3:** Host storefront/theme adapter renders polished unavailable-form messaging using these filters.
+**M3 UI:** Host storefront/theme adapter renders polished unavailable-form messaging using these filters. Hosts **must not** close WordPress `comments_open` to express unavailable submission: that hides approved review lists in stock WooCommerce templates. Keep `comments_open` open for list display; gate the native form via the core display helper (B1) and host/theme markup.
 
 ---
 
@@ -48,6 +50,7 @@ UPR reads WooCommerce review settings; it **never** writes options.
 | Condition | `can_submit` | `reason_code` |
 |-----------|--------------|---------------|
 | `woocommerce_enable_reviews !== 'yes'` | `false` | `reviews_disabled` |
+| Product not reviewable (e.g. catalogue-hidden) | `false` | `product_not_reviewable` |
 | Guest (`user_id === 0`) without active M2 form session for product | `false` | `guest_requires_invitation` |
 | Guest with active M2 form session for product | `true` | `null` (context may include `authorization: form_session`) |
 | Logged-in, verification required, not purchased | `false` | `not_verified_purchaser` |
@@ -61,6 +64,7 @@ When verification is required, UPR uses public `wc_customer_bought_product()` ag
 | Code | Meaning |
 |------|---------|
 | `reviews_disabled` | Product reviews disabled in WooCommerce settings |
+| `product_not_reviewable` | Product fails `ProductReviewability` (e.g. catalogue-hidden) |
 | `guest_requires_invitation` | Guest must use invitation flow; blocked on native PDP without session |
 | `not_verified_purchaser` | Logged-in user has not verified purchase of this product |
 
@@ -95,7 +99,8 @@ UPR returns `null` by default. Host adapters decide presentation (storefront mod
 |-----------|--------------|
 | **M1** | May consume filters for diagnostics or minimal messaging; enforcement is in core guards |
 | **M2** | Guest invitation path: session cookie authorizes submit for exact product; hosts redact `/upr-review/{token}/` from access logs |
-| **M3** | Polished PDP unavailable-form UI using reason codes |
+| **M3** | Polished PDP unavailable-form UI using reason codes; **do not** use `comments_open=false` as the submit gate |
+| **B1+** | Consume core native-PDP display helper for form visibility; do not reimplement availability-aligned native POST denial in host code |
 
 See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter.
 
@@ -107,6 +112,7 @@ See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter
 - Call `wc_add_notice` or WooCommerce template hooks for review UI messaging
 - Expose raw invite/session secrets via public filters
 - Mutate WooCommerce or WordPress comment-policy options
+- Use `comments_open` (or equivalent) as an availability or submission gate
 
 ---
 
@@ -115,3 +121,5 @@ See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter
 - [`woocommerce-settings.md`](woocommerce-settings.md) — host replay checklist
 - [`../milestones/M1-core-enablement.md`](../milestones/M1-core-enablement.md) — frozen M1 specification
 - [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md) — frozen M2 specification
+- [`../decisions/ADR-0002-productization-boundary.md`](../decisions/ADR-0002-productization-boundary.md) — two-layer productization boundary
+- [`../roadmap/b1-native-submission-enforcement.md`](../roadmap/b1-native-submission-enforcement.md) — B1 acceptance matrix

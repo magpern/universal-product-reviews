@@ -89,11 +89,15 @@ Host storefront plugin renders markup; UPR does not output theme HTML.
 
 **Purpose:** Consume read-only submission eligibility data for customer-facing messaging.
 
+**Source of truth:** Filter `upr_product_review_availability` (core default). Native product-comment enforcement in core must align with that contract ([ADR-0002](../decisions/ADR-0002-productization-boundary.md); [submission-availability.md](submission-availability.md)).
+
 **M1:** UPR enforces policy via `preprocess_comment` (guest block) and exposes filters only. Host adapters **may** read filters for diagnostics or minimal copy; polished PDP unavailable-form UI is **M3**.
 
 **M2:** Guests with a valid form-session cookie may submit via the invitation form path; native PDP remains default-deny without that session.
 
-**M3:** Host storefront or theme adapter renders messaging when `can_submit` is false.
+**M3:** Host storefront or theme adapter renders messaging when `can_submit` is false. Hosts **must not** set `comments_open` to false to express unavailable submission — that suppresses approved review lists in stock WooCommerce templates.
+
+**B1+ (target `v0.2.2`):** Core adds availability-aligned native denial for all identities and a generic native-PDP form display helper. Hosts consume the helper for form visibility; they must not reimplement availability-aligned native POST denial as long-term security.
 
 ### Filters (UPR provides defaults)
 
@@ -105,6 +109,7 @@ apply_filters( 'upr_product_review_unavailable_message', null, $reason_code, $pr
 See [`submission-availability.md`](submission-availability.md) for reason codes:
 
 - `reviews_disabled`
+- `product_not_reviewable`
 - `guest_requires_invitation`
 - `not_verified_purchaser`
 
