@@ -38,6 +38,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/compatibility/`](docs/compatibility/) | Minimum platform expectations |
 | [`docs/runbooks/`](docs/runbooks/) | Operator runbooks |
 | [`docs/roadmap/post-m3-product-roadmap.md`](docs/roadmap/post-m3-product-roadmap.md) | Post-M3 forward product roadmap (non-binding; M4–M8) |
+| [`docs/roadmap/m4-operator-controls-and-diagnostics.md`](docs/roadmap/m4-operator-controls-and-diagnostics.md) | **Frozen** M4.1 operator controls and diagnostics specification |
 
 ## Development
 
