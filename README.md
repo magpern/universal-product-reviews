@@ -37,6 +37,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/integration/`](docs/integration/) | Adapter contracts and examples |
 | [`docs/compatibility/`](docs/compatibility/) | Minimum platform expectations |
 | [`docs/runbooks/`](docs/runbooks/) | Operator runbooks |
+| [`docs/roadmap/post-m3-product-roadmap.md`](docs/roadmap/post-m3-product-roadmap.md) | Post-M3 forward product roadmap (non-binding; M4–M8) |
 
 ## Development
 
