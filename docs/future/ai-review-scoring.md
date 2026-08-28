@@ -72,4 +72,4 @@ Future implementation must test:
 
 ## Relationship to the frozen roadmap
 
-The frozen M0–M8 scope remains unchanged. Current M6 is AI shadow mode only, post-DPIA. Any scoring-based auto-approval requires a separate approved milestone after M8 and must satisfy every guardrail in this document.
+The frozen M0–M8 scope remains unchanged. **M6 is Integration and Developer Experience**, not AI. AI-assisted moderation planning is a later roadmap milestone (post-DPIA). Any scoring-based auto-approval requires a separate approved milestone after that planning freeze and must satisfy every guardrail in this document.

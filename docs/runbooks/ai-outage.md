@@ -2,7 +2,7 @@
 
 ## Scope
 
-AI-assisted moderation triage (M6+, optional). **Disabled by default.**
+AI-assisted moderation triage (later milestone, post-DPIA; **not** M6). **Disabled by default.**
 
 ## Privacy gate (hard stop)
 
