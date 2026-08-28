@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-28
+
 ### Added
 
 - M4.1 operator Overview / Diagnostics / Controls tabs under WooCommerce → Product Reviews (`manage_woocommerce`).
