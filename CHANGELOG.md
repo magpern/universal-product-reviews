@@ -6,11 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-28
+
+Combined core release of merged **M7 Storefront Compatibility and Quality** and **M9 Local AI Shadow Mode**, including corrective hardening from PR #44. **`v0.7.0` was intentionally not published** (no matching M7-only version-metadata commit; `main` already contained both M7 and M9).
+
+### Added
+
+- **M7:** Storefront compatibility matrix and integration-boundary documentation; contract-only C9/C10/enforcement characterization for classic and block/FSE storefronts (no visual theme suite in UPR).
+- **M7:** Mandatory accessibility hardening on the core-owned `/upr-review/form/` guest invitation form, with markup/security regression coverage.
+- **M7:** Native route and submission-guard guarantees preserved (fail-closed availability resolve; guest@5 / native@15 preprocess order; no UPR `comments_open` gating).
+- **M9:** Local-only, default-off advisory shadow assessments (`upr_local_ai_shadow_enabled`); built-in assessor only; Comments-admin `upr_ai` display; diagnostics D12–D15 + Site Health.
+- **M9:** Portable assessments / claims / ops schema; Action Scheduler `upr_assess_review`; claim-before-rate; disable-silent precedence; allowlisted AI audit events.
+- **M9:** No external provider, no replaceable provider filter, no automatic moderation, and no AI-driven comment status changes.
+
 ### Fixed
 
 - M9 ops rate window: compute `rate_count` before resetting `rate_window_started_at` so an expired full window resets to `1` instead of incrementing to `61`.
 - M9 assessment finalize: roll back and keep the owned claim when terminal insert fails so a write error cannot leave neither a row nor a recoverable claim.
 - M9 assessment finalize: require claim-clear `UPDATE` to affect exactly one row before commit; otherwise roll back the terminal insert so an active claim cannot coexist with a persisted assessment.
+
+### Documentation
+
+- Freeze: [`docs/roadmap/m7-storefront-compatibility-and-quality.md`](docs/roadmap/m7-storefront-compatibility-and-quality.md) (`m7-storefront-compatibility-and-quality-freeze`).
+- Freeze: [`docs/roadmap/m9-local-ai-shadow-mode.md`](docs/roadmap/m9-local-ai-shadow-mode.md) (`m9-local-ai-shadow-mode-freeze`).
 
 ## [0.6.0] - 2026-08-28
 
