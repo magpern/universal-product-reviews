@@ -83,10 +83,14 @@ final class AssessmentRepository {
 	}
 
 	/**
-	 * Latest terminal row per comment id (by completed_at).
+	 * Latest terminal row per comment id.
+	 *
+	 * Authoritative ordering is monotonic `assessment_id` (insertion order).
+	 * `completed_at` alone is second-resolution and can collide for same-second
+	 * terminals; selecting by MAX(assessment_id) returns exactly one row.
 	 *
 	 * @param list<int> $comment_ids
-	 * @return array<int, array<string, mixed>>
+	 * @return array<int, array<string, mixed>> Map of comment_id => assessment row.
 	 */
 	public static function latest_for_comments( array $comment_ids ): array {
 		global $wpdb;
@@ -96,17 +100,19 @@ final class AssessmentRepository {
 			return array();
 		}
 
-		$table   = self::table();
+		$table        = self::table();
 		$placeholders = implode( ',', array_fill( 0, count( $comment_ids ), '%d' ) );
+		// Existing KEY comment_completed (comment_id, completed_at) supports the
+		// comment_id filter; join on PK assessment_id. No schema bump required.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPlaceholder
 		$query = $wpdb->prepare(
 			"SELECT a.* FROM {$table} a
 			INNER JOIN (
-				SELECT comment_id, MAX(completed_at) AS max_completed
+				SELECT comment_id, MAX(assessment_id) AS max_id
 				FROM {$table}
 				WHERE comment_id IN ({$placeholders})
 				GROUP BY comment_id
-			) latest ON a.comment_id = latest.comment_id AND a.completed_at = latest.max_completed",
+			) latest ON a.assessment_id = latest.max_id",
 			...$comment_ids
 		);
 
@@ -117,10 +123,14 @@ final class AssessmentRepository {
 
 		$out = array();
 		foreach ( $rows as $row ) {
-			if ( ! is_array( $row ) ) {
+			if ( ! is_array( $row ) || ! isset( $row['comment_id'], $row['assessment_id'] ) ) {
 				continue;
 			}
-			$out[ (int) $row['comment_id'] ] = $row;
+			$cid = (int) $row['comment_id'];
+			$aid = (int) $row['assessment_id'];
+			if ( ! isset( $out[ $cid ] ) || $aid > (int) $out[ $cid ]['assessment_id'] ) {
+				$out[ $cid ] = $row;
+			}
 		}
 		return $out;
 	}
