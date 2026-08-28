@@ -18,8 +18,18 @@ final class CommentListEnhancements {
 	public const SOURCE_INVITATION    = 'invitation';
 	public const SOURCE_ALL           = 'all';
 
+	/** Request-local reentrancy guard for the_comments → prefetch. */
+	private static bool $prefetching = false;
+
 	public static function register(): void {
 		add_action( 'current_screen', array( self::class, 'on_current_screen' ) );
+	}
+
+	/**
+	 * Test seam: clear reentrancy guard between tests.
+	 */
+	public static function reset_for_tests(): void {
+		self::$prefetching = false;
 	}
 
 	/**
@@ -278,21 +288,25 @@ final class CommentListEnhancements {
 	}
 
 	/**
-	 * @param list<\WP_Comment> $comments Comments for the page.
-	 * @param \WP_Comment_Query $query    Query.
-	 * @return list<\WP_Comment>
+	 * @param list<\WP_Comment|object> $comments Comments for the page.
+	 * @param \WP_Comment_Query        $query    Query.
+	 * @return list<\WP_Comment|object>
 	 */
 	public static function prefetch_page( $comments, $query ) {
+		if ( self::$prefetching ) {
+			return $comments;
+		}
 		if ( ! self::is_comments_list_query( $query ) ) {
 			return $comments;
 		}
-		$ids = array();
-		foreach ( (array) $comments as $comment ) {
-			if ( $comment instanceof \WP_Comment ) {
-				$ids[] = (int) $comment->comment_ID;
-			}
+
+		self::$prefetching = true;
+		try {
+			CommentListPrefetch::hydrate_from_comments( (array) $comments );
+		} finally {
+			self::$prefetching = false;
 		}
-		CommentListPrefetch::hydrate( $ids );
+
 		return $comments;
 	}
 
@@ -313,9 +327,11 @@ final class CommentListEnhancements {
 	}
 
 	/**
+	 * Whether this is the primary native Comments list-table query (not counts / secondary lookups).
+	 *
 	 * @param \WP_Comment_Query $query Query.
 	 */
-	private static function is_comments_list_query( $query ): bool {
+	public static function is_comments_list_query( $query ): bool {
 		if ( ! is_admin() ) {
 			return false;
 		}
@@ -323,10 +339,32 @@ final class CommentListEnhancements {
 		if ( 'edit-comments.php' !== $pagenow ) {
 			return false;
 		}
-		// Avoid altering frontend or secondary comment queries on the screen.
-		if ( ! empty( $query->query_vars['count'] ) ) {
-			return true;
+		if ( ! $query instanceof \WP_Comment_Query ) {
+			return false;
 		}
+
+		$qv = $query->query_vars;
+
+		// Status-tab / aggregate counts are not the list body.
+		if ( ! empty( $qv['count'] ) ) {
+			return false;
+		}
+
+		// Targeted ID lookups (plugins, nested fetches) are not the primary list.
+		if ( ! empty( $qv['comment__in'] ) ) {
+			return false;
+		}
+
+		// Primary list always requests a positive page size.
+		if ( empty( $qv['number'] ) || (int) $qv['number'] <= 0 ) {
+			return false;
+		}
+
+		// ID-only fetches are not row rendering.
+		if ( isset( $qv['fields'] ) && in_array( $qv['fields'], array( 'ids', 'id=>parent' ), true ) ) {
+			return false;
+		}
+
 		return true;
 	}
 }

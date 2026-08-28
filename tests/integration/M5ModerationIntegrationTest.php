@@ -33,6 +33,7 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 		$this->upr_ensure_schema();
 		ModerationAudit::reset_for_tests();
 		CommentListPrefetch::reset_for_tests();
+		CommentListEnhancements::reset_for_tests();
 		SystemStatusOrigin::reset_for_tests();
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->grant_moderation_caps( $this->admin_id );
@@ -41,6 +42,7 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		ModerationAudit::reset_for_tests();
 		CommentListPrefetch::reset_for_tests();
+		CommentListEnhancements::reset_for_tests();
 		SystemStatusOrigin::reset_for_tests();
 		remove_all_filters( 'wp_doing_ajax' );
 		unset( $_REQUEST, $_GET, $GLOBALS['pagenow'] );
@@ -183,10 +185,46 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 		$product_id = $this->upr_create_product();
 		$pack       = $this->upr_create_order_with_item( $product_id );
 		$ids        = array();
+		$objects    = array();
 		for ( $i = 0; $i < 3; $i++ ) {
 			$cid = $this->insert_product_review( $product_id, 'Prefetch ' . $i );
 			update_comment_meta( $cid, '_upr_order_item_id', $pack['order_item_id'] );
 			update_comment_meta( $cid, 'rating', 4 );
+			$ids[]     = $cid;
+			$objects[] = get_comment( $cid );
+		}
+		InviteRepository::upsert(
+			$pack['order_item_id'],
+			array(
+				'order_id'          => (int) $pack['order']->get_id(),
+				'product_id'        => $product_id,
+				'schedule_state'    => ScheduleStates::COMPLETED,
+				'review_comment_id' => $ids[0],
+			)
+		);
+
+		CommentListPrefetch::hydrate_from_comments( $objects );
+		$this->assertLessThanOrEqual( 4, CommentListPrefetch::query_count() );
+		$ctx = CommentListPrefetch::get( $ids[0] );
+		$this->assertNotNull( $ctx );
+		$this->assertSame( ReviewContext::SOURCE_INVITATION, $ctx['source'] );
+		$this->assertSame( 4, $ctx['rating'] );
+		$this->assertNotEmpty( get_the_title( $product_id ) );
+	}
+
+	public function test_the_comments_prefetch_lifecycle_no_recursion(): void {
+		wp_set_current_user( $this->admin_id );
+		$this->as_comments_screen();
+		$_GET['upr_view'] = CommentListEnhancements::VIEW_PRODUCT_REVIEWS;
+		CommentListEnhancements::on_current_screen( get_current_screen() );
+
+		$product_id = $this->upr_create_product();
+		$pack       = $this->upr_create_order_with_item( $product_id );
+		$ids        = array();
+		for ( $i = 0; $i < 3; $i++ ) {
+			$cid = $this->insert_product_review( $product_id, 'Lifecycle ' . $i );
+			update_comment_meta( $cid, '_upr_order_item_id', $pack['order_item_id'] );
+			update_comment_meta( $cid, 'rating', 5 );
 			$ids[] = $cid;
 		}
 		InviteRepository::upsert(
@@ -199,13 +237,116 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 			)
 		);
 
-		CommentListPrefetch::hydrate( $ids );
-		$this->assertLessThanOrEqual( 5, CommentListPrefetch::query_count() );
-		$ctx = CommentListPrefetch::get( $ids[0] );
-		$this->assertNotNull( $ctx );
-		$this->assertSame( ReviewContext::SOURCE_INVITATION, $ctx['source'] );
-		$this->assertSame( 4, $ctx['rating'] );
-		$this->assertNotEmpty( get_the_title( $product_id ) );
+		$the_comments_calls   = 0;
+		$comment_in_queries   = 0;
+		$prefetch_hook_calls  = 0;
+
+		add_filter(
+			'the_comments',
+			static function ( $comments ) use ( &$the_comments_calls ) {
+				++$the_comments_calls;
+				if ( $the_comments_calls > 3 ) {
+					throw new \RuntimeException( 'the_comments recursion detected' );
+				}
+				return $comments;
+			},
+			1,
+			1
+		);
+		add_action(
+			'pre_get_comments',
+			static function ( $query ) use ( &$comment_in_queries ) {
+				if ( ! empty( $query->query_vars['comment__in'] ) ) {
+					++$comment_in_queries;
+				}
+			},
+			1,
+			1
+		);
+		add_filter(
+			'the_comments',
+			static function ( $comments, $query ) use ( &$prefetch_hook_calls ) {
+				if ( CommentListEnhancements::is_comments_list_query( $query ) ) {
+					++$prefetch_hook_calls;
+				}
+				return $comments;
+			},
+			5,
+			2
+		);
+
+		CommentListPrefetch::reset_for_tests();
+
+		$primary = get_comments(
+			array(
+				'type'      => 'review',
+				'post_type' => 'product',
+				'post_id'   => $product_id,
+				'number'    => 10,
+				'status'    => 'all',
+				'orderby'   => 'comment_ID',
+				'order'     => 'ASC',
+			)
+		);
+
+		$this->assertSame( 1, $the_comments_calls, 'primary list fires the_comments once' );
+		$this->assertSame( 1, $prefetch_hook_calls, 'prefetch targets primary list once' );
+		$this->assertSame( 0, $comment_in_queries, 'no nested page-comment WP_Comment_Query' );
+		$this->assertCount( 3, $primary );
+		$this->assertLessThanOrEqual( 4, CommentListPrefetch::query_count() );
+
+		foreach ( $ids as $cid ) {
+			$ctx = CommentListPrefetch::get( $cid );
+			$this->assertNotNull( $ctx, 'displayed comment hydrated' );
+			$this->assertSame( ReviewContext::SOURCE_INVITATION, $ctx['source'] );
+			$this->assertSame( 5, $ctx['rating'] );
+		}
+
+		// Secondary lookup on the same screen must not constrain or prefetch.
+		CommentListPrefetch::reset_for_tests();
+		$the_comments_calls  = 0;
+		$prefetch_hook_calls = 0;
+
+		$post_id = self::factory()->post->create( array( 'post_type' => 'post' ) );
+		$blog_id = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $post_id,
+				'comment_author'       => 'Reader',
+				'comment_author_email' => 'reader@example.com',
+				'comment_content'      => 'Blog note',
+				'comment_type'         => 'comment',
+				'comment_approved'     => 1,
+			)
+		);
+
+		$secondary = get_comments(
+			array(
+				'comment__in' => array( $blog_id ),
+				'number'      => 1,
+				'status'      => 'all',
+			)
+		);
+
+		$this->assertCount( 1, $secondary );
+		$this->assertSame( $blog_id, (int) $secondary[0]->comment_ID );
+		$secondary_query               = new \WP_Comment_Query();
+		$secondary_query->query_vars['comment__in'] = array( $blog_id );
+		$secondary_query->query_vars['number']      = 1;
+		$secondary_query->query_vars['status']      = 'all';
+		$this->assertFalse( CommentListEnhancements::is_comments_list_query( $secondary_query ) );
+		$this->assertNull( CommentListPrefetch::get( $blog_id ) );
+		$this->assertSame( 0, CommentListPrefetch::query_count() );
+
+		// Even with upr_view set, secondary comment__in query must not be forced to product reviews.
+		$forced = get_comments(
+			array(
+				'comment__in' => array( $blog_id ),
+				'number'      => 1,
+				'status'      => 'all',
+			)
+		);
+		$this->assertCount( 1, $forced );
+		$this->assertSame( 'comment', $forced[0]->comment_type );
 	}
 
 	public function test_order_link_requires_object_capability(): void {

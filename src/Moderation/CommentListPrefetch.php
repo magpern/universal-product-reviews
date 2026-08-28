@@ -22,42 +22,29 @@ final class CommentListPrefetch {
 	private static int $query_count = 0;
 
 	/**
-	 * Prefetch association data for the given comment IDs (current list page only).
+	 * Prefetch from already-displayed comment objects (no nested WP_Comment_Query).
 	 *
-	 * @param list<int> $comment_ids Displayed comment IDs.
+	 * @param array<int, \WP_Comment|object|int> $comments Displayed comments from the_comments.
 	 */
-	public static function hydrate( array $comment_ids ): void {
+	public static function hydrate_from_comments( array $comments ): void {
 		self::$map         = array();
 		self::$query_count = 0;
 
-		$comment_ids = array_values(
-			array_unique(
-				array_filter(
-					array_map( 'intval', $comment_ids ),
-					static fn( int $id ): bool => $id > 0
-				)
-			)
-		);
-
-		if ( array() === $comment_ids ) {
-			return;
+		$by_id = array();
+		foreach ( $comments as $comment ) {
+			$resolved = self::resolve_comment( $comment );
+			if ( ! $resolved instanceof \WP_Comment ) {
+				continue;
+			}
+			$cid = (int) $resolved->comment_ID;
+			if ( $cid > 0 ) {
+				$by_id[ $cid ] = $resolved;
+			}
 		}
 
-		$comments = get_comments(
-			array(
-				'comment__in' => $comment_ids,
-				'number'      => count( $comment_ids ),
-				'status'      => 'all',
-				'type'        => '',
-			)
-		);
-		++self::$query_count;
-
-		$by_id = array();
-		foreach ( (array) $comments as $comment ) {
-			if ( $comment instanceof \WP_Comment ) {
-				$by_id[ (int) $comment->comment_ID ] = $comment;
-			}
+		$comment_ids = array_keys( $by_id );
+		if ( array() === $comment_ids ) {
+			return;
 		}
 
 		// Prime meta for rating + order item in one pass via update_meta_cache.
@@ -84,17 +71,14 @@ final class CommentListPrefetch {
 
 		$product_ids = array();
 		foreach ( $comment_ids as $cid ) {
-			$comment = $by_id[ $cid ] ?? null;
-			if ( ! $comment ) {
-				continue;
-			}
-			$invite = $invites_by_comment[ $cid ] ?? null;
-			$item   = ReviewContext::meta_order_item_id( $comment );
+			$comment = $by_id[ $cid ];
+			$invite  = $invites_by_comment[ $cid ] ?? null;
+			$item    = ReviewContext::meta_order_item_id( $comment );
 			if ( ! $invite && $item > 0 && isset( $invites_by_item[ $item ] ) ) {
 				$invite = $invites_by_item[ $item ];
 			}
-			$ctx                 = ReviewContext::build( $comment, $invite );
-			self::$map[ $cid ]   = $ctx;
+			$ctx               = ReviewContext::build( $comment, $invite );
+			self::$map[ $cid ] = $ctx;
 			if ( $ctx['product_id'] > 0 ) {
 				$product_ids[] = $ctx['product_id'];
 			}
@@ -114,6 +98,43 @@ final class CommentListPrefetch {
 			);
 			++self::$query_count;
 		}
+	}
+
+	/**
+	 * @param list<int> $comment_ids Displayed comment IDs (tests / fallback).
+	 */
+	public static function hydrate( array $comment_ids ): void {
+		$objects = array();
+		foreach ( $comment_ids as $id ) {
+			$id = (int) $id;
+			if ( $id <= 0 ) {
+				continue;
+			}
+			// get_comment() is cache-backed and does not run WP_Comment_Query / the_comments.
+			$comment = get_comment( $id );
+			if ( $comment instanceof \WP_Comment ) {
+				$objects[] = $comment;
+			}
+		}
+		self::hydrate_from_comments( $objects );
+	}
+
+	/**
+	 * @param \WP_Comment|object|int|string $comment Raw list-table comment value.
+	 */
+	private static function resolve_comment( $comment ): ?\WP_Comment {
+		if ( $comment instanceof \WP_Comment ) {
+			return $comment;
+		}
+		if ( is_object( $comment ) && isset( $comment->comment_ID ) ) {
+			$resolved = get_comment( (int) $comment->comment_ID );
+			return $resolved instanceof \WP_Comment ? $resolved : null;
+		}
+		if ( is_numeric( $comment ) ) {
+			$resolved = get_comment( (int) $comment );
+			return $resolved instanceof \WP_Comment ? $resolved : null;
+		}
+		return null;
 	}
 
 	/**
