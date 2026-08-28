@@ -122,7 +122,7 @@ This filter name appeared in earlier docs but is **not implemented** in UPR (`pu
 | **M3** | Polished PDP unavailable-form UI using reason codes; **do not** use `comments_open=false` as the submit gate |
 | **B1+** | Consume core native-PDP display helper for form visibility; do not reimplement availability-aligned native POST denial in host code |
 
-See [`submission-availability.md`](submission-availability.md) and [`storefront-compatibility.md`](storefront-compatibility.md) — Storefront / availability messaging adapter.
+See [`adapters.md`](adapters.md) and [`storefront-compatibility.md`](storefront-compatibility.md) — Storefront / availability messaging adapter.
 
 ---
 
