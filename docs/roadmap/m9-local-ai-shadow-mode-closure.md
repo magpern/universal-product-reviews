@@ -1,6 +1,6 @@
 # M9 — Local AI Shadow Mode — closure
 
-**Verdict:** PASS — M9 documentation freeze and implementation completed. No GitHub Release, ZIP, plugin SemVer / `v0.8.0` tag, DEV/production WordPress access, deployment, email, external provider call, host adapter, provider filter, automatic moderation action, or support-export schema change was performed as part of this closure.
+**Verdict:** PASS — M9 documentation freeze, implementation, corrective hardening (PR #44), and combined **`v0.8.0`** release metadata/tag completed. **`v0.7.0` was intentionally not published.** No GitHub Release, ZIP, DEV/production WordPress access, deployment, email, external provider call, host adapter, provider filter, automatic moderation action, M10, or M11 work was performed as part of this closure.
 
 ## Artifacts
 
@@ -23,13 +23,73 @@
 
 Post-merge CI on runtime merge: [run 33213441841](https://github.com/magpern/universal-product-reviews/actions/runs/33213441841) on `7e6d904` — **success**.
 
-## Tag target proof
+## Corrective hardening (PR #44)
+
+| Item | Reference |
+|------|-----------|
+| Correction PR | [#44](https://github.com/magpern/universal-product-reviews/pull/44) |
+| Head (verified) | `69aae3f749bc88e0b02ce580b875e1ec3a229e44` |
+| PR CI | [run 33214569044](https://github.com/magpern/universal-product-reviews/actions/runs/33214569044) — **success** on that head |
+| Merge commit | `bdb338a95dd8fdbb368b900a95311a971c6e2105` |
+| Post-merge CI | [run 33214782438](https://github.com/magpern/universal-product-reviews/actions/runs/33214782438) — **success** on `bdb338a` |
+
+Corrections:
+
+1. Expired rate-window reset: assign `rate_count` before `rate_window_started_at` so an expired full window resets to `1` (not `61`).
+2. Failed terminal insert: roll back and keep the owned claim.
+3. Failed claim clear: require claim-clear `UPDATE` affected-row count `1` before commit; otherwise roll back the terminal insert.
+
+Integration coverage: `M9OpsAndFinalizeIntegrationTest`.
+
+## Release metadata and tag (`v0.8.0`)
+
+| Item | Reference |
+|------|-----------|
+| Version metadata PR | [#45](https://github.com/magpern/universal-product-reviews/pull/45) |
+| Metadata head | `68dd442152a4f536be64edbb68762aeacf25f881` |
+| Metadata PR CI | [run 33214988030](https://github.com/magpern/universal-product-reviews/actions/runs/33214988030) — **success** |
+| Metadata merge commit | `c734b5e9f2981f4a78bfcded8e9ea15f611c7465` |
+| Metadata post-merge CI | [run 33215189273](https://github.com/magpern/universal-product-reviews/actions/runs/33215189273) — **success** on `c734b5e` |
+| Release tag | `v0.8.0` (annotated object `b143619b5341bf4a3e861321b1e06058093773bb`) → peeled **`c734b5e`** |
+
+### Why no `v0.7.0`
+
+**`v0.7.0` was intentionally not published.** There was no matching M7-only version-metadata commit, and by the time release metadata was authorised, `main` already contained both M7 Storefront Compatibility and Quality and M9 Local AI Shadow Mode (plus PR #44). The combined corrected core is released as **`v0.8.0`**.
+
+### Tag target proof (`v0.8.0` → `c734b5e`)
+
+The annotated tag peels to the **release-metadata merge** of PR #45 — not an earlier implementation merge, not PR #44 alone, and not this closure documentation commit.
+
+On peeled commit `c734b5e9f2981f4a78bfcded8e9ea15f611c7465`:
+
+| Source | Declares |
+|--------|----------|
+| Plugin header | `Version: 0.8.0` |
+| `UPR_VERSION` | `'0.8.0'` |
+| `CHANGELOG.md` | `## [0.8.0] - 2026-08-28` |
+| `scripts/ci/check.sh` | asserts `Version: 0.8.0` |
 
 ```text
-m9-local-ai-shadow-mode-freeze (annotated) → a3f879321041524831a16bac22be8562223c8d0b
+v0.8.0 (annotated) b143619b5341bf4a3e861321b1e06058093773bb
+  → peeled c734b5e9f2981f4a78bfcded8e9ea15f611c7465
 ```
 
-The peeled commit is the **documentation-freeze merge** of PR #38 (not an implementation or version-metadata merge).
+## Capabilities included in `v0.8.0`
+
+### M7 (Storefront Compatibility and Quality)
+
+- Storefront compatibility matrix and integration-boundary documentation
+- Contract-only C9/C10/enforcement characterization (classic and block/FSE); no visual theme suite in UPR
+- Mandatory accessibility hardening on core-owned `/upr-review/form/`
+- Native route and submission-guard guarantees (fail-closed resolve; guest@5 / native@15; no UPR `comments_open` gating)
+
+### M9 (Local AI Shadow Mode)
+
+- Local-only, default-off advisory shadow assessments; built-in assessor only
+- Schema `20260828a`: assessments / claims / ops; AS `upr_assess_review`; claim-before-rate; disable-silent precedence
+- Comments-admin `upr_ai` advisory display; diagnostics D12–D15 + Site Health; allowlisted AI audit
+- Claim/transaction/rate-window corrective hardening (PR #44)
+- **No** external provider, replaceable provider filter, automatic moderation, or AI-driven status changes
 
 ## Privacy and local-only enforcement
 
@@ -39,31 +99,15 @@ The peeled commit is the **documentation-freeze merge** of PR #38 (not an implem
 - Audit payloads allowlisted only (no score/reason codes/body/PII)
 - `upr-support-export/v1` and `upr-public-contracts/v1` **unchanged** (no C18)
 
-## Disabled-state evidence
+## Explicit non-actions
 
-Locked and tested:
-
-- Shadow off → Point A silent (no job/row/audit)
-- Disable after claim / during assess → clear claim; no row; no AI audit; never `provider_unavailable` for disable
-- Completion re-checks token + held eligibility + **enabled**
-- Interleave: claim active → disable → approve/spam/trash → no new row, no AI audit, claim cleared (`M9ShadowLifecycleIntegrationTest`)
-
-## Confirmed non-actions
-
-- **No** `v0.8.0` / plugin version metadata change (runtime remains **0.6.0**)
-- **No** GitHub Release or ZIP
-- **No** DEV/production WordPress access, install/activate/enable of shadow mode, or deployment
+- **No** GitHub Release or ZIP / release-package publish
+- **No** DEV or production WordPress access, install/activate/enable of shadow mode, deployment, settings change, or outbound email
 - **No** external provider calls; **no** host adapter / provider filter
 - **No** automatic approve / reject / spam from AI
-- **M10 / M11 remain unimplemented** and require separate freeze / ADR amendment
-
-## Delivered (runtime)
-
-- Schema `20260828a`: `upr_moderation_assessments`, `_assessment_claims`, `_moderation_ops`
-- AS `upr_assess_review` + purge; claim-before-rate; 60s claim; 15s cooperative deadline
-- Controls default-off; Comments `upr_ai` advisory + held re-analysis; diagnostics D12–D15 + Site Health
-- Allowlisted AI audit events
+- **No** M10 or M11 implementation
+- **M10 remains a separately planned milestone** (external / replaceable provider freeze required)
 
 ## Next step
 
-Separately authorise **M9 release metadata / tagging** (proposed `v0.8.0`, after any authorised M7 `v0.7.0`) only after reviewing this implementation closure. Do **not** treat this closure as Release/ZIP authorisation.
+Begin a **separate M10 planning cycle** (plan → documentation freeze → implementation). Do **not** treat this closure as Release/ZIP/DEV/prod authorisation or as M10/M11 authorisation.
