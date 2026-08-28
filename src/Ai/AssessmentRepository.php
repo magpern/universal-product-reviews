@@ -15,9 +15,19 @@ final class AssessmentRepository {
 
 	public const PURGE_BATCH_SIZE = 100;
 
+	/** @var bool Test seam: force insert_terminal() to fail without writing. */
+	private static bool $force_insert_fail_for_tests = false;
+
 	public static function table(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'upr_moderation_assessments';
+	}
+
+	/**
+	 * Test seam only — force the next insert_terminal() calls to return 0.
+	 */
+	public static function set_force_insert_fail_for_tests( bool $force ): void {
+		self::$force_insert_fail_for_tests = $force;
 	}
 
 	/**
@@ -36,11 +46,15 @@ final class AssessmentRepository {
 	): int {
 		global $wpdb;
 
+		if ( self::$force_insert_fail_for_tests ) {
+			return 0;
+		}
+
 		$completed_at = current_time( 'mysql', true );
 		$retention    = AssessmentRetention::due_at_for_status( $comment_status, strtotime( $completed_at . ' UTC' ) );
 		$codes_json   = array() !== $reason_codes ? wp_json_encode( array_values( $reason_codes ) ) : null;
 
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			self::table(),
 			array(
 				'schema_version'           => PolicyAllowlist::SCHEMA_VERSION,
@@ -60,6 +74,10 @@ final class AssessmentRepository {
 			),
 			array( '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
+
+		if ( false === $inserted ) {
+			return 0;
+		}
 
 		return (int) $wpdb->insert_id;
 	}

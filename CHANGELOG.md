@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- M9 ops rate window: compute `rate_count` before resetting `rate_window_started_at` so an expired full window resets to `1` instead of incrementing to `61`.
+- M9 assessment finalize: roll back and keep the owned claim when terminal insert fails so a write error cannot leave neither a row nor a recoverable claim.
+
 ## [0.6.0] - 2026-08-28
 
 ### Added

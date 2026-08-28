@@ -38,12 +38,16 @@ final class ModerationOpsRepository {
 		$now      = gmdate( 'Y-m-d H:i:s' );
 		$hour_ago = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
 
+		// Assign rate_count BEFORE rate_window_started_at. MySQL evaluates UPDATE
+		// assignments left-to-right and later expressions see new values; resetting
+		// the window first would make the count branch see a fresh window and
+		// increment the stale count (e.g. 60 → 61) instead of resetting to 1.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 		$n = $wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$table} SET
-					rate_window_started_at = CASE WHEN rate_window_started_at < %s THEN %s ELSE rate_window_started_at END,
 					rate_count = CASE WHEN rate_window_started_at < %s THEN 1 ELSE rate_count + 1 END,
+					rate_window_started_at = CASE WHEN rate_window_started_at < %s THEN %s ELSE rate_window_started_at END,
 					updated_at = %s
 				WHERE id = %d
 				AND (circuit_open_until IS NULL OR circuit_open_until <= %s)
@@ -52,8 +56,8 @@ final class ModerationOpsRepository {
 					OR rate_count < %d
 				)",
 				$hour_ago,
-				$now,
 				$hour_ago,
+				$now,
 				$now,
 				Schema::OPS_ROW_ID,
 				$now,

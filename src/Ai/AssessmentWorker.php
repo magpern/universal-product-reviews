@@ -294,6 +294,12 @@ final class AssessmentWorker {
 				$comment_status
 			);
 
+			if ( $assessment_id <= 0 ) {
+				// Keep the owned claim so a later worker can retry (at-least-once advisory).
+				$wpdb->query( 'ROLLBACK' );
+				return null;
+			}
+
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 			$wpdb->query(
 				$wpdb->prepare(
@@ -314,7 +320,7 @@ final class AssessmentWorker {
 				AssessmentAudit::failed( $comment_id, $assessment_id, $policy_version, $failure_code );
 			}
 
-			return $assessment_id > 0 ? $assessment_id : null;
+			return $assessment_id;
 		} catch ( \Throwable $e ) {
 			unset( $e );
 			$wpdb->query( 'ROLLBACK' );
