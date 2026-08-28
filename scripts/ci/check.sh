@@ -50,6 +50,9 @@ fi
 if grep_php_src 'upr_review_page_url' | grep -q .; then
   fail "forbidden public filter receiving raw token"
 fi
+if grep_php_src "add_filter\s*\(\s*['\"]comments_open" | grep -q .; then
+  fail "UPR must not register comments_open as availability/submission gate"
+fi
 
 echo "==> Rewrite flush must not run from Plugin bootstrap / frontend init"
 if grep -n 'flush_rewrite_rules\|function maybe_flush(' src/Plugin.php 2>/dev/null; then
@@ -156,6 +159,7 @@ required_docs=(
   docs/integration/adapters.md
   docs/integration/schema-acceptance.md
   docs/integration/submission-availability.md
+  docs/integration/storefront-compatibility.md
   docs/integration/woocommerce-settings.md
   docs/integration/site-upr-adapters.php.example
   docs/compatibility/wordpress-woocommerce.md
