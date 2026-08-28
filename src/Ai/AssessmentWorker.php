@@ -17,6 +17,16 @@ final class AssessmentWorker {
 
 	public const ASSESS_DEADLINE_SECONDS = 15;
 
+	/** @var bool Test seam: pretend claim-clear UPDATE affected 0 rows. */
+	private static bool $force_claim_clear_fail_for_tests = false;
+
+	/**
+	 * Test seam only — force finalize claim-clear to fail after a successful insert.
+	 */
+	public static function set_force_claim_clear_fail_for_tests( bool $force ): void {
+		self::$force_claim_clear_fail_for_tests = $force;
+	}
+
 	/**
 	 * Point B — claim-before-rate worker with one-txn completion.
 	 */
@@ -294,17 +304,34 @@ final class AssessmentWorker {
 				$comment_status
 			);
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
-			$wpdb->query(
-				$wpdb->prepare(
-					"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
-					WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
-					current_time( 'mysql', true ),
-					$comment_id,
-					$policy_version,
-					$claim_token
-				)
-			);
+			if ( $assessment_id <= 0 ) {
+				// Keep the owned claim so a later worker can retry (at-least-once advisory).
+				$wpdb->query( 'ROLLBACK' );
+				return null;
+			}
+
+			if ( self::$force_claim_clear_fail_for_tests ) {
+				$cleared = 0;
+			} else {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+				$cleared = $wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
+						current_time( 'mysql', true ),
+						$comment_id,
+						$policy_version,
+						$claim_token
+					)
+				);
+			}
+
+			// Terminal row + claim clear must succeed together; otherwise roll back the
+			// insert so a later retry cannot produce a second terminal assessment.
+			if ( 1 !== (int) $cleared ) {
+				$wpdb->query( 'ROLLBACK' );
+				return null;
+			}
 
 			$wpdb->query( 'COMMIT' );
 
@@ -314,7 +341,7 @@ final class AssessmentWorker {
 				AssessmentAudit::failed( $comment_id, $assessment_id, $policy_version, $failure_code );
 			}
 
-			return $assessment_id > 0 ? $assessment_id : null;
+			return $assessment_id;
 		} catch ( \Throwable $e ) {
 			unset( $e );
 			$wpdb->query( 'ROLLBACK' );
