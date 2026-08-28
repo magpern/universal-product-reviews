@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews;
 
 use UniversalProductReviews\Admin\AdminController;
+use UniversalProductReviews\Ai\AssessmentLifecycle;
 use UniversalProductReviews\CLI\Commands;
 use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Invitations\InvitationScheduler;
@@ -45,6 +46,7 @@ final class Plugin {
 
 		InvitationScheduler::register();
 		SuppressionService::register();
+		AssessmentLifecycle::register();
 		Jobs::register();
 		RewriteRules::register();
 		Commands::register();

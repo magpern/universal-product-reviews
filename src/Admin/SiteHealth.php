@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Admin\Diagnostics\IntegrationReadiness;
+use UniversalProductReviews\Ai\ModerationOpsRepository;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\WooCommerce\WooCommerceGate;
@@ -54,6 +55,10 @@ final class SiteHealth {
 		$tests['direct']['upr_integration_readiness'] = array(
 			'label' => __( 'Universal Product Reviews integration readiness', 'universal-product-reviews' ),
 			'test'  => array( self::class, 'test_integration_readiness' ),
+		);
+		$tests['direct']['upr_local_ai_shadow'] = array(
+			'label' => __( 'Universal Product Reviews local AI shadow', 'universal-product-reviews' ),
+			'test'  => array( self::class, 'test_local_ai_shadow' ),
 		);
 
 		return $tests;
@@ -191,6 +196,45 @@ final class SiteHealth {
 			'description' => '<p>' . esc_html__( 'Advisory wiring signals only (I1–I5). Not operational proof of delivery or mail.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( $summary ) . '</code></p>',
 			'actions'     => '',
 			'test'        => 'upr_integration_readiness',
+		);
+	}
+
+	/**
+	 * Informational summary of shadow enablement and moderation ops circuit evidence.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function test_local_ai_shadow(): array {
+		$enabled = Options::local_ai_shadow_enabled();
+		$codes   = array( $enabled ? 'shadow_enabled' : 'shadow_disabled' );
+
+		try {
+			$ops = ModerationOpsRepository::summarize();
+			if ( empty( $ops['ok'] ) ) {
+				$codes[] = 'ops_unavailable';
+			} elseif ( ! empty( $ops['circuit_open'] ) ) {
+				$codes[] = 'circuit_open';
+			} elseif ( ! empty( $ops['rate_limited'] ) ) {
+				$codes[] = 'rate_limited';
+			} else {
+				$codes[] = 'ops_ok';
+			}
+		} catch ( \Throwable $e ) {
+			$codes[] = 'ops_unavailable';
+		}
+
+		$summary = implode( '; ', $codes );
+
+		return array(
+			'label'       => __( 'UPR local AI shadow', 'universal-product-reviews' ),
+			'status'      => 'good',
+			'badge'       => array(
+				'label' => __( 'Performance', 'universal-product-reviews' ),
+				'color' => 'blue',
+			),
+			'description' => '<p>' . esc_html__( 'Advisory local-only shadow assessments (informational). Does not auto-moderate reviews.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( $summary ) . '</code></p>',
+			'actions'     => '',
+			'test'        => 'upr_local_ai_shadow',
 		);
 	}
 }

@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Admin;
 
+use UniversalProductReviews\Ai\AssessmentLifecycle;
 use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
@@ -23,6 +24,8 @@ final class AdminActions {
 		add_action( 'admin_post_upr_reconcile_apply', array( self::class, 'handle_reconcile_apply' ) );
 		add_action( 'admin_post_upr_db_upgrade', array( self::class, 'handle_db_upgrade' ) );
 		add_action( 'admin_post_upr_support_export', array( self::class, 'handle_support_export' ) );
+		add_action( 'admin_post_upr_ai_reanalyze', array( self::class, 'handle_ai_reanalyze' ) );
+		add_action( 'admin_notices', array( self::class, 'render_edit_comments_notices' ) );
 	}
 
 	public static function handle_reconcile_dry_run(): void {
@@ -155,6 +158,56 @@ final class AdminActions {
 		SupportExport::download_headers();
 		SupportExport::output_json( $payload );
 		exit;
+	}
+
+	public static function handle_ai_reanalyze(): void {
+		if ( ! current_user_can( 'moderate_comments' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do this.', 'universal-product-reviews' ), 403 );
+		}
+
+		$comment_id = isset( $_POST['comment_id'] ) ? (int) $_POST['comment_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $comment_id <= 0 ) {
+			wp_die( esc_html__( 'Invalid comment.', 'universal-product-reviews' ), 400 );
+		}
+
+		check_admin_referer( 'upr_ai_reanalyze_' . $comment_id );
+
+		$ok = AssessmentLifecycle::request_reanalysis( $comment_id );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'upr_ai_notice' => $ok ? 'reanalysis_requested' : 'reanalysis_refused',
+				),
+				admin_url( 'edit-comments.php' )
+			)
+		);
+		exit;
+	}
+
+	public static function render_edit_comments_notices(): void {
+		global $pagenow;
+		if ( 'edit-comments.php' !== $pagenow ) {
+			return;
+		}
+		if ( empty( $_GET['upr_ai_notice'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+
+		$notice = sanitize_key( wp_unslash( (string) $_GET['upr_ai_notice'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$map    = array(
+			'reanalysis_requested' => array( 'success', __( 'AI re-analysis requested.', 'universal-product-reviews' ) ),
+			'reanalysis_refused'   => array( 'warning', __( 'AI re-analysis was not scheduled (disabled, ineligible, or rate limited).', 'universal-product-reviews' ) ),
+		);
+		if ( ! isset( $map[ $notice ] ) ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( $map[ $notice ][0] ),
+			esc_html( $map[ $notice ][1] )
+		);
 	}
 
 	private static function assert_cap(): void {

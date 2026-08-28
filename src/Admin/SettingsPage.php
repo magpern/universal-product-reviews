@@ -26,6 +26,9 @@ final class SettingsPage {
 	/** Posted confirmation required to activate emergency pause. */
 	public const CONFIRM_EMERGENCY_PAUSE = 'upr_confirm_emergency_pause';
 
+	/** Posted confirmation required to enable local AI shadow mode. */
+	public const CONFIRM_ENABLE_LOCAL_AI_SHADOW = 'upr_confirm_enable_local_ai_shadow';
+
 	/**
 	 * Register Settings API options only (menu owned by AdminController).
 	 */
@@ -51,6 +54,17 @@ final class SettingsPage {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => array( self::class, 'sanitize_pause' ),
+				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::LOCAL_AI_SHADOW_ENABLED,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_local_ai_shadow' ),
 				'default'           => 'no',
 				'show_in_rest'      => false,
 			)
@@ -94,6 +108,20 @@ final class SettingsPage {
 	}
 
 	/**
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_local_ai_shadow( $value ): string {
+		$enabled = self::is_checked( $value );
+		$was     = Options::local_ai_shadow_enabled();
+
+		if ( $enabled && ! $was && ! self::posted_confirm( self::CONFIRM_ENABLE_LOCAL_AI_SHADOW ) ) {
+			return $was ? 'yes' : 'no';
+		}
+
+		return $enabled ? 'yes' : 'no';
+	}
+
+	/**
 	 * True when the named confirmation checkbox was posted as "1".
 	 */
 	public static function posted_confirm( string $field ): bool {
@@ -124,6 +152,7 @@ final class SettingsPage {
 
 		$enabled      = Options::invitation_emails_enabled();
 		$paused       = Options::invitation_emergency_pause();
+		$shadow       = Options::local_ai_shadow_enabled();
 		$meta         = EmergencyPause::meta();
 		$schema_ok    = ! Migrator::needs_upgrade();
 		$admin_post   = admin_url( 'admin-post.php' );
@@ -152,6 +181,14 @@ final class SettingsPage {
 				<li>
 					<strong><?php echo esc_html__( 'Sending not authorised', 'universal-product-reviews' ); ?>:</strong>
 					<?php echo esc_html__( 'Host filter / authorisation may still deny sends. That policy cannot be toggled here.', 'universal-product-reviews' ); ?>
+				</li>
+				<li>
+					<strong><?php echo esc_html__( 'Local AI shadow mode', 'universal-product-reviews' ); ?>:</strong>
+					<?php
+					echo $shadow
+						? esc_html__( 'enabled (advisory only)', 'universal-product-reviews' )
+						: esc_html__( 'disabled', 'universal-product-reviews' );
+					?>
 				</li>
 			</ul>
 
@@ -218,6 +255,25 @@ final class SettingsPage {
 							<?php endif; ?>
 						</td>
 					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Local AI shadow mode (advisory only)', 'universal-product-reviews' ); ?></th>
+						<td>
+							<input type="hidden" name="<?php echo esc_attr( Options::LOCAL_AI_SHADOW_ENABLED ); ?>" value="no" />
+							<label>
+								<input type="checkbox" id="upr_local_ai_shadow_enabled" name="<?php echo esc_attr( Options::LOCAL_AI_SHADOW_ENABLED ); ?>" value="yes" <?php checked( $shadow ); ?> data-upr-was="<?php echo $shadow ? '1' : '0'; ?>" />
+								<?php echo esc_html__( 'Run local-only advisory publication-safety assessments on held product reviews. Does not change comment status or content.', 'universal-product-reviews' ); ?>
+							</label>
+							<p class="description">
+								<?php echo esc_html__( 'Default is disabled. When disabled, no new assessments or AI audit events are recorded.', 'universal-product-reviews' ); ?>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_LOCAL_AI_SHADOW ); ?>" value="1" id="upr_confirm_enable_local_ai_shadow" />
+									<?php echo esc_html__( 'I confirm enabling local AI shadow mode (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+						</td>
+					</tr>
 				</table>
 				<?php submit_button( __( 'Save controls', 'universal-product-reviews' ) ); ?>
 			</form>
@@ -230,6 +286,8 @@ final class SettingsPage {
 					var pause = document.getElementById('upr_invitation_emergency_pause');
 					var confirmEmails = document.getElementById('upr_confirm_enable_emails');
 					var confirmPause = document.getElementById('upr_confirm_emergency_pause');
+					var shadow = document.getElementById('upr_local_ai_shadow_enabled');
+					var confirmShadow = document.getElementById('upr_confirm_enable_local_ai_shadow');
 					if (emails && emails.checked && emails.getAttribute('data-upr-was') === '0') {
 						if (!confirmEmails || !confirmEmails.checked) {
 							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to enable invitation emails.', 'universal-product-reviews' ) ); ?>);
@@ -249,6 +307,16 @@ final class SettingsPage {
 						}
 						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable emergency pause? This revokes outstanding tokens and cancels pending invitation sends.', 'universal-product-reviews' ) ); ?>)) {
 							e.preventDefault();
+						}
+					}
+					if (shadow && shadow.checked && shadow.getAttribute('data-upr-was') === '0') {
+						if (!confirmShadow || !confirmShadow.checked) {
+							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to enable local AI shadow mode.', 'universal-product-reviews' ) ); ?>);
+							e.preventDefault();
+							return;
+						}
+						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable local AI shadow mode? Assessments are advisory only and never change review status.', 'universal-product-reviews' ) ); ?>)) {
+						 e.preventDefault();
 						}
 					}
 				});

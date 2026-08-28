@@ -1,0 +1,181 @@
+<?php
+/**
+ * Terminal moderation assessment rows.
+ *
+ * @package UniversalProductReviews
+ */
+
+declare( strict_types=1 );
+
+namespace UniversalProductReviews\Ai;
+
+defined( 'ABSPATH' ) || exit;
+
+final class AssessmentRepository {
+
+	public const PURGE_BATCH_SIZE = 100;
+
+	public static function table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'upr_moderation_assessments';
+	}
+
+	/**
+	 * @param list<string> $reason_codes
+	 */
+	public static function insert_terminal(
+		int $comment_id,
+		string $state,
+		?int $publication_safety_score,
+		?string $confidence,
+		array $reason_codes,
+		string $policy_version,
+		?string $failure_code,
+		string $requested_at,
+		string $comment_status
+	): int {
+		global $wpdb;
+
+		$completed_at = current_time( 'mysql', true );
+		$retention    = AssessmentRetention::due_at_for_status( $comment_status, strtotime( $completed_at . ' UTC' ) );
+		$codes_json   = array() !== $reason_codes ? wp_json_encode( array_values( $reason_codes ) ) : null;
+
+		$wpdb->insert(
+			self::table(),
+			array(
+				'schema_version'           => PolicyAllowlist::SCHEMA_VERSION,
+				'comment_id'               => $comment_id,
+				'mode'                     => 'shadow',
+				'state'                    => $state,
+				'publication_safety_score' => $publication_safety_score,
+				'confidence'               => $confidence,
+				'reason_codes'             => $codes_json,
+				'policy_version'           => $policy_version,
+				'provider_kind'            => 'local',
+				'provider_fingerprint'     => ProviderFingerprint::for_builtin( $policy_version ),
+				'failure_code'             => $failure_code,
+				'requested_at'             => $requested_at,
+				'completed_at'             => $completed_at,
+				'retention_due_at'         => $retention,
+			),
+			array( '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+		);
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Latest terminal row per comment id (by completed_at).
+	 *
+	 * @param list<int> $comment_ids
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function latest_for_comments( array $comment_ids ): array {
+		global $wpdb;
+
+		$comment_ids = array_values( array_filter( array_map( 'intval', $comment_ids ) ) );
+		if ( array() === $comment_ids ) {
+			return array();
+		}
+
+		$table   = self::table();
+		$placeholders = implode( ',', array_fill( 0, count( $comment_ids ), '%d' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPlaceholder
+		$query = $wpdb->prepare(
+			"SELECT a.* FROM {$table} a
+			INNER JOIN (
+				SELECT comment_id, MAX(completed_at) AS max_completed
+				FROM {$table}
+				WHERE comment_id IN ({$placeholders})
+				GROUP BY comment_id
+			) latest ON a.comment_id = latest.comment_id AND a.completed_at = latest.max_completed",
+			...$comment_ids
+		);
+
+		$rows = $wpdb->get_results( $query, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$out[ (int) $row['comment_id'] ] = $row;
+		}
+		return $out;
+	}
+
+	public static function recompute_retention( int $comment_id, string $comment_status ): void {
+		global $wpdb;
+
+		$due   = AssessmentRetention::due_at_for_status( $comment_status, time() );
+		$table = self::table();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET retention_due_at = %s WHERE comment_id = %d",
+				$due,
+				$comment_id
+			)
+		);
+	}
+
+	public static function purge_due( int $limit = self::PURGE_BATCH_SIZE ): int {
+		global $wpdb;
+
+		$table = self::table();
+		$limit = max( 1, min( 500, $limit ) );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$n = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$table} WHERE retention_due_at <= UTC_TIMESTAMP() LIMIT %d",
+				$limit
+			)
+		);
+
+		return max( 0, (int) $n );
+	}
+
+	public static function delete_for_comment( int $comment_id ): void {
+		global $wpdb;
+
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$wpdb->query(
+			$wpdb->prepare( "DELETE FROM {$table} WHERE comment_id = %d", $comment_id )
+		);
+	}
+
+	/**
+	 * Aggregate terminal state counts in the last 24 hours (UTC).
+	 *
+	 * @return array<string, int>
+	 */
+	public static function count_states_24h(): array {
+		global $wpdb;
+
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$rows = $wpdb->get_results(
+			"SELECT state, COUNT(*) AS cnt FROM {$table}
+			WHERE completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 24 HOUR)
+			GROUP BY state",
+			ARRAY_A
+		);
+
+		$out = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				if ( ! is_array( $row ) || ! isset( $row['state'] ) ) {
+					continue;
+				}
+				$out[ (string) $row['state'] ] = (int) ( $row['cnt'] ?? 0 );
+			}
+		}
+		return $out;
+	}
+}

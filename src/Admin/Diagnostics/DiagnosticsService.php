@@ -11,6 +11,9 @@ namespace UniversalProductReviews\Admin\Diagnostics;
 
 use UniversalProductReviews\Admin\AdminCache;
 use UniversalProductReviews\Admin\OverviewRepository;
+use UniversalProductReviews\Ai\AssessmentClaimsRepository;
+use UniversalProductReviews\Ai\AssessmentRepository;
+use UniversalProductReviews\Ai\ModerationOpsRepository;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Database\Schema;
@@ -47,6 +50,10 @@ final class DiagnosticsService {
 			self::check_d9(),
 			self::check_d10(),
 			self::check_d11(),
+			self::check_d12(),
+			self::check_d13(),
+			self::check_d14(),
+			self::check_d15(),
 		);
 
 		AdminCache::set(
@@ -371,6 +378,146 @@ final class DiagnosticsService {
 			);
 		}
 		return self::result( 'D11', 'pass', 'Pass', 'No overdue delayed invitations.', 'no_overdue_delayed' );
+	}
+
+	/**
+	 * @return array{id:string,status:string,severity:string,message:string,evidence_code:string}
+	 */
+	public static function check_d12(): array {
+		if ( Options::local_ai_shadow_enabled() ) {
+			return self::result(
+				'D12',
+				'information',
+				'Information',
+				'Local AI shadow mode is enabled (advisory only).',
+				'shadow_enabled'
+			);
+		}
+		return self::result(
+			'D12',
+			'pass',
+			'Pass',
+			'Local AI shadow mode is disabled (fail-closed default).',
+			'shadow_disabled'
+		);
+	}
+
+	/**
+	 * @return array{id:string,status:string,severity:string,message:string,evidence_code:string}
+	 */
+	public static function check_d13(): array {
+		if ( self::moderation_assessment_tables_exist() ) {
+			return self::result(
+				'D13',
+				'pass',
+				'Pass',
+				'Moderation assessment schema tables exist.',
+				'assessment_tables_present'
+			);
+		}
+		return self::result(
+			'D13',
+			'warning',
+			'Warning',
+			'Moderation assessment schema tables are missing.',
+			'assessment_tables_missing'
+		);
+	}
+
+	/**
+	 * @return array{id:string,status:string,severity:string,message:string,evidence_code:string}
+	 */
+	public static function check_d14(): array {
+		try {
+			$ops = ModerationOpsRepository::summarize();
+		} catch ( \Throwable $e ) {
+			return self::result( 'D14', 'unavailable', 'Unavailable', 'Moderation ops status unavailable.', 'ops_query_failed' );
+		}
+
+		if ( empty( $ops['ok'] ) ) {
+			return self::result( 'D14', 'unavailable', 'Unavailable', 'Moderation ops status unavailable.', 'ops_row_missing' );
+		}
+
+		if ( ! empty( $ops['circuit_open'] ) ) {
+			return self::result(
+				'D14',
+				'warning',
+				'Warning',
+				'AI moderation circuit breaker is open.',
+				'circuit_open'
+			);
+		}
+
+		if ( ! empty( $ops['rate_limited'] ) ) {
+			return self::result(
+				'D14',
+				'warning',
+				'Warning',
+				sprintf( 'AI moderation hourly rate limit reached (%d).', (int) $ops['rate_count'] ),
+				'rate_limited'
+			);
+		}
+
+		return self::result(
+			'D14',
+			'pass',
+			'Pass',
+			sprintf( 'AI moderation ops healthy (hourly count %d).', (int) $ops['rate_count'] ),
+			'ops_ok'
+		);
+	}
+
+	/**
+	 * @return array{id:string,status:string,severity:string,message:string,evidence_code:string}
+	 */
+	public static function check_d15(): array {
+		try {
+			$counts = AssessmentRepository::count_states_24h();
+		} catch ( \Throwable $e ) {
+			return self::result( 'D15', 'unavailable', 'Unavailable', 'Assessment 24h counts unavailable.', 'query_failed' );
+		}
+
+		if ( array() === $counts ) {
+			return self::result(
+				'D15',
+				'pass',
+				'Pass',
+				'No terminal assessments in the last 24 hours.',
+				'assessment_counts_none'
+			);
+		}
+
+		$parts = array();
+		foreach ( $counts as $state => $count ) {
+			$parts[] = sanitize_key( (string) $state ) . '=' . (int) $count;
+		}
+		sort( $parts );
+
+		return self::result(
+			'D15',
+			'information',
+			'Information',
+			'Terminal assessment counts (24h): ' . implode( ', ', $parts ) . '.',
+			'assessment_counts_24h'
+		);
+	}
+
+	private static function moderation_assessment_tables_exist(): bool {
+		global $wpdb;
+
+		foreach (
+			array(
+				AssessmentRepository::table(),
+				AssessmentClaimsRepository::table(),
+				ModerationOpsRepository::table(),
+			) as $table
+		) {
+			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			if ( $found !== $table ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**

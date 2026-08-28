@@ -26,6 +26,15 @@ final class Options {
 	public const INVITATION_CONTROLS_EPOCH       = 'upr_invitation_controls_epoch';
 	public const INVITATION_SCHEDULING_BOUNDARY_AT = 'upr_invitation_scheduling_boundary_at';
 
+	public const LOCAL_AI_SHADOW_ENABLED = 'upr_local_ai_shadow_enabled';
+
+	/**
+	 * Local AI shadow assessment. Absent / unset = disabled (fail-closed).
+	 */
+	public static function local_ai_shadow_enabled(): bool {
+		return self::option_is_truthy( get_option( self::LOCAL_AI_SHADOW_ENABLED, 'no' ) );
+	}
+
 	/**
 	 * Master invitation-email control. Absent / unset = disabled (fail-closed).
 	 */
