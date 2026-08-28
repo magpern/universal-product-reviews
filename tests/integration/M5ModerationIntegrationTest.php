@@ -35,12 +35,14 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 		CommentListPrefetch::reset_for_tests();
 		SystemStatusOrigin::reset_for_tests();
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->grant_moderation_caps( $this->admin_id );
 	}
 
 	public function tear_down(): void {
 		ModerationAudit::reset_for_tests();
 		CommentListPrefetch::reset_for_tests();
 		SystemStatusOrigin::reset_for_tests();
+		remove_all_filters( 'wp_doing_ajax' );
 		unset( $_REQUEST, $_GET, $GLOBALS['pagenow'] );
 		parent::tear_down();
 	}
@@ -499,7 +501,25 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 		set_current_screen( 'edit-comments' );
 	}
 
+	private function grant_moderation_caps( int $user_id ): void {
+		$user = new \WP_User( $user_id );
+		foreach (
+			array(
+				'moderate_comments',
+				'edit_posts',
+				'edit_products',
+				'edit_others_products',
+				'edit_published_products',
+				'edit_shop_orders',
+				'edit_others_shop_orders',
+			) as $cap
+		) {
+			$user->add_cap( $cap );
+		}
+	}
+
 	private function prime_native_reply_request(): void {
+		add_filter( 'wp_doing_ajax', '__return_true' );
 		if ( ! defined( 'DOING_AJAX' ) ) {
 			define( 'DOING_AJAX', true );
 		}
