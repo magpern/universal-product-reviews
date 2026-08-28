@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Invitations;
 
+use UniversalProductReviews\Admin\AdminCache;
 use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Scheduling\Jobs;
@@ -55,6 +56,8 @@ final class EmergencyPause {
 			Options::refresh_scheduling_boundary();
 			AuditLogger::log( 'invite.emergency_unpause', 'hook', null, null, $payload );
 		}
+
+		AdminCache::invalidate();
 	}
 
 	/**

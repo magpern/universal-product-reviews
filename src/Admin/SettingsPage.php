@@ -1,6 +1,6 @@
 <?php
 /**
- * Generic UPR admin settings (invitation email controls).
+ * Controls tab: invitation email settings + safe operator actions.
  *
  * @package UniversalProductReviews
  */
@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Config\Options;
+use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Invitations\EmergencyPause;
 use UniversalProductReviews\Invitations\InvitationEmailControls;
 
@@ -19,23 +20,20 @@ final class SettingsPage {
 
 	public const MENU_SLUG = 'universal-product-reviews';
 
-	public static function register(): void {
-		add_action( 'admin_menu', array( self::class, 'add_menu' ) );
-		add_action( 'admin_init', array( self::class, 'register_settings' ) );
-	}
+	/** Posted confirmation required to enable invitation emails. */
+	public const CONFIRM_ENABLE_EMAILS = 'upr_confirm_enable_emails';
 
-	public static function add_menu(): void {
-		add_submenu_page(
-			'woocommerce',
-			__( 'Product Reviews', 'universal-product-reviews' ),
-			__( 'Product Reviews', 'universal-product-reviews' ),
-			'manage_woocommerce',
-			self::MENU_SLUG,
-			array( self::class, 'render_page' )
-		);
-	}
+	/** Posted confirmation required to activate emergency pause. */
+	public const CONFIRM_EMERGENCY_PAUSE = 'upr_confirm_emergency_pause';
 
+	/**
+	 * Register Settings API options only (menu owned by AdminController).
+	 */
 	public static function register_settings(): void {
+		add_action( 'admin_init', array( self::class, 'register_setting_fields' ) );
+	}
+
+	public static function register_setting_fields(): void {
 		register_setting(
 			'upr_settings',
 			Options::INVITATION_EMAILS_ENABLED,
@@ -64,6 +62,13 @@ final class SettingsPage {
 	 */
 	public static function sanitize_enabled( $value ): string {
 		$enabled = self::is_checked( $value );
+		$was     = Options::invitation_emails_enabled();
+
+		// Enabling requires a verified posted confirmation field (JS confirm alone is not enough).
+		if ( $enabled && ! $was && ! self::posted_confirm( self::CONFIRM_ENABLE_EMAILS ) ) {
+			return $was ? 'yes' : 'no';
+		}
+
 		InvitationEmailControls::set_emails_enabled( $enabled );
 		return $enabled ? 'yes' : 'no';
 	}
@@ -73,12 +78,29 @@ final class SettingsPage {
 	 */
 	public static function sanitize_pause( $value ): string {
 		$paused = self::is_checked( $value );
+		$was    = Options::invitation_emergency_pause();
+
+		// Activating pause requires a verified posted confirmation field.
+		if ( $paused && ! $was && ! self::posted_confirm( self::CONFIRM_EMERGENCY_PAUSE ) ) {
+			return $was ? 'yes' : 'no';
+		}
+
 		$reason = '';
 		if ( isset( $_POST['upr_invitation_emergency_pause_reason'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$reason = sanitize_text_field( wp_unslash( (string) $_POST['upr_invitation_emergency_pause_reason'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		}
 		EmergencyPause::set_paused( $paused, $reason );
 		return $paused ? 'yes' : 'no';
+	}
+
+	/**
+	 * True when the named confirmation checkbox was posted as "1".
+	 */
+	public static function posted_confirm( string $field ): bool {
+		if ( empty( $_POST[ $field ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return false;
+		}
+		return '1' === (string) wp_unslash( $_POST[ $field ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
@@ -95,18 +117,45 @@ final class SettingsPage {
 		return in_array( $v, array( '1', 'yes', 'true', 'on' ), true );
 	}
 
-	public static function render_page(): void {
+	public static function render_controls(): void {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			return;
 		}
 
-		$enabled = Options::invitation_emails_enabled();
-		$paused  = Options::invitation_emergency_pause();
-		$meta    = EmergencyPause::meta();
+		$enabled      = Options::invitation_emails_enabled();
+		$paused       = Options::invitation_emergency_pause();
+		$meta         = EmergencyPause::meta();
+		$schema_ok    = ! Migrator::needs_upgrade();
+		$admin_post   = admin_url( 'admin-post.php' );
 		?>
-		<div class="wrap">
-			<h1><?php echo esc_html__( 'Universal Product Reviews', 'universal-product-reviews' ); ?></h1>
-			<form method="post" action="options.php">
+		<div class="upr-controls">
+			<h2><?php echo esc_html__( 'Controls', 'universal-product-reviews' ); ?></h2>
+
+			<h3><?php echo esc_html__( 'Status', 'universal-product-reviews' ); ?></h3>
+			<ul>
+				<li>
+					<strong><?php echo esc_html__( 'Invitation emails', 'universal-product-reviews' ); ?>:</strong>
+					<?php
+					echo $enabled
+						? esc_html__( 'enabled', 'universal-product-reviews' )
+						: esc_html__( 'disabled', 'universal-product-reviews' );
+					?>
+				</li>
+				<li>
+					<strong><?php echo esc_html__( 'Emergency pause', 'universal-product-reviews' ); ?>:</strong>
+					<?php
+					echo $paused
+						? esc_html__( 'active', 'universal-product-reviews' )
+						: esc_html__( 'off', 'universal-product-reviews' );
+					?>
+				</li>
+				<li>
+					<strong><?php echo esc_html__( 'Sending not authorised', 'universal-product-reviews' ); ?>:</strong>
+					<?php echo esc_html__( 'Host filter / authorisation may still deny sends. That policy cannot be toggled here.', 'universal-product-reviews' ); ?>
+				</li>
+			</ul>
+
+			<form method="post" action="options.php" id="upr-controls-form">
 				<?php settings_fields( 'upr_settings' ); ?>
 				<table class="form-table" role="presentation">
 					<tr>
@@ -114,11 +163,17 @@ final class SettingsPage {
 						<td>
 							<input type="hidden" name="<?php echo esc_attr( Options::INVITATION_EMAILS_ENABLED ); ?>" value="no" />
 							<label>
-								<input type="checkbox" name="<?php echo esc_attr( Options::INVITATION_EMAILS_ENABLED ); ?>" value="yes" <?php checked( $enabled ); ?> />
+								<input type="checkbox" id="upr_invitation_emails_enabled" name="<?php echo esc_attr( Options::INVITATION_EMAILS_ENABLED ); ?>" value="yes" <?php checked( $enabled ); ?> data-upr-was="<?php echo $enabled ? '1' : '0'; ?>" />
 								<?php echo esc_html__( 'Allow new review-invitation emails to be scheduled and sent.', 'universal-product-reviews' ); ?>
 							</label>
 							<p class="description">
 								<?php echo esc_html__( 'Default is disabled. When disabled, outstanding invitation links remain valid, but no new invitation email is scheduled or sent.', 'universal-product-reviews' ); ?>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_EMAILS ); ?>" value="1" id="upr_confirm_enable_emails" />
+									<?php echo esc_html__( 'I confirm enabling invitation emails (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
 							</p>
 						</td>
 					</tr>
@@ -127,12 +182,18 @@ final class SettingsPage {
 						<td>
 							<input type="hidden" name="<?php echo esc_attr( Options::INVITATION_EMERGENCY_PAUSE ); ?>" value="no" />
 							<label>
-								<input type="checkbox" name="<?php echo esc_attr( Options::INVITATION_EMERGENCY_PAUSE ); ?>" value="yes" <?php checked( $paused ); ?> />
+								<input type="checkbox" id="upr_invitation_emergency_pause" name="<?php echo esc_attr( Options::INVITATION_EMERGENCY_PAUSE ); ?>" value="yes" <?php checked( $paused ); ?> data-upr-was="<?php echo $paused ? '1' : '0'; ?>" />
 								<?php echo esc_html__( 'Emergency stop: block all invitation scheduling and sending.', 'universal-product-reviews' ); ?>
 							</label>
 							<p class="description" style="color:#b32d2e;">
 								<strong><?php echo esc_html__( 'Warning:', 'universal-product-reviews' ); ?></strong>
 								<?php echo esc_html__( 'This is an emergency stop. While paused, invitation emails will not send, and outstanding invitation tokens and form sessions are revoked.', 'universal-product-reviews' ); ?>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_EMERGENCY_PAUSE ); ?>" value="1" id="upr_confirm_emergency_pause" />
+									<?php echo esc_html__( 'I confirm activating emergency pause (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
 							</p>
 							<p>
 								<label for="upr_invitation_emergency_pause_reason">
@@ -158,7 +219,98 @@ final class SettingsPage {
 						</td>
 					</tr>
 				</table>
-				<?php submit_button(); ?>
+				<?php submit_button( __( 'Save controls', 'universal-product-reviews' ) ); ?>
+			</form>
+			<script>
+			(function () {
+				var form = document.getElementById('upr-controls-form');
+				if (!form) { return; }
+				form.addEventListener('submit', function (e) {
+					var emails = document.getElementById('upr_invitation_emails_enabled');
+					var pause = document.getElementById('upr_invitation_emergency_pause');
+					var confirmEmails = document.getElementById('upr_confirm_enable_emails');
+					var confirmPause = document.getElementById('upr_confirm_emergency_pause');
+					if (emails && emails.checked && emails.getAttribute('data-upr-was') === '0') {
+						if (!confirmEmails || !confirmEmails.checked) {
+							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to enable invitation emails.', 'universal-product-reviews' ) ); ?>);
+							e.preventDefault();
+							return;
+						}
+						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable invitation emails? This refreshes the no-retro-send scheduling boundary.', 'universal-product-reviews' ) ); ?>)) {
+							e.preventDefault();
+							return;
+						}
+					}
+					if (pause && pause.checked && pause.getAttribute('data-upr-was') === '0') {
+						if (!confirmPause || !confirmPause.checked) {
+							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to activate emergency pause.', 'universal-product-reviews' ) ); ?>);
+							e.preventDefault();
+							return;
+						}
+						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable emergency pause? This revokes outstanding tokens and cancels pending invitation sends.', 'universal-product-reviews' ) ); ?>)) {
+							e.preventDefault();
+						}
+					}
+				});
+			})();
+			</script>
+
+			<hr />
+			<h3><?php echo esc_html__( 'Reconciliation', 'universal-product-reviews' ); ?></h3>
+			<p class="description">
+				<?php echo esc_html__( 'Dry-run performs zero writes. Apply requires confirmation and writes reconcile.completed on success.', 'universal-product-reviews' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>" style="margin-bottom:1em;">
+				<input type="hidden" name="action" value="upr_reconcile_dry_run" />
+				<?php wp_nonce_field( 'upr_reconcile_dry_run' ); ?>
+				<label>
+					<?php echo esc_html__( 'Lookback days', 'universal-product-reviews' ); ?>
+					<input type="number" name="upr_lookback_days" value="90" min="1" max="365" />
+				</label>
+				<?php submit_button( __( 'Reconcile dry-run', 'universal-product-reviews' ), 'secondary', 'submit', false ); ?>
+			</form>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>">
+				<input type="hidden" name="action" value="upr_reconcile_apply" />
+				<?php wp_nonce_field( 'upr_reconcile_apply' ); ?>
+				<label>
+					<?php echo esc_html__( 'Lookback days', 'universal-product-reviews' ); ?>
+					<input type="number" name="upr_lookback_days" value="90" min="1" max="365" />
+				</label>
+				<label>
+					<input type="checkbox" name="upr_confirm" value="1" required />
+					<?php echo esc_html__( 'I confirm applying reconciliation (writes).', 'universal-product-reviews' ); ?>
+				</label>
+				<?php submit_button( __( 'Reconcile apply', 'universal-product-reviews' ), 'primary', 'submit', false ); ?>
+			</form>
+
+			<hr />
+			<h3><?php echo esc_html__( 'Database upgrade', 'universal-product-reviews' ); ?></h3>
+			<p>
+				<?php
+				echo $schema_ok
+					? esc_html__( 'Schema is current.', 'universal-product-reviews' )
+					: esc_html__( 'Schema is behind target. Run a controlled upgrade.', 'universal-product-reviews' );
+				?>
+			</p>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>">
+				<input type="hidden" name="action" value="upr_db_upgrade" />
+				<?php wp_nonce_field( 'upr_db_upgrade' ); ?>
+				<label>
+					<input type="checkbox" name="upr_confirm" value="1" required />
+					<?php echo esc_html__( 'I confirm running the controlled database upgrade.', 'universal-product-reviews' ); ?>
+				</label>
+				<?php submit_button( __( 'Upgrade database', 'universal-product-reviews' ), 'secondary', 'submit', false ); ?>
+			</form>
+
+			<hr />
+			<h3><?php echo esc_html__( 'Support export', 'universal-product-reviews' ); ?></h3>
+			<p class="description">
+				<?php echo esc_html__( 'Local JSON download of allowlisted aggregates only (no order IDs, emails, tokens, or free text).', 'universal-product-reviews' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>">
+				<input type="hidden" name="action" value="upr_support_export" />
+				<?php wp_nonce_field( 'upr_support_export' ); ?>
+				<?php submit_button( __( 'Download support export', 'universal-product-reviews' ), 'secondary', 'submit', false ); ?>
 			</form>
 		</div>
 		<?php

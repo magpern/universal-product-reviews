@@ -1,6 +1,6 @@
 <?php
 /**
- * Master invitation-email enable/disable transitions.
+ * Audit hooks for invitation email enable/disable.
  *
  * @package UniversalProductReviews
  */
@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Invitations;
 
+use UniversalProductReviews\Admin\AdminCache;
+use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Scheduling\Jobs;
 
@@ -30,10 +32,24 @@ final class InvitationEmailControls {
 		Options::bump_controls_epoch();
 
 		if ( $enabled ) {
-			// Only source events at/after this instant may schedule/send via normal paths.
 			Options::refresh_scheduling_boundary();
 		} else {
 			Jobs::cancel_pending_invitation_sends();
 		}
+
+		$actor = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+		AuditLogger::log(
+			$enabled ? 'invite.emails_enabled' : 'invite.emails_disabled',
+			'hook',
+			null,
+			null,
+			array(
+				'actor_id'                 => $actor,
+				'controls_epoch'           => Options::invitation_controls_epoch(),
+				'scheduling_boundary_unix' => Options::invitation_scheduling_boundary_unix(),
+			)
+		);
+
+		AdminCache::invalidate();
 	}
 }

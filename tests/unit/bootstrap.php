@@ -124,6 +124,102 @@ if ( ! function_exists( 'set_transient' ) ) {
 	}
 }
 
+if ( ! function_exists( 'delete_transient' ) ) {
+	function delete_transient( $transient ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $GLOBALS['upr_test_transients'][ $transient ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $str ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$str = (string) $str;
+		$str = strip_tags( $str );
+		return trim( $str );
+	}
+}
+
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $value ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $value;
+	}
+}
+
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $data, $options = 0, $depth = 512 ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return json_encode( $data, $options, $depth );
+	}
+}
+
+if ( ! function_exists( 'current_time' ) ) {
+	function current_time( $type, $gmt = 0 ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $gmt );
+		if ( 'mysql' === $type ) {
+			return gmdate( 'Y-m-d H:i:s' );
+		}
+		return time();
+	}
+}
+
+if ( ! isset( $GLOBALS['wpdb'] ) ) {
+	$GLOBALS['wpdb'] = new class() {
+		/** @var string */
+		public $prefix = 'wp_';
+		/** @var string */
+		public $last_error = '';
+		/** @var string */
+		public $options = 'wp_options';
+		/** @var string */
+		public $commentmeta = 'wp_commentmeta';
+
+		public function get_charset_collate() {
+			return 'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
+		}
+
+		public function insert( $table, $data, $format = null ) {
+			unset( $table, $data, $format );
+			return 1;
+		}
+
+		public function prepare( $query, ...$args ) {
+			$out = (string) $query;
+			foreach ( $args as $arg ) {
+				$out = preg_replace( '/%[sdfF]/', (string) $arg, $out, 1 ) ?? $out;
+			}
+			return $out;
+		}
+
+		public function get_var( $query = null ) {
+			if ( is_string( $query ) && false !== stripos( $query, 'SHOW TABLES LIKE' ) ) {
+				if ( ! empty( $GLOBALS['upr_test_missing_tables'] ) ) {
+					return null;
+				}
+				if ( preg_match( '/SHOW TABLES LIKE\s+(\S+)/i', $query, $m ) ) {
+					return trim( $m[1], "'\"`" );
+				}
+				return 'wp_upr_stub';
+			}
+			unset( $query );
+			return null;
+		}
+
+		public function get_results( $query = null, $output = OBJECT ) {
+			unset( $query, $output );
+			return array();
+		}
+
+		public function get_row( $query = null, $output = OBJECT, $y = 0 ) {
+			unset( $query, $output, $y );
+			return null;
+		}
+
+		public function query( $query ) {
+			unset( $query );
+			return 0;
+		}
+	};
+}
+
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( $option, $value, $autoload = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		unset( $autoload );
