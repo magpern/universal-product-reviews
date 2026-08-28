@@ -18,6 +18,7 @@ final class AdminController {
 		SettingsPage::register_settings();
 		AdminActions::register();
 		SiteHealth::register();
+		PluginActionLinks::register();
 	}
 
 	public static function add_menu(): void {
