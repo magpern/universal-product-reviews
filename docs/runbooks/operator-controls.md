@@ -28,9 +28,23 @@ Open **Diagnostics** for bounded checks (cached ≤ 60s). Unavailable ≠ critic
 
 Safe recovery: Controls (enable/pause), reconcile dry-run→apply, controlled DB upgrade. No mint/resend.
 
+## Integration readiness (I1–I5)
+
+Same Diagnostics tab, separate section. Always computed fresh (not in the D1–D11 cache). Advisory **wiring** signals only — not operational proof of delivery or mail. **Not** included in support export.
+
+| ID | Meaning |
+|----|---------|
+| I1 | Delivery lookup filter presence — information if missing |
+| I2 | Support action filter — information if missing |
+| I3 | Mail transport mode `default` \| `custom` \| `unknown` (registration only) |
+| I4 | Send-authorisation filter — information if missing |
+| I5 | Core availability service present |
+
+See [`../integration/public-contracts.md`](../integration/public-contracts.md) and [`../roadmap/m6-integration-and-developer-experience.md`](../roadmap/m6-integration-and-developer-experience.md).
+
 ## Support export
 
-Controls → **Download support export**. Schema `upr-support-export/v1`. Allowlisted aggregates only — **never** order IDs, emails, tokens, URLs, comments, payloads, product names, or AS args.
+Controls → **Download support export**. Schema `upr-support-export/v1`. Allowlisted aggregates only — **never** order IDs, emails, tokens, URLs, comments, payloads, product names, or AS args. M6 does **not** add readiness fields.
 
 ## Capability map
 

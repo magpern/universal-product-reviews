@@ -34,7 +34,8 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/milestones/M2-invitations.md`](docs/milestones/M2-invitations.md) | Frozen M2 invitations specification |
 | [`docs/decisions/ADR-0001-repository-visibility.md`](docs/decisions/ADR-0001-repository-visibility.md) | Public repository governance |
 | [`docs/production-replay.md`](docs/production-replay.md) | Host integration and deployment runbook |
-| [`docs/integration/`](docs/integration/) | Adapter contracts and examples |
+| [`docs/integration/`](docs/integration/) | Adapter contracts, public registry, onboarding, examples |
+| [`docs/decisions/ADR-0003-public-contract-compatibility.md`](docs/decisions/ADR-0003-public-contract-compatibility.md) | Public contract compatibility policy |
 | [`docs/compatibility/`](docs/compatibility/) | Minimum platform expectations |
 | [`docs/runbooks/`](docs/runbooks/) | Operator runbooks |
 | [`docs/roadmap/post-m3-product-roadmap.md`](docs/roadmap/post-m3-product-roadmap.md) | Post-M3 forward product roadmap (non-binding; M4–M8) |
@@ -43,6 +44,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md) | **Frozen** M5 review moderation operations specification |
 | [`docs/roadmap/m5-review-moderation-operations-closure.md`](docs/roadmap/m5-review-moderation-operations-closure.md) | M5 closure (`v0.5.0`) |
 | [`docs/roadmap/m6-integration-and-developer-experience.md`](docs/roadmap/m6-integration-and-developer-experience.md) | **Frozen** M6 integration and developer experience specification |
+| [`docs/integration/public-contracts.md`](docs/integration/public-contracts.md) | Canonical public contracts registry (`upr-public-contracts/v1`) |
 
 ## Development
 

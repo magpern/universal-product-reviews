@@ -107,24 +107,9 @@ Hosts may extend `$availability['context']` via filter callbacks for adapter-spe
 
 ---
 
-## Filter: `upr_product_review_unavailable_message` (optional)
+## Filter: `upr_product_review_unavailable_message` (**deferred — not in core**)
 
-```php
-apply_filters(
-    'upr_product_review_unavailable_message',
-    null,
-    string $reason_code,
-    int $product_id,
-    int $user_id
-);
-```
-
-| Return | Meaning |
-|--------|---------|
-| `null` | Host supplies all copy (default) |
-| `array{ text: string, type: 'info'|'notice' }` | Optional hint for host rendering |
-
-UPR returns `null` by default. Host adapters decide presentation (storefront module, theme hook, etc.).
+This filter name appeared in earlier docs but is **not implemented** in UPR (`public-contracts.md` **D** / C16). Hosts must render unavailable copy from `upr_product_review_availability` reason codes (or their own storefront strings). Do not `apply_filters` this tag expecting core behaviour.
 
 ---
 
@@ -146,6 +131,7 @@ See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter
 - Echo HTML or JavaScript for native PDP review forms (invitation form markup is M2 core, not theme PDP)
 - Call `wc_add_notice` or WooCommerce template hooks for review UI messaging
 - Expose raw invite/session secrets via public filters
+- Rely on deferred hooks (`upr_product_review_unavailable_message`, `upr_product_rating_summary`) as if implemented
 - Mutate WooCommerce or WordPress comment-policy options
 - Use `comments_open` (or equivalent) as an availability or submission gate
 
@@ -153,6 +139,7 @@ See [`adapters.md`](adapters.md) — Storefront / availability messaging adapter
 
 ## Related
 
+- [`public-contracts.md`](public-contracts.md) — canonical registry
 - [`woocommerce-settings.md`](woocommerce-settings.md) — host replay checklist
 - [`../milestones/M1-core-enablement.md`](../milestones/M1-core-enablement.md) — frozen M1 specification
 - [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md) — frozen M2 specification

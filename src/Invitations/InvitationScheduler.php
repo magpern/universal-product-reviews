@@ -26,11 +26,22 @@ final class InvitationScheduler {
 	}
 
 	/**
-	 * @param array<string, mixed> $context May include delivered_at (unix timestamp).
+	 * Host-facing contract: do_action( 'upr_order_delivery_confirmed', int $order_id, array $context = array() ).
+	 * Core receiver accepts mixed inbound args (fail-safe; no TypeError).
+	 *
+	 * @param mixed $order_id Inbound order id.
+	 * @param mixed $context  Inbound context (non-array → empty).
 	 */
-	public static function on_delivery_confirmed( int $order_id, array $context = array() ): void {
-		$event_at = isset( $context['delivered_at'] ) ? (int) $context['delivered_at'] : time();
-		$order    = wc_get_order( $order_id );
+	public static function on_delivery_confirmed( $order_id = 0, $context = array() ): void {
+		$id = DeliveryEventNormaliser::normalize_order_id( $order_id );
+		if ( null === $id ) {
+			return;
+		}
+
+		$ctx      = DeliveryEventNormaliser::normalize_context( $context );
+		$event_at = DeliveryEventNormaliser::normalize_delivered_at( $ctx );
+
+		$order = wc_get_order( $id );
 		if ( $order ) {
 			$order->update_meta_data( self::META_DELIVERY_CONFIRMED_AT, gmdate( 'Y-m-d H:i:s', $event_at ) );
 			$order->save();
@@ -38,13 +49,27 @@ final class InvitationScheduler {
 		if ( ! self::core_controls_allow_scheduling() ) {
 			return;
 		}
-		Jobs::schedule_order_items( $order_id, 'adapter', $event_at );
+		Jobs::schedule_order_items( $id, 'adapter', $event_at );
 	}
 
-	public static function on_delivery_invalidated( int $order_id, string $reason ): void {
-		foreach ( InviteRepository::find_by_order( $order_id ) as $row ) {
+	/**
+	 * Host-facing contract: do_action( 'upr_order_delivery_invalidated', int $order_id, string $reason ).
+	 * Core receiver accepts mixed inbound args (fail-safe; no TypeError).
+	 *
+	 * @param mixed $order_id Inbound order id.
+	 * @param mixed $reason   Inbound reason (non-string → unspecified).
+	 */
+	public static function on_delivery_invalidated( $order_id = 0, $reason = '' ): void {
+		$id = DeliveryEventNormaliser::normalize_order_id( $order_id );
+		if ( null === $id ) {
+			return;
+		}
+
+		$code = DeliveryEventNormaliser::compose_invalidation_code( $reason );
+
+		foreach ( InviteRepository::find_by_order( $id ) as $row ) {
 			if ( ! ScheduleStates::is_terminal( (string) $row['schedule_state'] ) ) {
-				SuppressionService::suppress_item( (int) $row['order_item_id'], 'delivery_invalidated:' . $reason, $order_id );
+				SuppressionService::suppress_item( (int) $row['order_item_id'], $code, $id );
 			}
 		}
 	}
