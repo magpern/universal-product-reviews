@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone after M8 freeze:** **M9** (Local AI Shadow Mode — **not** authorised by M8 alone; requires a separate implementation plan after [`m8-ai-assisted-moderation-planning.md`](m8-ai-assisted-moderation-planning.md)). M7 implementation is merged on `main`; M7 release metadata (`v0.7.0`) remains separately authorised.
+**Recommended next implementation milestone:** **M9** ([`m9-local-ai-shadow-mode.md`](m9-local-ai-shadow-mode.md) freeze). M7 implementation is merged on `main`; M7 release metadata (`v0.7.0`) remains separately authorised. M8 planning is closed.
 
 ---
 
@@ -57,14 +57,17 @@ Each milestone below requires its own **plan → documentation freeze → implem
 **ADR:** [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).  
 **Closure:** [`m8-ai-assisted-moderation-planning-closure.md`](m8-ai-assisted-moderation-planning-closure.md).
 
-## M9 — Local AI Shadow Mode (forward; not authorised by M8 alone)
+## M9 — Local AI Shadow Mode
 
-- Local-only advisory assessments; Comments-admin display; fail-open; zero status mutation.
-- Requires its own implementation plan after the M8 freeze tag.
+- Built-in-only local advisory assessments; Comments-admin display; fail-open; zero status mutation; disabled by default.
+- No replaceable provider filter; no AI public-contract registry entry (deferred to M10).
+- Portable assessments / claims / ops tables; claim-before-rate; disable-silent precedence.
+
+**Freeze:** [`m9-local-ai-shadow-mode.md`](m9-local-ai-shadow-mode.md).
 
 ## M10 / M11 (forward)
 
-- **M10** — external AI processing (separate freeze).  
+- **M10** — external AI processing / replaceable provider (separate freeze).  
 - **M11** — automatic approval (ADR amendment + governed calibration). See [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md).
 
 ---

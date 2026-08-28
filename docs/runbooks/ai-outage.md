@@ -2,9 +2,9 @@
 
 ## Scope
 
-Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
+Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md), [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
 
-**Runtime status:** Not implemented on current `main`. M9 (local shadow), M10 (external), and M11 (auto-approval) each require separate authorisation. **Disabled by default** when implemented.
+**Runtime status:** M9 freeze authorises implementation; until merged runtime lands, AI is absent on `main`. When implemented: **disabled by default**, **built-in-only** local heuristic (no replaceable provider filter).
 
 ## Privacy gate
 
@@ -14,30 +14,41 @@ Do **not** enable external AI until the host has completed its own DPIA / proces
 
 ### Secrets
 
-Provider API keys must live in host environment variables or `wp-config.php` constants read by host adapters. **Never** store keys in UPR options, audit, diagnostics, or support export.
+Provider API keys (M10+) must live in host environment variables or `wp-config.php` constants read by host adapters. **Never** store keys in UPR options, audit, diagnostics, or support export.
 
-Until AI is enabled: deterministic rules and human moderation only; no review-text transmission off-host (M9 is local-only by design).
+Until AI is enabled: deterministic rules and human moderation only; no review-text transmission off-host (M9 is local-only by design; review text stays inside UPR core `src/Ai/`).
 
 ## AI disabled / local outage (M9)
 
-When local shadow is off, no provider is registered, the circuit breaker is open, or the cooperative deadline discards a late result:
+When local shadow is **off**:
 
-- All reviews remain in the standard **hold** moderation queue
-- **No** automated approve / spam / delete from AI
+- Point A is silent (no job, no row, no AI audit)
+- In-flight workers clear/release claims without creating assessment rows or AI audit events
+- Non-held status transitions clear claims silently and only recompute historical retention (no `skipped` row, no AI audit)
+- Historical advisory rows remain retained and visible
 - Ordinary M5 Comments-admin moderation continues
-- No external review text transmission
+- **No** automated approve / spam / delete from AI
+- Do **not** represent disable as `provider_unavailable`
 
-## Circuit breaker and rate limit (M9 design)
+When the circuit breaker is open or the hourly rate limit is hit (shadow **enabled**): queued jobs for **held** reviews may produce `skipped` rows (`circuit_open` / `rate_limited`) without calling the assessor.
 
-Site-wide ops state lives in `{prefix}upr_moderation_ops` with atomic updates (not option read-modify-write). When the circuit is open or the hourly rate limit is hit, queued jobs for **held** reviews may produce `skipped` rows (`circuit_open` / `rate_limited`) without calling the provider.
+When the cooperative deadline discards a late result (shadow still enabled, claim still owned): `failed` / `deadline_exceeded`.
+
+## Circuit breaker and rate limit (M9)
+
+Site-wide ops state lives in `{prefix}upr_moderation_ops` with atomic updates (not option read-modify-write). Rate slots are consumed **only after** claim acquisition and **immediately before** `assess()`.
 
 ## Non-held comments
 
-Once a review is approved, spammed, or trashed: no new assessment jobs and no re-analysis. Historical advisory may remain visible. Active claims must be **revoked** (terminal `skipped` / `ineligible_comment` + clear claim token), not merely expired.
+Once a review is approved, spammed, or trashed: no new assessment jobs and no re-analysis. Historical advisory may remain visible.
 
-## Shadow mode (M9 / M10)
+- Shadow **enabled** + active claim → terminal `skipped` / `ineligible_comment` + clear claim + AI audit
+- Shadow **disabled** → clear claim silently; retention recompute only; no new row; no AI audit
 
-- AI outputs stored as terminal assessment rows only
+## Shadow mode (M9)
+
+- Built-in in-process heuristic only; CI enforces no network primitives and no provider filter in core
+- AI outputs stored as terminal assessment rows only (when enabled paths complete)
 - **Zero** automated approve / spam / delete from AI
 - Operators compare advisory output to human decisions for calibration
 - Sentiment fairness is **not** proven by unit tests — requires a governed calibration set before M11
@@ -50,5 +61,6 @@ PII or health-related content in reviews → human moderation regardless of AI s
 
 - [`moderation.md`](moderation.md)
 - [`moderation-capabilities.md`](moderation-capabilities.md)
+- [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md)
 - [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) (M11 appendix)
 - `ARCHITECTURE.md` §9
