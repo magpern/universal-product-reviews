@@ -204,7 +204,7 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 		);
 
 		CommentListPrefetch::hydrate_from_comments( $objects );
-		$this->assertLessThanOrEqual( 4, CommentListPrefetch::query_count() );
+		$this->assertLessThanOrEqual( 5, CommentListPrefetch::query_count() );
 		$ctx = CommentListPrefetch::get( $ids[0] );
 		$this->assertNotNull( $ctx );
 		$this->assertSame( ReviewContext::SOURCE_INVITATION, $ctx['source'] );
@@ -293,7 +293,7 @@ final class M5ModerationIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $prefetch_hook_calls, 'prefetch targets primary list once' );
 		$this->assertSame( 0, $comment_in_queries, 'no nested page-comment WP_Comment_Query' );
 		$this->assertCount( 3, $primary );
-		$this->assertLessThanOrEqual( 4, CommentListPrefetch::query_count() );
+		$this->assertLessThanOrEqual( 5, CommentListPrefetch::query_count() );
 
 		foreach ( $ids as $cid ) {
 			$ctx = CommentListPrefetch::get( $cid );

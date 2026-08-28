@@ -17,6 +17,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', '/tmp/wordpress/' );
 }
 
+if ( ! defined( 'ARRAY_A' ) ) {
+	define( 'ARRAY_A', 'ARRAY_A' );
+}
+
 if ( ! function_exists( 'get_post_type' ) ) {
 	function get_post_type( $post = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		unset( $post );
@@ -226,7 +230,14 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 		}
 
 		public function get_row( $query = null, $output = OBJECT, $y = 0 ) {
-			unset( $query, $output, $y );
+			unset( $output, $y );
+			if ( is_string( $query ) && false !== stripos( $query, 'upr_moderation_ops' ) ) {
+				if ( isset( $GLOBALS['upr_test_moderation_ops_row'] ) && is_array( $GLOBALS['upr_test_moderation_ops_row'] ) ) {
+					return $GLOBALS['upr_test_moderation_ops_row'];
+				}
+				return null;
+			}
+			unset( $query );
 			return null;
 		}
 

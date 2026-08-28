@@ -11,6 +11,8 @@ namespace UniversalProductReviews\Scheduling;
 
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
+use UniversalProductReviews\Ai\AssessmentRepository;
+use UniversalProductReviews\Ai\AssessmentWorker;
 use UniversalProductReviews\Invitations\BundleSender;
 use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\ReconciliationService;
@@ -28,8 +30,11 @@ final class Jobs {
 		add_action( 'upr_send_reminder_item', array( self::class, 'handle_send_reminder' ), 10, 1 );
 		add_action( 'upr_reconcile_invitations', array( self::class, 'handle_reconcile' ), 10, 0 );
 		add_action( 'upr_db_upgrade', array( self::class, 'handle_db_upgrade' ), 10, 0 );
+		add_action( 'upr_assess_review', array( self::class, 'handle_assess_review' ), 10, 2 );
+		add_action( 'upr_purge_moderation_assessments', array( self::class, 'handle_purge_assessments' ), 10, 0 );
 
 		add_action( 'init', array( self::class, 'ensure_nightly_reconcile' ), 20 );
+		add_action( 'init', array( self::class, 'ensure_purge_recurring' ), 20 );
 	}
 
 	public static function ensure_nightly_reconcile(): void {
@@ -38,6 +43,15 @@ final class Jobs {
 		}
 		if ( ! as_has_scheduled_action( 'upr_reconcile_invitations', array(), self::GROUP ) ) {
 			as_schedule_recurring_action( time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'upr_reconcile_invitations', array(), self::GROUP );
+		}
+	}
+
+	public static function ensure_purge_recurring(): void {
+		if ( ! function_exists( 'as_has_scheduled_action' ) || ! function_exists( 'as_schedule_recurring_action' ) ) {
+			return;
+		}
+		if ( ! as_has_scheduled_action( 'upr_purge_moderation_assessments', array(), self::GROUP ) ) {
+			as_schedule_recurring_action( time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'upr_purge_moderation_assessments', array(), self::GROUP );
 		}
 	}
 
@@ -94,6 +108,18 @@ final class Jobs {
 		}
 	}
 
+	public static function schedule_assess_review( int $comment_id, string $policy_version ): void {
+		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
+			return;
+		}
+		as_enqueue_async_action(
+			'upr_assess_review',
+			array( $comment_id, $policy_version ),
+			self::GROUP,
+			true
+		);
+	}
+
 	/**
 	 * Best-effort cancel of pending invitation schedule/send actions (emergency pause).
 	 * Handlers must still no-op if a raced action executes.
@@ -136,5 +162,13 @@ final class Jobs {
 	public static function handle_db_upgrade(): void {
 		Migrator::upgrade_now();
 		RewriteRules::flush_controlled();
+	}
+
+	public static function handle_assess_review( int $comment_id, string $policy_version ): void {
+		AssessmentWorker::handle( $comment_id, $policy_version );
+	}
+
+	public static function handle_purge_assessments(): void {
+		AssessmentRepository::purge_due();
 	}
 }

@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Moderation;
 
+use UniversalProductReviews\Ai\AssessmentRepository;
 use UniversalProductReviews\Invitations\InviteRepository;
 
 defined( 'ABSPATH' ) || exit;
@@ -98,6 +99,14 @@ final class CommentListPrefetch {
 			);
 			++self::$query_count;
 		}
+
+		$assessments = AssessmentRepository::latest_for_comments( $comment_ids );
+		++self::$query_count;
+		foreach ( $comment_ids as $cid ) {
+			if ( isset( self::$map[ $cid ] ) ) {
+				self::$map[ $cid ]['ai_assessment'] = $assessments[ $cid ] ?? null;
+			}
+		}
 	}
 
 	/**
@@ -172,7 +181,10 @@ final class CommentListPrefetch {
 				$invite  = $by_item[ $item ] ?? null;
 			}
 		}
-		return ReviewContext::build( $comment, $invite );
+		$ctx = ReviewContext::build( $comment, $invite );
+		$rows = AssessmentRepository::latest_for_comments( array( $comment_id ) );
+		$ctx['ai_assessment'] = $rows[ $comment_id ] ?? null;
+		return $ctx;
 	}
 
 	public static function query_count(): int {

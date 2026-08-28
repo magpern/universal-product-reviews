@@ -9,6 +9,10 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Moderation;
 
+use UniversalProductReviews\Ai\Eligibility;
+use UniversalProductReviews\Ai\PolicyAllowlist;
+use UniversalProductReviews\Config\Options;
+
 defined( 'ABSPATH' ) || exit;
 
 final class CommentListEnhancements {
@@ -60,6 +64,7 @@ final class CommentListEnhancements {
 		$columns['upr_rating']  = __( 'Rating', 'universal-product-reviews' );
 		$columns['upr_source']  = __( 'Source', 'universal-product-reviews' );
 		$columns['upr_order']   = __( 'Order', 'universal-product-reviews' );
+		$columns['upr_ai']      = __( 'AI advisory', 'universal-product-reviews' );
 		return $columns;
 	}
 
@@ -75,7 +80,7 @@ final class CommentListEnhancements {
 
 		$comment = get_comment( $comment_id );
 		if ( ! $comment || ! ReviewContext::is_in_scope( $comment ) ) {
-			if ( in_array( $column, array( 'upr_product', 'upr_rating', 'upr_source', 'upr_order' ), true ) ) {
+			if ( in_array( $column, array( 'upr_product', 'upr_rating', 'upr_source', 'upr_order', 'upr_ai' ), true ) ) {
 				echo '&mdash;';
 			}
 			return;
@@ -95,6 +100,9 @@ final class CommentListEnhancements {
 				break;
 			case 'upr_order':
 				self::render_order( $ctx );
+				break;
+			case 'upr_ai':
+				self::render_ai_advisory( $comment_id, $ctx );
 				break;
 		}
 	}
@@ -154,6 +162,91 @@ final class CommentListEnhancements {
 			esc_url( $url ),
 			$order_id
 		);
+	}
+
+	/**
+	 * @param array<string, mixed> $ctx Context.
+	 */
+	private static function render_ai_advisory( int $comment_id, array $ctx ): void {
+		$assessment = isset( $ctx['ai_assessment'] ) && is_array( $ctx['ai_assessment'] ) ? $ctx['ai_assessment'] : null;
+
+		if ( null === $assessment ) {
+			echo '&mdash;';
+		} else {
+			echo esc_html( self::format_ai_advisory( $assessment ) );
+		}
+
+		self::maybe_render_reanalyse_link( $comment_id );
+	}
+
+	/**
+	 * @param array<string, mixed> $assessment Terminal assessment row.
+	 */
+	private static function format_ai_advisory( array $assessment ): string {
+		$parts = array();
+
+		$state = isset( $assessment['state'] ) ? (string) $assessment['state'] : '';
+		if ( '' !== $state ) {
+			$parts[] = $state;
+		}
+
+		if ( 'completed' === $state && isset( $assessment['publication_safety_score'] ) && is_numeric( $assessment['publication_safety_score'] ) ) {
+			$parts[] = (string) (int) $assessment['publication_safety_score'];
+		}
+
+		$confidence = isset( $assessment['confidence'] ) ? (string) $assessment['confidence'] : '';
+		if ( '' !== $confidence ) {
+			$parts[] = $confidence;
+		}
+
+		$labels = self::reason_code_labels( $assessment['reason_codes'] ?? null );
+		if ( array() !== $labels ) {
+			$parts[] = implode( ', ', $labels );
+		}
+
+		return array() !== $parts ? implode( ' · ', $parts ) : '—';
+	}
+
+	/**
+	 * @param mixed $raw JSON string or null.
+	 * @return list<string>
+	 */
+	private static function reason_code_labels( $raw ): array {
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return array();
+		}
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+
+		$labels = array();
+		foreach ( $decoded as $code ) {
+			if ( ! is_string( $code ) || ! PolicyAllowlist::is_reason_code( $code ) ) {
+				continue;
+			}
+			$labels[] = str_replace( '_', ' ', $code );
+			if ( count( $labels ) >= PolicyAllowlist::MAX_REASON_CODES ) {
+				break;
+			}
+		}
+		return $labels;
+	}
+
+	private static function maybe_render_reanalyse_link( int $comment_id ): void {
+		if ( ! Options::local_ai_shadow_enabled() || ! current_user_can( 'moderate_comments' ) ) {
+			return;
+		}
+		if ( ! Eligibility::is_ai_assessable( $comment_id ) ) {
+			return;
+		}
+
+		echo ' <form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline;margin-left:4px;">';
+		wp_nonce_field( 'upr_ai_reanalyze_' . $comment_id );
+		echo '<input type="hidden" name="action" value="upr_ai_reanalyze" />';
+		echo '<input type="hidden" name="comment_id" value="' . esc_attr( (string) $comment_id ) . '" />';
+		submit_button( __( 'Re-analyse', 'universal-product-reviews' ), 'link', 'submit', false );
+		echo '</form>';
 	}
 
 	public static function render_source_filter(): void {
