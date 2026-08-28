@@ -2,7 +2,7 @@
 
 Public-source, proprietary WooCommerce plugin (`UPR`) for verified-purchase product reviews, line-item invitation lifecycle, moderation, retention, and host adapter integration.
 
-**Version:** `0.6.0` (M6 integration and developer experience — tagged `v0.6.0`)
+**Version:** `0.8.0` (M7 storefront compatibility + M9 local AI shadow mode — tagged `v0.8.0`; `v0.7.0` intentionally not published)
 
 ## Status
 
