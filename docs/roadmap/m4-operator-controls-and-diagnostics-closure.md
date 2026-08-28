@@ -14,7 +14,17 @@
 | Implementation merge commit | `b6f620c2ecafb34b980433a5ccf10e14147d59e3` |
 | Version metadata PR | [#23](https://github.com/magpern/universal-product-reviews/pull/23) |
 | Version metadata merge commit | `bd86afe7be62e58c43f32d7f2e0e149d826764b0` |
-| Release tag | `v0.4.0` (annotated tag object `35a7c5aeb04cd2f7ed2341e997f08f33002e1df9`) → peeled target `b6f620c` |
+| Release tag | `v0.4.0` (annotated tag object; peeled target **`bd86afe`**) — see tag correction below |
+
+## Release tag correction
+
+The initial `v0.4.0` annotated tag incorrectly peeled to implementation merge `b6f620c`, which still declared plugin/runtime version `0.3.0`. Before acceptance, the tag was **deleted and recreated** to peel to version-metadata merge **`bd86afe7be62e58c43f32d7f2e0e149d826764b0`** (PR #23), the first commit where all authoritative version sources declare **`0.4.0`**.
+
+| Item | Value |
+|------|--------|
+| Corrected tag object | `421cb9bf7dfea2d447c46c2405a76e0c255c0095` |
+| Peeled target | `bd86afe7be62e58c43f32d7f2e0e149d826764b0` |
+| Implementation merge (runtime; separate reference) | `b6f620c2ecafb34b980433a5ccf10e14147d59e3` (PR #22) |
 
 ## Post-merge CI (implementation merge `b6f620c`)
 
