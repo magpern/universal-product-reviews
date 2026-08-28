@@ -1,12 +1,12 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.3.0`**.  
+**Baseline:** Universal Product Reviews annotated **`v0.4.0`**.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M4**.
+**Recommended next implementation milestone:** **M5** (freeze: [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md)).
 
 ---
 
@@ -16,13 +16,17 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - Mail, cron, adapter, and Site Health diagnostics.
 - Installation wizard and compatibility preflight.
 
-**M4.1 freeze:** [`m4-operator-controls-and-diagnostics.md`](m4-operator-controls-and-diagnostics.md).
+**M4.1 freeze:** [`m4-operator-controls-and-diagnostics.md`](m4-operator-controls-and-diagnostics.md).  
+**Closed at `v0.4.0`:** [`m4-operator-controls-and-diagnostics-closure.md`](m4-operator-controls-and-diagnostics-closure.md).
 
 ## M5 — Review Moderation Operations
 
-- Moderation filters, bulk actions, product/order context.
-- Native WordPress threaded replies for customer responses.
-- Review-management permissions and operator guidance.
+- Native Comments-admin context (columns, views, filters, prefetch).
+- Deterministic moderation audit; nesting-safe `SystemStatusOrigin`.
+- Verified staff-reply hold exemption; `review.reply_posted`.
+- **Not** customer review edits (later milestone).
+
+**Freeze:** [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md).
 
 ## M6 — Integration and Developer Experience
 

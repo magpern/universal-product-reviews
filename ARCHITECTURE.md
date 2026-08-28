@@ -222,7 +222,17 @@ final class PurgeContext {
 
 ---
 
-## 12. Customer edits (M5)
+## 12. Review moderation operations (M5)
+
+Authoritative freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md).
+
+- Native Comments-admin context (product reviews): columns, views, filters, bounded prefetch
+- Deterministic audit of in-scope status transitions (`review.status_changed` / `review.system_spam` / `review.system_status_changed`)
+- Nesting-safe `SystemStatusOrigin` for all UPR comment-status mutations
+- Verified staff-reply hold exemption + `review.reply_posted`
+- No parallel moderation queue; no UPR review-editing UX; no customer edits in M5
+
+### Customer review edits (later milestone — not M5)
 
 - One review per order line item
 - Edits allowed **within 7 days** of approval → return to `hold`
@@ -281,9 +291,11 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 - Deterministic spam; `PurgeContext` + conflict tests
 
-### M5 — Edits
+### M5 — Review Moderation Operations
 
-- 7-day policy; audit rows; auth tests
+- Native Comments-admin context; deterministic moderation audit; staff-reply hold exemption
+- Freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md)
+- Customer 7-day edits are **not** M5 (later milestone)
 
 ### M6 — AI shadow (post-DPIA, optional)
 
