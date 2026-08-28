@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - M9 ops rate window: compute `rate_count` before resetting `rate_window_started_at` so an expired full window resets to `1` instead of incrementing to `61`.
 - M9 assessment finalize: roll back and keep the owned claim when terminal insert fails so a write error cannot leave neither a row nor a recoverable claim.
+- M9 assessment finalize: require claim-clear `UPDATE` to affect exactly one row before commit; otherwise roll back the terminal insert so an active claim cannot coexist with a persisted assessment.
 
 ## [0.6.0] - 2026-08-28
 

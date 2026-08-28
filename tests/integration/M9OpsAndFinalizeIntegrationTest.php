@@ -1,6 +1,6 @@
 <?php
 /**
- * M9 integration: rate-window reset order and failed-insert claim retention.
+ * M9 integration: rate-window reset, failed-insert claim retention, claim-clear atomicity.
  *
  * @package UniversalProductReviews
  */
@@ -27,12 +27,14 @@ final class M9OpsAndFinalizeIntegrationTest extends WP_UnitTestCase {
 		$this->upr_ensure_schema();
 		delete_option( Options::LOCAL_AI_SHADOW_ENABLED );
 		AssessmentRepository::set_force_insert_fail_for_tests( false );
+		AssessmentWorker::set_force_claim_clear_fail_for_tests( false );
 		Plugin::reset_for_tests();
 		Plugin::init();
 	}
 
 	public function tear_down(): void {
 		AssessmentRepository::set_force_insert_fail_for_tests( false );
+		AssessmentWorker::set_force_claim_clear_fail_for_tests( false );
 		delete_option( Options::LOCAL_AI_SHADOW_ENABLED );
 		parent::tear_down();
 	}
@@ -100,6 +102,41 @@ final class M9OpsAndFinalizeIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $count );
 		$this->assertTrue(
 			AssessmentClaimsRepository::has_active_claim( $comment_id, PolicyAllowlist::POLICY_VERSION )
+		);
+	}
+
+	public function test_failed_claim_clear_rolls_back_terminal_insert(): void {
+		$product_id = $this->upr_create_product();
+		$comment_id = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $product_id,
+				'comment_author'       => 'Reviewer',
+				'comment_author_email' => 'reviewer@example.com',
+				'comment_content'      => 'Held review for failed claim-clear atomicity.',
+				'comment_type'         => 'review',
+				'comment_approved'     => '0',
+				'comment_parent'       => 0,
+			)
+		);
+		$this->assertIsInt( $comment_id );
+		$this->assertGreaterThan( 0, $comment_id );
+
+		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
+		AssessmentWorker::set_force_claim_clear_fail_for_tests( true );
+
+		AssessmentWorker::handle( $comment_id, PolicyAllowlist::POLICY_VERSION );
+
+		global $wpdb;
+		$count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
+				$comment_id
+			)
+		);
+		$this->assertSame( 0, $count, 'Terminal insert must roll back when claim clear fails.' );
+		$this->assertTrue(
+			AssessmentClaimsRepository::has_active_claim( $comment_id, PolicyAllowlist::POLICY_VERSION ),
+			'Owned claim must remain recoverable for retry.'
 		);
 	}
 }
