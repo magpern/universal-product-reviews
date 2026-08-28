@@ -17,6 +17,7 @@ final class ReviewFormEndpoint {
 
 	public static function handle_get(): void {
 		header( 'Referrer-Policy: no-referrer' );
+		nocache_headers();
 		$session = FormSessionAuthenticator::current_session();
 		if ( null === $session ) {
 			self::render_expired_session();
@@ -29,7 +30,6 @@ final class ReviewFormEndpoint {
 		$nonce      = wp_create_nonce( 'upr_review_submit_' . (int) $session['id'] );
 		$action     = esc_url( home_url( user_trailingslashit( 'upr-review/form' ) ) );
 
-		nocache_headers();
 		status_header( 200 );
 		header( 'Content-Type: text/html; charset=UTF-8' );
 
@@ -56,7 +56,6 @@ final class ReviewFormEndpoint {
 
 	private static function render_expired_session(): void {
 		status_header( 403 );
-		nocache_headers();
 		header( 'Content-Type: text/html; charset=UTF-8' );
 		echo self::render_document_open( esc_html__( 'Review session expired', 'universal-product-reviews' ) );
 		echo '<h1>' . esc_html__( 'Review session expired', 'universal-product-reviews' ) . '</h1>';
