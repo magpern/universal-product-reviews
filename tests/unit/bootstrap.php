@@ -277,6 +277,45 @@ if ( ! function_exists( 'esc_html__' ) ) {
 	}
 }
 
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $text ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_url' ) ) {
+	function esc_url( $url ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return (string) $url;
+	}
+}
+
+if ( ! function_exists( 'admin_url' ) ) {
+	function admin_url( $path = '', $scheme = 'admin' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $scheme );
+		$path = ltrim( (string) $path, '/' );
+		return 'https://example.test/wp-admin/' . $path;
+	}
+}
+
+if ( ! function_exists( 'add_query_arg' ) ) {
+	/**
+	 * @param array<string, mixed>|string $key Query args or key.
+	 * @param mixed                       $value Value or URL.
+	 * @param string|null                 $url URL when $key is array.
+	 */
+	function add_query_arg( $key, $value = null, $url = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		if ( is_array( $key ) ) {
+			$url  = (string) $value;
+			$args = $key;
+		} else {
+			$args = array( (string) $key => $value );
+			$url  = (string) $url;
+		}
+		$sep = false !== strpos( $url, '?' ) ? '&' : '?';
+		return $url . $sep . http_build_query( $args );
+	}
+}
+
 if ( ! function_exists( 'wp_die' ) ) {
 	function wp_die( $message = '', $title = '', $args = array() ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		unset( $title, $args );
