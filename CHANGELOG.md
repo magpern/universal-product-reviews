@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-28
+
+### Added
+
+- Native Comments-admin context for UPR product reviews: Product, Rating, Source, and Order columns with bounded per-page prefetch.
+- UPR product-review / pending views and invitation-linked / all source filters (positive linkage only; no native-only inference).
+- Deterministic moderation audit on in-scope status transitions: `review.status_changed`, `review.system_spam`, `review.system_status_changed`, plus `review.reply_posted` for validated staff replies.
+- Nesting-safe `SystemStatusOrigin` for all UPR comment-status mutations; CI forbids direct status APIs outside the wrapper.
+- Verified native staff-reply hold exemption (`replyto-comment` nonce + caps + depth-one); never force-approve.
+- Runbooks: rewritten [`docs/runbooks/moderation.md`](docs/runbooks/moderation.md), new [`docs/runbooks/moderation-capabilities.md`](docs/runbooks/moderation-capabilities.md).
+
+### Changed
+
+- Support export and invitation controls unchanged from M4.1; M5 adds no audit TTL/purge and no UPR review-editing UX.
+
 ## [0.4.0] - 2026-08-28
 
 ### Added
