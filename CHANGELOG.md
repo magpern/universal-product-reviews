@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-28
+
+### Added
+
+- Canonical public contracts registry (`docs/integration/public-contracts.md`, docs/CI label `upr-public-contracts/v1`) with ADR-0003 compatibility policy and integrator onboarding.
+- Uncached integration-readiness diagnostics **I1–I5** in Diagnostics and Site Health (`IntegrationReadiness`); support export schema unchanged (`upr-support-export/v1`).
+- Fail-safe untyped receivers and runtime normalisation for **C1** `upr_order_delivery_confirmed` and **C2** `upr_order_delivery_invalidated` (`DeliveryEventNormaliser`).
+- Thin stable helper `DeliveryStatus::has_confirmation( int $order_id ): bool`.
+- Generic adapter example privacy tests for sensitive stable contracts; CI registry completeness guard for stable **S** entries.
+- Docs-only WooCommerce review import strategy (`docs/integration/wc-review-import-strategy.md`).
+
+### Changed
+
+- C2 invalidation reason codes normalised to at most **43** ASCII characters before persistence so `delivery_invalidated:<code>` fits `suppression_code varchar(64)`; invalid or free-text input becomes `unspecified` (never stored raw).
+- Operator runbooks expanded for integration readiness; expanded generic `site-upr-adapters.php.example`.
+
+### Documentation
+
+- Freeze: [`docs/roadmap/m6-integration-and-developer-experience.md`](docs/roadmap/m6-integration-and-developer-experience.md) (`m6-integration-and-developer-experience-freeze`).
+
 ## [0.5.0] - 2026-08-28
 
 ### Added
