@@ -187,12 +187,13 @@ apply_filters(
 - Regulatory keyword holds via `upr_regulatory_hold_patterns` filter
 - PII detection: hold pending; moderator-approved edit with audit — **no auto-redact**
 
-### AI (M6+, post-DPIA)
+### AI (later milestone, post-DPIA — not M6)
 
 - Prerequisites: DPIA, provider retention decision, maintainer GO
 - Shadow mode first; flags only; no external raw review text until approved
 - Never suppress based on sentiment, rating, or criticism
 - Auto-spam from AI only after large calibration sample and near-zero false-positive rate
+- M6 is Integration and Developer Experience; AI planning is a later roadmap milestone
 
 ---
 
@@ -297,17 +298,21 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 - Freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md)
 - Customer 7-day edits are **not** M5 (later milestone)
 
-### M6 — AI shadow (post-DPIA, optional)
+### M6 — Integration and Developer Experience
 
-- Off by default
+- Public-contract registry, integrator onboarding, generic examples
+- Integration-readiness diagnostics (I1–I5); fail-safe delivery event contracts
+- Freeze: [`docs/roadmap/m6-integration-and-developer-experience.md`](docs/roadmap/m6-integration-and-developer-experience.md)
+- AI is **not** M6 (later / post-DPIA)
 
-### M7 — Test matrix
+### M7 — Storefront Compatibility and Quality
 
-- Plugin unit/integration; integration acceptance criteria
+- Accessibility and cross-theme storefront compatibility (forward roadmap)
 
-### M8 — Pilot configuration
+### M8 — AI-Assisted Moderation Planning (post-DPIA)
 
-- Host pilot cohort via WP options / env config
+- Privacy/threshold design; no automatic approval in the planning milestone
+- Requires a separate frozen plan before any AI implementation
 
 ---
 

@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M6** (requires a new freeze; not authorised by M5 closure).
+**Recommended next implementation milestone:** **M6** (freeze: [`m6-integration-and-developer-experience.md`](m6-integration-and-developer-experience.md); not authorised by M5 closure alone).
 
 ---
 
@@ -31,9 +31,12 @@ Each milestone below requires its own **plan → documentation freeze → implem
 
 ## M6 — Integration and Developer Experience
 
-- Host-adapter contracts and configuration examples.
-- Demo fixtures and repeatable developer environment.
-- Existing WooCommerce review import/migration strategy.
+- Public-contract registry, ADR compatibility, integrator onboarding, generic examples.
+- Integration-readiness diagnostics (I1–I5); fail-safe delivery event contracts (C1/C2).
+- Existing WooCommerce review import/migration **strategy** (docs only; no runtime importer).
+- Developer VPS / host adapters remain **outside** this repository.
+
+**Freeze:** [`m6-integration-and-developer-experience.md`](m6-integration-and-developer-experience.md).
 
 ## M7 — Storefront Compatibility and Quality
 

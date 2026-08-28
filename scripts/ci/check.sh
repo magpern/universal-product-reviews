@@ -152,6 +152,7 @@ required_docs=(
   docs/roadmap/m4-operator-controls-and-diagnostics-closure.md
   docs/roadmap/m5-review-moderation-operations.md
   docs/roadmap/m5-review-moderation-operations-closure.md
+  docs/roadmap/m6-integration-and-developer-experience.md
 )
 for f in "${required_docs[@]}"; do
   test -f "$f" || fail "missing $f"
