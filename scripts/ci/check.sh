@@ -248,6 +248,20 @@ if grep -RIn -E 'function\s+(mint_|resend_)|upr_mint_|upr_resend_' "$ROOT/src" 2
   fail "public mint/resend API detected"
 fi
 
+echo "==> M9 AI module local-only boundary"
+AI_DIR="$ROOT/src/Ai"
+if [[ -d "$AI_DIR" ]]; then
+  if grep -RIn -E 'wp_remote_|wp_safe_remote_|curl_|fsockopen|stream_socket_client|socket_create' "$AI_DIR" --include='*.php' 2>/dev/null | grep -q .; then
+    fail "src/Ai must not use network primitives"
+  fi
+fi
+if grep -RIn -F "upr_local_moderation_assessment_provider" "$ROOT/src" --include='*.php' 2>/dev/null | grep -q .; then
+  fail "AI provider filter must not be registered in src until M10"
+fi
+if grep -RIn -E "apply_filters\s*\(\s*['\"]upr_.*moderation.*provider" "$ROOT/src" --include='*.php' 2>/dev/null | grep -q .; then
+  fail "replaceable AI provider filters forbidden in M9"
+fi
+
 echo "==> Support export schema unchanged"
 grep -q "upr-support-export/v1" "$ROOT/src/Admin/SupportExport.php" || fail "support export schema version drift"
 if grep -n "IntegrationReadiness\|'I1'\|\"I1\"" "$ROOT/src/Admin/SupportExport.php" 2>/dev/null; then
