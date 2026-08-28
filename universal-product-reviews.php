@@ -3,7 +3,7 @@
  * Plugin Name: Universal Product Reviews
  * Plugin URI: https://github.com/magpern/universal-product-reviews
  * Description: Portable WooCommerce product-review operations (invitations, moderation, retention). M2 invitations and guest authorization.
- * Version: 0.4.0
+ * Version: 0.5.0
  * Author: magpern
  * License: Proprietary
  * Text Domain: universal-product-reviews
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UPR_VERSION', '0.4.0' );
+define( 'UPR_VERSION', '0.5.0' );
 define( 'UPR_PLUGIN_FILE', __FILE__ );
 define( 'UPR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
