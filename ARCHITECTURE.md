@@ -187,13 +187,18 @@ apply_filters(
 - Regulatory keyword holds via `upr_regulatory_hold_patterns` filter
 - PII detection: hold pending; moderator-approved edit with audit — **no auto-redact**
 
-### AI (later milestone, post-DPIA — not M6)
+### AI (M8 planning freeze; runtime later)
 
-- Prerequisites: DPIA, provider retention decision, maintainer GO
-- Shadow mode first; flags only; no external raw review text until approved
-- Never suppress based on sentiment, rating, or criticism
-- Auto-spam from AI only after large calibration sample and near-zero false-positive rate
-- M6 is Integration and Developer Experience; AI planning is a later roadmap milestone
+Authoritative planning freeze: [`docs/roadmap/m8-ai-assisted-moderation-planning.md`](docs/roadmap/m8-ai-assisted-moderation-planning.md). Boundary ADR: [`docs/decisions/ADR-0004-ai-moderation-boundary.md`](docs/decisions/ADR-0004-ai-moderation-boundary.md).
+
+- **M8** — documentation only; no runtime AI
+- **M9** — local-only shadow assessment (separate authorisation); advisory only; no automated status changes; no external HTTP from core
+- **M10** — external processing requires a separate freeze
+- **M11** — automatic approval requires ADR amendment + governed calibration
+- Never suppress based on sentiment, rating, or criticism; rating excluded from provider inputs
+- Human moderation remains authoritative; AI never mutates comment body, author, rating, linkage, or status
+- Provider secrets are host-owned (env / `wp-config.php`); UPR never stores API keys
+- Unimplemented AI surfaces are **not** registered in `upr-public-contracts/v1` until the implementing milestone
 
 ---
 
@@ -307,12 +312,15 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 ### M7 — Storefront Compatibility and Quality
 
-- Accessibility and cross-theme storefront compatibility (forward roadmap)
+- Storefront compatibility docs and C9/C10/guard characterization; guest form a11y
+- Freeze: [`docs/roadmap/m7-storefront-compatibility-and-quality.md`](docs/roadmap/m7-storefront-compatibility-and-quality.md)
 
-### M8 — AI-Assisted Moderation Planning (post-DPIA)
+### M8 — AI-Assisted Moderation Planning
 
-- Privacy/threshold design; no automatic approval in the planning milestone
-- Requires a separate frozen plan before any AI implementation
+- Planning freeze only: privacy, lifecycle, claims, retention, local-vs-external split; **no** runtime AI
+- Freeze: [`docs/roadmap/m8-ai-assisted-moderation-planning.md`](docs/roadmap/m8-ai-assisted-moderation-planning.md)
+- ADR: [`docs/decisions/ADR-0004-ai-moderation-boundary.md`](docs/decisions/ADR-0004-ai-moderation-boundary.md)
+- First implementation is **M9 local shadow** under separate authorisation; auto-approval is **M11**
 
 ---
 

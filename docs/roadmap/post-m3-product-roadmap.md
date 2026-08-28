@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M7** (Storefront Compatibility and Quality — **frozen:** [`m7-storefront-compatibility-and-quality.md`](m7-storefront-compatibility-and-quality.md); not authorised by M6 closure alone).
+**Recommended next implementation milestone after M8 freeze:** **M9** (Local AI Shadow Mode — **not** authorised by M8 alone; requires a separate implementation plan after [`m8-ai-assisted-moderation-planning.md`](m8-ai-assisted-moderation-planning.md)). M7 implementation is merged on `main`; M7 release metadata (`v0.7.0`) remains separately authorised.
 
 ---
 
@@ -49,9 +49,22 @@ Each milestone below requires its own **plan → documentation freeze → implem
 
 ## M8 — AI-Assisted Moderation Planning
 
-- Privacy, threshold, override, and approval design.
-- No automatic approval or AI implementation in this milestone.
-- Requires a separate frozen plan before any implementation.
+- Authoritative planning freeze for optional AI-assisted moderation (local shadow → external → auto-approval split).
+- **No** runtime AI, migrations, settings, provider calls, or automatic approval in this milestone.
+- ADR-0004 locks privacy, held-only eligibility, portable claims table, one-transaction completion, and secrets model.
+
+**Freeze:** [`m8-ai-assisted-moderation-planning.md`](m8-ai-assisted-moderation-planning.md).  
+**ADR:** [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
+
+## M9 — Local AI Shadow Mode (forward; not authorised by M8 alone)
+
+- Local-only advisory assessments; Comments-admin display; fail-open; zero status mutation.
+- Requires its own implementation plan after the M8 freeze tag.
+
+## M10 / M11 (forward)
+
+- **M10** — external AI processing (separate freeze).  
+- **M11** — automatic approval (ADR amendment + governed calibration). See [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md).
 
 ---
 
