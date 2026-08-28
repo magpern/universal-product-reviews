@@ -142,7 +142,7 @@ Historical docs mentioned `upr_product_rating_summary`. That filter is **absent 
 
 ## Theme adapter
 
-CSS on native WooCommerce reviews tab — host child theme responsibility.
+CSS on native WooCommerce reviews tab — host child theme responsibility. See [`storefront-compatibility.md`](storefront-compatibility.md) for classic vs block/FSE obligations.
 
 ## Card adapter
 

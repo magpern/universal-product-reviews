@@ -68,6 +68,13 @@ if ( ! function_exists( 'get_current_user_id' ) ) {
 	}
 }
 
+if ( ! function_exists( 'get_language_attributes' ) ) {
+	function get_language_attributes( $type = 'html' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $type );
+		return 'lang="en-US"';
+	}
+}
+
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $tag, $value, ...$args ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		if ( isset( $GLOBALS['upr_test_filters'][ $tag ] ) && is_array( $GLOBALS['upr_test_filters'][ $tag ] ) ) {

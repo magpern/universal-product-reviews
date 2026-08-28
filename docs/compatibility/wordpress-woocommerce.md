@@ -18,7 +18,7 @@ M1 CI **must** run an integration leg matching the current host DEV stack:
 | WordPress | **7.0.2** |
 | WooCommerce | **11.0.1** |
 
-Broader version-matrix expansion is deferred to **M7**.
+Broader version-matrix documentation is expanded in M7; the optional floor leg **remains non-blocking** in M7.
 
 ## Optional compatibility-floor leg (non-blocking)
 
@@ -28,7 +28,7 @@ Broader version-matrix expansion is deferred to **M7**.
 | WordPress | 6.5 |
 | WooCommerce | 8.2 |
 
-This leg may be marked `continue-on-error` until M7 proves stability.
+This leg remains **`continue-on-error`** in M7 (D6).
 
 ## HPOS (High-Performance Order Storage)
 
@@ -56,7 +56,8 @@ Required for invitation scheduling and reconciliation (M2); retention purge late
 |-----------|----------|
 | M1 | Mandatory DEV-aligned leg + unit tests; optional floor leg |
 | M2 | Same mandatory coordinates; invitations/tokens/email/CLI coverage per M2 freeze |
-| M7+ | Full tested minor-version matrix |
+| M7 | Mandatory DEV-aligned leg + contract storefront characterization; optional floor leg **non-blocking** |
+| M7+ | Full tested minor-version matrix (future) |
 
 ## Related
 

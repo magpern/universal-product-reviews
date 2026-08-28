@@ -64,7 +64,7 @@ Core **must not** use `comments_open` as an availability or submission gate.
 |---------|----------|---------|
 | Delivery | `upr_order_delivery_confirmed`, `upr_order_delivery_invalidated`, `upr_is_order_delivered` | Confirmed-delivery trigger |
 | Support | `upr_review_invitation_action` | Delay vs permanent suppress |
-| Storefront | `upr_product_rating_summary` | Optional PDP summary |
+| Storefront | WooCommerce product rating APIs + C9/C10 | PDP summary and form gating (**C17 deferred**) |
 | Theme | CSS on native WC reviews tab | Presentation |
 | Card | Host-owned product-card filter | Optional stars (≥3 reviews, post-calibration) |
 | SEO validation | Host acceptance tests | One Product entity; visible review parity |
@@ -256,7 +256,7 @@ Authoritative freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/r
 
 ## 14. Storefront UI (external)
 
-UPR core provides no theme templates. Host adapters implement tab CSS, purchase-panel summary (`upr_product_rating_summary`), and card ratings (feature flag + ≥3 approved reviews per product).
+UPR core provides no theme templates. Host adapters implement tab CSS, purchase-panel summary via **WooCommerce public rating APIs** (**C17** `upr_product_rating_summary` remains deferred), and card ratings (feature flag + ≥3 approved reviews per product).
 
 ---
 

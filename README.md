@@ -46,6 +46,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/roadmap/m6-integration-and-developer-experience.md`](docs/roadmap/m6-integration-and-developer-experience.md) | **Frozen** M6 integration and developer experience specification |
 | [`docs/roadmap/m6-integration-and-developer-experience-closure.md`](docs/roadmap/m6-integration-and-developer-experience-closure.md) | M6 closure (`v0.6.0`) |
 | [`docs/roadmap/m7-storefront-compatibility-and-quality.md`](docs/roadmap/m7-storefront-compatibility-and-quality.md) | **Frozen** M7 storefront compatibility and quality specification |
+| [`docs/integration/storefront-compatibility.md`](docs/integration/storefront-compatibility.md) | M7 storefront compatibility matrix (`upr-public-contracts/v1` C9/C10) |
 | [`docs/integration/public-contracts.md`](docs/integration/public-contracts.md) | Canonical public contracts registry (`upr-public-contracts/v1`) |
 
 ## Development

@@ -61,7 +61,7 @@ final class GuestSubmissionGuardTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
-		unset( $GLOBALS['upr_test_options'], $GLOBALS['upr_test_verified_purchase'], $GLOBALS['upr_test_users'], $GLOBALS['upr_test_posts'], $GLOBALS['upr_test_wc_products'] );
+		unset( $GLOBALS['upr_test_options'], $GLOBALS['upr_test_verified_purchase'], $GLOBALS['upr_test_users'], $GLOBALS['upr_test_posts'], $GLOBALS['upr_test_wc_products'], $GLOBALS['upr_test_filters'] );
 		parent::tearDown();
 	}
 
@@ -112,5 +112,28 @@ final class GuestSubmissionGuardTest extends TestCase {
 		$result = ReviewAvailability::default_availability( array(), 21, 7 );
 		$this->assertFalse( $result['can_submit'] );
 		$this->assertSame( 'product_not_reviewable', $result['reason_code'] );
+	}
+
+	public function test_verified_purchaser_can_submit(): void {
+		$this->stub_reviewable_product( 1 );
+		$GLOBALS['upr_test_users'][7]        = (object) array( 'user_email' => 'buyer@example.com' );
+		$GLOBALS['upr_test_options']           = array(
+			'woocommerce_enable_reviews'                      => 'yes',
+			'woocommerce_review_rating_verification_required' => 'yes',
+		);
+		$GLOBALS['upr_test_verified_purchase'] = true;
+		$result                                = ReviewAvailability::default_availability( array(), 1, 7 );
+		$this->assertTrue( $result['can_submit'] );
+		$this->assertNull( $result['reason_code'] );
+	}
+
+	public function test_resolve_fail_closed_on_malformed_filter(): void {
+		$this->stub_reviewable_product( 1 );
+		$GLOBALS['upr_test_filters']['upr_product_review_availability'] = array(
+			static fn() => null,
+		);
+		$result = ReviewAvailability::resolve( 1, 7 );
+		$this->assertFalse( $result['can_submit'] );
+		unset( $GLOBALS['upr_test_filters'] );
 	}
 }
