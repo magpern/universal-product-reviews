@@ -13,7 +13,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260826b';
+	public const DB_VERSION = '20260828a';
+
+	public const OPS_ROW_ID = 1;
 
 	/**
 	 * @return array<string, string> table_name => CREATE TABLE SQL
@@ -21,10 +23,13 @@ final class Schema {
 	public static function table_definitions(): array {
 		global $wpdb;
 
-		$charset = $wpdb->get_charset_collate();
-		$invite  = $wpdb->prefix . 'upr_invite_items';
-		$tokens  = $wpdb->prefix . 'upr_tokens';
-		$audit   = $wpdb->prefix . 'upr_audit';
+		$charset      = $wpdb->get_charset_collate();
+		$invite       = $wpdb->prefix . 'upr_invite_items';
+		$tokens       = $wpdb->prefix . 'upr_tokens';
+		$audit        = $wpdb->prefix . 'upr_audit';
+		$assessments  = $wpdb->prefix . 'upr_moderation_assessments';
+		$claims       = $wpdb->prefix . 'upr_moderation_assessment_claims';
+		$ops          = $wpdb->prefix . 'upr_moderation_ops';
 
 		return array(
 			$invite => "CREATE TABLE {$invite} (
@@ -98,6 +103,68 @@ final class Schema {
 				KEY item_occurred (order_item_id, occurred_at),
 				KEY event_occurred (event_type, occurred_at)
 			) {$charset};",
+			$assessments => "CREATE TABLE {$assessments} (
+				assessment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				schema_version varchar(64) NOT NULL,
+				comment_id bigint(20) unsigned NOT NULL,
+				mode varchar(16) NOT NULL,
+				state varchar(32) NOT NULL,
+				publication_safety_score tinyint unsigned DEFAULT NULL,
+				confidence varchar(16) DEFAULT NULL,
+				reason_codes text DEFAULT NULL,
+				policy_version varchar(32) NOT NULL,
+				provider_kind varchar(16) NOT NULL,
+				provider_fingerprint char(64) NOT NULL,
+				failure_code varchar(64) DEFAULT NULL,
+				requested_at datetime NOT NULL,
+				completed_at datetime NOT NULL,
+				retention_due_at datetime NOT NULL,
+				PRIMARY KEY  (assessment_id),
+				KEY comment_completed (comment_id, completed_at),
+				KEY retention_due_at (retention_due_at),
+				KEY state_completed (state, completed_at)
+			) {$charset};",
+			$claims => "CREATE TABLE {$claims} (
+				comment_id bigint(20) unsigned NOT NULL,
+				policy_version varchar(32) NOT NULL,
+				claim_token varchar(64) DEFAULT NULL,
+				claim_expires_at datetime DEFAULT NULL,
+				requested_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (comment_id, policy_version)
+			) {$charset};",
+			$ops => "CREATE TABLE {$ops} (
+				id tinyint unsigned NOT NULL,
+				rate_window_started_at datetime NOT NULL,
+				rate_count smallint unsigned NOT NULL DEFAULT 0,
+				consecutive_failures smallint unsigned NOT NULL DEFAULT 0,
+				circuit_open_until datetime DEFAULT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id)
+			) {$charset};",
+		);
+	}
+
+	/**
+	 * Idempotent seed for the single moderation ops row.
+	 */
+	public static function seed_moderation_ops_row(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'upr_moderation_ops';
+		$now   = gmdate( 'Y-m-d H:i:s' );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$table} (id, rate_window_started_at, rate_count, consecutive_failures, circuit_open_until, updated_at)
+				VALUES (%d, %s, %d, %d, NULL, %s)",
+				self::OPS_ROW_ID,
+				$now,
+				0,
+				0,
+				$now
+			)
 		);
 	}
 }

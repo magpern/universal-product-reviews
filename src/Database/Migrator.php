@@ -139,6 +139,7 @@ final class Migrator {
 		foreach ( Schema::table_definitions() as $sql ) {
 			dbDelta( $sql );
 		}
+		Schema::seed_moderation_ops_row();
 		++self::$schema_runs;
 	}
 
