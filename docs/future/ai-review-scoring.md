@@ -1,6 +1,6 @@
 # Future Design Note: AI Review Scoring and Guarded Auto-Approval
 
-**Status:** Deferred design note. This document is not implementation authority and does not change the frozen M0–M8 plan. Consider it only after the host pilot, privacy assessment, and a separately approved milestone.
+**Status:** **M11 appendix only.** Near-term AI planning authority is the M8 freeze: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md) and [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md). This document does **not** authorise M9 local shadow, M10 external processing, or any runtime AI. Consider auto-approval only after M9/M10, a privacy assessment, governed calibration, and an ADR-0004 amendment.
 
 ## Purpose
 
@@ -13,16 +13,16 @@ Product reviews are the first possible use case. Store/order-service reviews are
 - Never use star rating, sentiment, criticism, positivity, or likelihood to purchase as a score input or moderation outcome.
 - A valid negative review must be treated exactly like a valid positive review.
 - The AI may not rewrite a review or delete it automatically.
-- AI uncertainty, outage, unsupported language, or missing data fails closed to human moderation.
+- AI uncertainty, outage, unsupported language, or missing data fails open to ordinary pending human moderation (review already persisted).
 - The host can disable all automated decisions immediately through a feature flag.
-- Every score, policy version, reason code, decision, override, and later restoration is recorded in the append-only audit trail.
+- Every score, policy version, reason code, decision, override, and later restoration is recorded in the append-only audit trail (allowlisted payloads only).
 
-## Required decision pipeline
+## Required decision pipeline (M11+)
 
 1. Apply deterministic controls first: verified-purchase/authorization checks, nonce/session validation, duplicate detection, rate limits, known spam signals, link rules, and local personal-data and regulatory hold detection.
 2. If any mandatory hold applies, keep the review pending. Do not call or rely on AI to override it.
-3. If permitted by the host privacy decision, classify the minimum necessary review content and coarse non-identifying context.
-4. Store a publication-safety score, confidence, reason codes, model/prompt policy version, and timestamp.
+3. If permitted by the host privacy decision and M10+ external rules (when applicable), classify the minimum necessary review content.
+4. Store a publication-safety score, confidence, reason codes, policy version, and timestamp per M8 schema.
 5. Apply the current decision policy:
    - **Mandatory hold:** human review, regardless of score.
    - **Below auto-approval threshold or low confidence:** human review.
@@ -36,40 +36,28 @@ Regardless of score, hold reviews that contain or may contain:
 - personal data or sensitive personal data;
 - medical, regulatory, safety, or prohibited product claims;
 - threats, abuse, hate, self-harm, fraud, impersonation, or legal allegations;
-- suspected coordinated manipulation;
+- suspected coordinated manipulation (requires comparison capability beyond M9 single-text DTO);
 - unsupported language or ambiguous classification;
 - a changed/unknown model or policy version during rollout;
 - an edit to a previously approved review.
 
-## Rollout gates
+## Rollout gates (M11)
 
-1. **Shadow mode:** collect scores and reason codes with no automated action.
-2. **Calibration:** compare AI recommendations against human outcomes on a large, representative, stratified sample that includes legitimate negative reviews.
+1. **Shadow mode (M9/M10):** collect scores and reason codes with no automated action.
+2. **Calibration:** compare AI recommendations against human outcomes on a large, representative, stratified sample that includes legitimate negative reviews. Unit/integration mocks **cannot** prove sentiment parity.
 3. **Approval gate:** maintainers approve an explicit threshold and confidence policy only after near-zero false approvals and acceptable disagreement rates are demonstrated.
 4. **Limited rollout:** enable auto-approval only for the narrowest low-risk cohort; randomly sample auto-approved reviews for human QA.
 5. **Ongoing controls:** monitor false approvals, moderator overrides, customer complaints, restores, language/model drift, and score distribution. Disable automation immediately if a guardrail breaches.
 
-No fixed threshold is approved by this design note. A numeric threshold must be evidence-based and versioned after calibration; it must not be selected merely because a value such as 90 or 95 appears intuitively safe.
+No fixed threshold is approved by this design note or by M8.
 
 ## Privacy and data minimisation
 
-Before any external AI call, require a documented privacy/DPIA decision, processor terms and retention decision, approved provider/model, and host maintainer approval.
-
-Send only the review text and the minimum non-identifying context required for classification. Do not send customer email, name, order identifiers, IP address, or full purchase history. Keep raw provider payloads out of the audit store.
-
-## Testing and audit requirements
-
-Future implementation must test:
-
-- identical treatment of favourable and critical reviews;
-- mandatory holds overriding a high score;
-- outage, timeout, malformed response, and unsupported-language fallback to pending;
-- threshold boundary and confidence boundary behaviour;
-- idempotency and concurrency;
-- audit completeness and moderator override/restoration recording;
-- feature-flag shutdown;
-- calibrated false-approval monitoring.
+Aligned with ADR-0004: send only review text and the minimum non-identifying context required; never send rating, email, name, order identifiers, IP, tokens, or invite URLs. External processing is M10+. Keep raw provider payloads out of the audit store. Secrets stay host-owned.
 
 ## Relationship to the frozen roadmap
 
-The frozen M0–M8 scope remains unchanged. **M6 is Integration and Developer Experience**, not AI. AI-assisted moderation planning is a later roadmap milestone (post-DPIA). Any scoring-based auto-approval requires a separate approved milestone after that planning freeze and must satisfy every guardrail in this document.
+- **M8** freezes planning boundaries (local vs external vs auto-approval).
+- **M9** implements local shadow only.
+- **M10** freezes and implements external processing.
+- **M11** may implement guarded auto-approval only after this appendix’s gates and an ADR-0004 amendment.
