@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M7** (Storefront Compatibility and Quality; not authorised by M6 closure alone).
+**Recommended next implementation milestone:** **M7** (Storefront Compatibility and Quality — **frozen:** [`m7-storefront-compatibility-and-quality.md`](m7-storefront-compatibility-and-quality.md); not authorised by M6 closure alone).
 
 ---
 
@@ -41,9 +41,11 @@ Each milestone below requires its own **plan → documentation freeze → implem
 
 ## M7 — Storefront Compatibility and Quality
 
-- Accessibility acceptance across supported theme patterns.
-- Cross-theme storefront compatibility suite.
-- Supported integration-boundary documentation.
+- Storefront compatibility matrix and integration-boundary documentation.
+- Contract-only C9/C10/enforcement characterization (no visual theme suite in UPR).
+- Mandatory accessibility hardening on core-owned `/upr-review/form/`.
+
+**Freeze:** [`m7-storefront-compatibility-and-quality.md`](m7-storefront-compatibility-and-quality.md).
 
 ## M8 — AI-Assisted Moderation Planning
 
