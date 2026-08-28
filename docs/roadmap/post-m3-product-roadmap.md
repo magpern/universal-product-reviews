@@ -63,7 +63,8 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - No replaceable provider filter; no AI public-contract registry entry (deferred to M10).
 - Portable assessments / claims / ops tables; claim-before-rate; disable-silent precedence.
 
-**Freeze:** [`m9-local-ai-shadow-mode.md`](m9-local-ai-shadow-mode.md).
+**Freeze:** [`m9-local-ai-shadow-mode.md`](m9-local-ai-shadow-mode.md).  
+**Closure:** [`m9-local-ai-shadow-mode-closure.md`](m9-local-ai-shadow-mode-closure.md). Runtime implemented on `main`; plugin SemVer / `v0.8.0` remains separately authorised.
 
 ## M10 / M11 (forward)
 

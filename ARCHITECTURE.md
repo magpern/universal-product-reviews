@@ -327,7 +327,8 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 - Built-in-only local advisory shadow; disabled by default; zero status mutation; no provider filter / no C18
 - Freeze: [`docs/roadmap/m9-local-ai-shadow-mode.md`](docs/roadmap/m9-local-ai-shadow-mode.md)
-- Runtime lands in subsequent implementation PRs after this freeze tag; SemVer / Release separately authorised
+- Closure: [`docs/roadmap/m9-local-ai-shadow-mode-closure.md`](docs/roadmap/m9-local-ai-shadow-mode-closure.md)
+- Runtime on `main`; SemVer / Release separately authorised
 
 ---
 

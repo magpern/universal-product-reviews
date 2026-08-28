@@ -4,7 +4,7 @@
 
 Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md), [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
 
-**Runtime status:** M9 freeze authorises implementation; until merged runtime lands, AI is absent on `main`. When implemented: **disabled by default**, **built-in-only** local heuristic (no replaceable provider filter).
+**Runtime status:** M9 local shadow is **implemented** on `main` (disabled by default; built-in-only). See freeze [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md) and closure [`../roadmap/m9-local-ai-shadow-mode-closure.md`](../roadmap/m9-local-ai-shadow-mode-closure.md). M10 (external) and M11 (auto-approval) remain unimplemented.
 
 ## Privacy gate
 
