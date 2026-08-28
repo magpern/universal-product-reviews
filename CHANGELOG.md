@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- M9 latest-assessment lookup: select by `MAX(assessment_id)` so same-second `completed_at` collisions return exactly one deterministic row per comment for Comments-admin advisory prefetch.
+
 ## [0.8.0] - 2026-08-28
 
 Combined core release of merged **M7 Storefront Compatibility and Quality** and **M9 Local AI Shadow Mode**, including corrective hardening from PR #44. **`v0.7.0` was intentionally not published** (no matching M7-only version-metadata commit; `main` already contained both M7 and M9).
