@@ -1,12 +1,12 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.4.0`**.  
+**Baseline:** Universal Product Reviews annotated **`v0.5.0`**.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M5** (freeze: [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md)).
+**Recommended next implementation milestone:** **M6** (requires a new freeze; not authorised by M5 closure).
 
 ---
 
@@ -26,7 +26,8 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - Verified staff-reply hold exemption; `review.reply_posted`.
 - **Not** customer review edits (later milestone).
 
-**Freeze:** [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md).
+**Freeze:** [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md).  
+**Closed at `v0.5.0`:** [`m5-review-moderation-operations-closure.md`](m5-review-moderation-operations-closure.md).
 
 ## M6 — Integration and Developer Experience
 
