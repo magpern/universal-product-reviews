@@ -1,6 +1,6 @@
 # Architecture — Universal Product Reviews (Rev 6, frozen)
 
-**Status:** Frozen at M0 (`plan-rev6-freeze`). Authoritative specification for M1–M8 implementation.
+**Status:** Frozen at M0 (`plan-rev6-freeze`). Authoritative specification for M1–M9 product scope (M9 runtime authorised by its own freeze).
 
 **Repository governance:** The repository is public and proprietary, as decided by [ADR-0001](docs/decisions/ADR-0001-repository-visibility.md). This later governance decision overrides Rev 6's private-repository assumption without changing the frozen technical scope.
 
@@ -187,18 +187,19 @@ apply_filters(
 - Regulatory keyword holds via `upr_regulatory_hold_patterns` filter
 - PII detection: hold pending; moderator-approved edit with audit — **no auto-redact**
 
-### AI (M8 planning freeze; runtime later)
+### AI (M8 planning; M9 local shadow freeze)
 
-Authoritative planning freeze: [`docs/roadmap/m8-ai-assisted-moderation-planning.md`](docs/roadmap/m8-ai-assisted-moderation-planning.md). Boundary ADR: [`docs/decisions/ADR-0004-ai-moderation-boundary.md`](docs/decisions/ADR-0004-ai-moderation-boundary.md).
+Authoritative near-term planning: [`docs/roadmap/m8-ai-assisted-moderation-planning.md`](docs/roadmap/m8-ai-assisted-moderation-planning.md). M9 implementation freeze: [`docs/roadmap/m9-local-ai-shadow-mode.md`](docs/roadmap/m9-local-ai-shadow-mode.md). Boundary ADR: [`docs/decisions/ADR-0004-ai-moderation-boundary.md`](docs/decisions/ADR-0004-ai-moderation-boundary.md).
 
 - **M8** — documentation only; no runtime AI
-- **M9** — local-only shadow assessment (separate authorisation); advisory only; no automated status changes; no external HTTP from core
-- **M10** — external processing requires a separate freeze
+- **M9** — local-only **built-in** shadow assessment (authorised by M9 freeze); advisory only; disabled by default; no automated status changes; no external HTTP from core; **no** replaceable provider filter / no public-contract AI entry
+- **M10** — external / replaceable provider path requires a separate freeze
 - **M11** — automatic approval requires ADR amendment + governed calibration
-- Never suppress based on sentiment, rating, or criticism; rating excluded from provider inputs
+- Never suppress based on sentiment, rating, or criticism; rating excluded from assessor inputs
 - Human moderation remains authoritative; AI never mutates comment body, author, rating, linkage, or status
-- Provider secrets are host-owned (env / `wp-config.php`); UPR never stores API keys
-- Unimplemented AI surfaces are **not** registered in `upr-public-contracts/v1` until the implementing milestone
+- AI off → no new assessment row and no AI audit (including in-flight and disable-then-non-held-transition)
+- Provider secrets (M10+) are host-owned (env / `wp-config.php`); UPR never stores API keys
+- Unimplemented AI surfaces are **not** registered in `upr-public-contracts/v1` until the implementing milestone (M10 for provider contracts)
 
 ---
 
@@ -320,7 +321,13 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 - Planning freeze only: privacy, lifecycle, claims, retention, local-vs-external split; **no** runtime AI
 - Freeze: [`docs/roadmap/m8-ai-assisted-moderation-planning.md`](docs/roadmap/m8-ai-assisted-moderation-planning.md)
 - ADR: [`docs/decisions/ADR-0004-ai-moderation-boundary.md`](docs/decisions/ADR-0004-ai-moderation-boundary.md)
-- First implementation is **M9 local shadow** under separate authorisation; auto-approval is **M11**
+- First implementation is **M9 local shadow** under the M9 freeze; auto-approval is **M11**
+
+### M9 — Local AI Shadow Mode
+
+- Built-in-only local advisory shadow; disabled by default; zero status mutation; no provider filter / no C18
+- Freeze: [`docs/roadmap/m9-local-ai-shadow-mode.md`](docs/roadmap/m9-local-ai-shadow-mode.md)
+- Runtime lands in subsequent implementation PRs after this freeze tag; SemVer / Release separately authorised
 
 ---
 
@@ -329,13 +336,13 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 1. Manual moderation for first 50–100 reviews
 2. Near-zero spam false-positive before expanding auto-spam
 3. Card rating feature flag after calibration; ≥3 reviews per product
-4. DPIA before AI shadow mode
+4. Host DPIA / process gate before enabling AI shadow (human obligation; not a core machine checkbox)
 
 ---
 
 ## 18. Deferred: reward/incentive programme
 
-Review incentives (coupons, points, rating-conditioned rewards) are **out of scope** for M1–M8. Any future programme must reward honest reviews regardless of rating and require separate compliance review.
+Review incentives (coupons, points, rating-conditioned rewards) are **out of scope** for M1–M9. Any future programme must reward honest reviews regardless of rating and require separate compliance review.
 
 ---
 

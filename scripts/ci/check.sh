@@ -182,6 +182,7 @@ required_docs=(
   docs/roadmap/m7-storefront-compatibility-and-quality.md
   docs/roadmap/m8-ai-assisted-moderation-planning.md
   docs/roadmap/m8-ai-assisted-moderation-planning-closure.md
+  docs/roadmap/m9-local-ai-shadow-mode.md
   docs/integration/public-contracts.md
   docs/integration/integrator-onboarding.md
   docs/integration/wc-review-import-strategy.md
