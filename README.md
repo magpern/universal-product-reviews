@@ -41,6 +41,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/roadmap/m4-operator-controls-and-diagnostics.md`](docs/roadmap/m4-operator-controls-and-diagnostics.md) | **Frozen** M4.1 operator controls and diagnostics specification |
 | [`docs/roadmap/m4-operator-controls-and-diagnostics-closure.md`](docs/roadmap/m4-operator-controls-and-diagnostics-closure.md) | M4.1 closure (`v0.4.0`) |
 | [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md) | **Frozen** M5 review moderation operations specification |
+| [`docs/roadmap/m5-review-moderation-operations-closure.md`](docs/roadmap/m5-review-moderation-operations-closure.md) | M5 closure (`v0.5.0`) |
 
 ## Development
 
