@@ -181,6 +181,7 @@ required_docs=(
   docs/roadmap/m6-integration-and-developer-experience-closure.md
   docs/roadmap/m7-storefront-compatibility-and-quality.md
   docs/roadmap/m8-ai-assisted-moderation-planning.md
+  docs/roadmap/m8-ai-assisted-moderation-planning-closure.md
   docs/integration/public-contracts.md
   docs/integration/integrator-onboarding.md
   docs/integration/wc-review-import-strategy.md

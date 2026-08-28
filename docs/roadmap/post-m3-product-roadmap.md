@@ -54,7 +54,8 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - ADR-0004 locks privacy, held-only eligibility, portable claims table, one-transaction completion, and secrets model.
 
 **Freeze:** [`m8-ai-assisted-moderation-planning.md`](m8-ai-assisted-moderation-planning.md).  
-**ADR:** [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
+**ADR:** [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).  
+**Closure:** [`m8-ai-assisted-moderation-planning-closure.md`](m8-ai-assisted-moderation-planning-closure.md).
 
 ## M9 — Local AI Shadow Mode (forward; not authorised by M8 alone)
 
