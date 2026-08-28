@@ -81,6 +81,38 @@ final class M6IntegrationDxUnitTest extends TestCase {
 		);
 	}
 
+	public function test_normalize_reason_caps_at_forty_three_for_storage(): void {
+		$exact = str_repeat( 'a', 43 );
+		$this->assertSame( $exact, DeliveryEventNormaliser::normalize_reason( $exact ) );
+
+		$long = str_repeat( 'b', 64 );
+		$expected = str_repeat( 'b', 43 );
+		$this->assertSame( $expected, DeliveryEventNormaliser::normalize_reason( $long ) );
+
+		$composed = DeliveryEventNormaliser::compose_invalidation_code( $long );
+		$this->assertSame( DeliveryEventNormaliser::INVALIDATION_PREFIX . $expected, $composed );
+		$this->assertTrue( DeliveryEventNormaliser::composed_invalidation_fits_storage( $composed ) );
+		$this->assertSame( 64, strlen( $composed ) );
+	}
+
+	public function test_compose_invalidation_code_never_exceeds_sixty_four(): void {
+		$cases = array(
+			'refund',
+			str_repeat( 'c', 43 ),
+			str_repeat( 'd', 64 ),
+			'FREE TEXT',
+			null,
+		);
+		foreach ( $cases as $reason ) {
+			$composed = DeliveryEventNormaliser::compose_invalidation_code( $reason );
+			$this->assertTrue(
+				DeliveryEventNormaliser::composed_invalidation_fits_storage( $composed ),
+				'composed must fit varchar(64): ' . $composed
+			);
+			$this->assertLessThanOrEqual( 64, strlen( $composed ) );
+		}
+	}
+
 	public function test_i1_information_when_lookup_missing(): void {
 		$r = IntegrationReadiness::check_i1();
 		$this->assertSame( 'I1', $r['id'] );

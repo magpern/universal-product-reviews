@@ -18,6 +18,12 @@ final class DeliveryEventNormaliser {
 
 	public const REASON_UNSPECIFIED = 'unspecified';
 
+	/** Prefix persisted on invite suppression / audit for C2 invalidate. */
+	public const INVALIDATION_PREFIX = 'delivery_invalidated:';
+
+	/** Max reason-code length so composed code fits suppression_code varchar(64). */
+	public const REASON_MAX_LENGTH = 43;
+
 	/** Unix floor: 2000-01-01 00:00:00 UTC. */
 	public const DELIVERED_AT_MIN_UNIX = 946684800;
 
@@ -89,6 +95,9 @@ final class DeliveryEventNormaliser {
 	/**
 	 * Normalise invalidate reason code before any suppress/audit persist.
 	 *
+	 * Inbound may use up to 64 pattern-valid characters; stored reason is capped at
+	 * REASON_MAX_LENGTH (43) so INVALIDATION_PREFIX + code fits varchar(64).
+	 *
 	 * @param mixed $reason Inbound action argument.
 	 */
 	public static function normalize_reason( $reason ): string {
@@ -103,16 +112,26 @@ final class DeliveryEventNormaliser {
 		if ( 1 !== preg_match( '/^[a-z0-9_]{1,64}$/', $code ) ) {
 			return self::REASON_UNSPECIFIED;
 		}
+		if ( strlen( $code ) > self::REASON_MAX_LENGTH ) {
+			$code = substr( $code, 0, self::REASON_MAX_LENGTH );
+		}
 
 		return $code;
 	}
 
 	/**
-	 * Composed suppression/audit code for invalidate.
+	 * Composed suppression/audit code for invalidate (never longer than 64 bytes).
 	 *
 	 * @param mixed $reason Inbound action argument.
 	 */
 	public static function compose_invalidation_code( $reason ): string {
-		return 'delivery_invalidated:' . self::normalize_reason( $reason );
+		return self::INVALIDATION_PREFIX . self::normalize_reason( $reason );
+	}
+
+	/**
+	 * Whether a composed invalidation code fits invite suppression_code storage.
+	 */
+	public static function composed_invalidation_fits_storage( string $composed ): bool {
+		return strlen( $composed ) <= 64;
 	}
 }

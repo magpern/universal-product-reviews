@@ -127,7 +127,8 @@ Schemas are **runtime-enforced**, not documentation promises. Normalise **before
 
 1. Trim; empty → `unspecified`.
 2. Must match `^[a-z0-9_]{1,64}$` else → `unspecified`.
-3. Persist only `delivery_invalidated:` + normalised code.
+3. Cap normalised reason at **43** characters (composed `delivery_invalidated:` + code ≤ 64 bytes for `suppression_code varchar(64)`); longer valid-pattern codes truncate at normalisation.
+4. Persist only `delivery_invalidated:` + normalised code.
 
 Free text **must never** reach stored state.
 

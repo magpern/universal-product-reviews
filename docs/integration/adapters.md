@@ -19,7 +19,7 @@ do_action( 'upr_order_delivery_invalidated', int $order_id, string $reason );
 
 **C1 `$context` (M6):** optional `delivered_at` (unix) only. Unknown keys ignored. Core always schedules with source `'adapter'`. Invalid/implausible timestamps fall back to `time()`. Core listeners accept malformed args without fatal errors.
 
-**C2 `$reason`:** non-PII code matching `^[a-z0-9_]{1,64}$` (e.g. `cancel`, `refund`). Empty/invalid/non-string → stored as `delivery_invalidated:unspecified`. Free text never reaches storage.
+**C2 `$reason`:** non-PII code matching `^[a-z0-9_]{1,64}$` (e.g. `cancel`, `refund`). Normalised reason is capped at **43** characters so `delivery_invalidated:` + code fits existing `suppression_code varchar(64)`; longer valid-pattern codes truncate at normalisation. Empty/invalid/non-string → stored as `delivery_invalidated:unspecified`. Free text never reaches storage.
 
 Requirements:
 

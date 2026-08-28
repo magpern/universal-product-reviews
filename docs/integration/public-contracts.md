@@ -50,7 +50,7 @@ Support export schema `upr-support-export/v1` is **unchanged** by M6 and is not 
 | **Type** | Action (host fires; core listens) |
 | **Host signature** | `do_action( 'upr_order_delivery_invalidated', int $order_id, string $reason );` |
 | **Core receiver** | Mixed inbound. Invalid order → no-op. Non-string reason → `unspecified`. |
-| **Reason** | After trim must match `^[a-z0-9_]{1,64}$` else `unspecified`. Stored only as `delivery_invalidated:<code>`. Free text never stored. |
+| **Reason** | After trim must match `^[a-z0-9_]{1,64}$` else `unspecified`. Normalised reason capped at **43** chars so `delivery_invalidated:` + code fits `varchar(64)`; longer valid-pattern codes truncate deterministically at normalisation (never silent downstream `substr`). Stored only as `delivery_invalidated:<code>`. Free text never stored. |
 | **Tests** | Unit + integration (free-text never in storage; malformed args) |
 | **Code** | `InvitationScheduler::on_delivery_invalidated`, `DeliveryEventNormaliser` |
 

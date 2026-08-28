@@ -181,4 +181,93 @@ final class M6DeliveryContractsIntegrationTest extends WP_UnitTestCase {
 
 		$this->assertTrue( DeliveryStatus::has_confirmation( $ctx['order']->get_id() ) );
 	}
+
+	public function test_invalidate_forty_three_char_code_stored_intact(): void {
+		$past = time() - DAY_IN_SECONDS;
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+		$code43     = str_repeat( 'z', 43 );
+
+		InviteRepository::upsert(
+			$ctx['order_item_id'],
+			array(
+				'order_id'       => $ctx['order']->get_id(),
+				'product_id'     => $product_id,
+				'schedule_state' => ScheduleStates::SCHEDULED,
+			)
+		);
+
+		InvitationScheduler::on_delivery_invalidated( $ctx['order']->get_id(), $code43 );
+
+		$expected = 'delivery_invalidated:' . $code43;
+		$this->assertSame( 64, strlen( $expected ) );
+
+		$row = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertSame( $expected, $row['suppression_code'] );
+		$this->assertSame( $expected, $this->upr_latest_suppress_audit_code( $ctx['order_item_id'] ) );
+	}
+
+	public function test_invalidate_sixty_four_char_valid_pattern_truncates_at_normalisation(): void {
+		global $wpdb;
+
+		$past = time() - DAY_IN_SECONDS;
+		$this->upr_enable_invitation_emails( $past - DAY_IN_SECONDS );
+		$product_id = $this->upr_create_product();
+		$ctx        = $this->upr_create_order_with_item( $product_id );
+		$long       = str_repeat( 'y', 64 );
+		$reason43   = str_repeat( 'y', 43 );
+
+		InviteRepository::upsert(
+			$ctx['order_item_id'],
+			array(
+				'order_id'       => $ctx['order']->get_id(),
+				'product_id'     => $product_id,
+				'schedule_state' => ScheduleStates::SCHEDULED,
+			)
+		);
+
+		InvitationScheduler::on_delivery_invalidated( $ctx['order']->get_id(), $long );
+
+		$expected = 'delivery_invalidated:' . $reason43;
+		$this->assertSame( 64, strlen( $expected ) );
+
+		$row = InviteRepository::find( $ctx['order_item_id'] );
+		$this->assertSame( $expected, $row['suppression_code'] );
+		$this->assertStringNotContainsString( $long, (string) $row['suppression_code'] );
+		$this->assertSame( $expected, $this->upr_latest_suppress_audit_code( $ctx['order_item_id'] ) );
+
+		$audit_json = (string) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT payload_json FROM {$wpdb->prefix}upr_audit WHERE event_type = %s AND order_item_id = %d ORDER BY id DESC LIMIT 1",
+				'invite.suppressed',
+				$ctx['order_item_id']
+			)
+		);
+		$this->assertStringNotContainsString( $long, $audit_json );
+		$this->assertStringContainsString( $reason43, $audit_json );
+	}
+
+	/**
+	 * @return string|null Composed suppression code from latest invite.suppressed audit row.
+	 */
+	private function upr_latest_suppress_audit_code( int $order_item_id ): ?string {
+		global $wpdb;
+
+		$json = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT payload_json FROM {$wpdb->prefix}upr_audit WHERE event_type = %s AND order_item_id = %d ORDER BY id DESC LIMIT 1",
+				'invite.suppressed',
+				$order_item_id
+			)
+		);
+		if ( ! is_string( $json ) || '' === $json ) {
+			return null;
+		}
+		$data = json_decode( $json, true );
+		if ( ! is_array( $data ) || ! isset( $data['code'] ) ) {
+			return null;
+		}
+		return (string) $data['code'];
+	}
 }
