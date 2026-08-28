@@ -1,12 +1,12 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.6.0`**.  
+**Baseline:** Universal Product Reviews annotated **`v0.8.0`**.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M9** ([`m9-local-ai-shadow-mode.md`](m9-local-ai-shadow-mode.md) freeze). M7 implementation is merged on `main`; M7 release metadata (`v0.7.0`) remains separately authorised. M8 planning is closed.
+**Recommended next implementation milestone:** **M10** (external AI / replaceable provider — requires its own freeze). M7 and M9 are closed at **`v0.8.0`** (`v0.7.0` intentionally not published). M8 planning is closed.
 
 ---
 
@@ -45,7 +45,8 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - Contract-only C9/C10/enforcement characterization (no visual theme suite in UPR).
 - Mandatory accessibility hardening on core-owned `/upr-review/form/`.
 
-**Freeze:** [`m7-storefront-compatibility-and-quality.md`](m7-storefront-compatibility-and-quality.md).
+**Freeze:** [`m7-storefront-compatibility-and-quality.md`](m7-storefront-compatibility-and-quality.md).  
+**Shipped in `v0.8.0`** (combined with M9; `v0.7.0` intentionally not published).
 
 ## M8 — AI-Assisted Moderation Planning
 
@@ -64,7 +65,7 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - Portable assessments / claims / ops tables; claim-before-rate; disable-silent precedence.
 
 **Freeze:** [`m9-local-ai-shadow-mode.md`](m9-local-ai-shadow-mode.md).  
-**Closure:** [`m9-local-ai-shadow-mode-closure.md`](m9-local-ai-shadow-mode-closure.md). Runtime implemented on `main`; plugin SemVer / `v0.8.0` remains separately authorised.
+**Closed at `v0.8.0`:** [`m9-local-ai-shadow-mode-closure.md`](m9-local-ai-shadow-mode-closure.md).
 
 ## M10 / M11 (forward)
 
