@@ -174,6 +174,7 @@ required_docs=(
   docs/roadmap/m5-review-moderation-operations.md
   docs/roadmap/m5-review-moderation-operations-closure.md
   docs/roadmap/m6-integration-and-developer-experience.md
+  docs/roadmap/m6-integration-and-developer-experience-closure.md
   docs/integration/public-contracts.md
   docs/integration/integrator-onboarding.md
   docs/integration/wc-review-import-strategy.md

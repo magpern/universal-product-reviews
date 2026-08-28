@@ -1,12 +1,12 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.5.0`**.  
+**Baseline:** Universal Product Reviews annotated **`v0.6.0`**.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M6** (freeze: [`m6-integration-and-developer-experience.md`](m6-integration-and-developer-experience.md); not authorised by M5 closure alone).
+**Recommended next implementation milestone:** **M7** (Storefront Compatibility and Quality; not authorised by M6 closure alone).
 
 ---
 
@@ -36,7 +36,8 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - Existing WooCommerce review import/migration **strategy** (docs only; no runtime importer).
 - Developer VPS / host adapters remain **outside** this repository.
 
-**Freeze:** [`m6-integration-and-developer-experience.md`](m6-integration-and-developer-experience.md).
+**Freeze:** [`m6-integration-and-developer-experience.md`](m6-integration-and-developer-experience.md).  
+**Closed at `v0.6.0`:** [`m6-integration-and-developer-experience-closure.md`](m6-integration-and-developer-experience-closure.md).
 
 ## M7 — Storefront Compatibility and Quality
 
