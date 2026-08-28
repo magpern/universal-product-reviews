@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin service bootstrap (M1 + M2 + M4).
+ * Plugin service bootstrap (M1 + M2 + M4 + M5).
  *
  * @package UniversalProductReviews
  */
@@ -14,6 +14,8 @@ use UniversalProductReviews\CLI\Commands;
 use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\SuppressionService;
+use UniversalProductReviews\Moderation\CommentListEnhancements;
+use UniversalProductReviews\Moderation\ModerationAudit;
 use UniversalProductReviews\Moderation\ReviewModeration;
 use UniversalProductReviews\Scheduling\Jobs;
 use UniversalProductReviews\Submission\GuestSubmissionGuard;
@@ -35,6 +37,8 @@ final class Plugin {
 		self::$initialized = true;
 
 		ReviewModeration::register();
+		ModerationAudit::register();
+		CommentListEnhancements::register();
 		GuestSubmissionGuard::register();
 		NativeSubmissionGuard::register();
 		ReviewAvailability::register();

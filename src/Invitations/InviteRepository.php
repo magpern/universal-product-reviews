@@ -120,4 +120,70 @@ final class InviteRepository {
 		);
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Batch lookup by review_comment_id for Comments-list prefetch.
+	 *
+	 * @param list<int> $comment_ids Comment IDs (bounded to current list page).
+	 * @return array<int, array<string, mixed>> Map of review_comment_id => invite row.
+	 */
+	public static function find_by_review_comment_ids( array $comment_ids ): array {
+		global $wpdb;
+		$comment_ids = array_values(
+			array_unique(
+				array_filter(
+					array_map( 'intval', $comment_ids ),
+					static fn( int $id ): bool => $id > 0
+				)
+			)
+		);
+		if ( array() === $comment_ids ) {
+			return array();
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $comment_ids ), '%d' ) );
+		$sql          = 'SELECT * FROM ' . self::table() . " WHERE review_comment_id IN ($placeholders)";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders built from count only.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, ...$comment_ids ), ARRAY_A );
+		$out  = array();
+		foreach ( (array) $rows as $row ) {
+			if ( ! is_array( $row ) || empty( $row['review_comment_id'] ) ) {
+				continue;
+			}
+			$out[ (int) $row['review_comment_id'] ] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Batch lookup by order_item_id for Comments-list prefetch.
+	 *
+	 * @param list<int> $order_item_ids Order item IDs from page meta only.
+	 * @return array<int, array<string, mixed>> Map of order_item_id => invite row.
+	 */
+	public static function find_by_order_item_ids( array $order_item_ids ): array {
+		global $wpdb;
+		$order_item_ids = array_values(
+			array_unique(
+				array_filter(
+					array_map( 'intval', $order_item_ids ),
+					static fn( int $id ): bool => $id > 0
+				)
+			)
+		);
+		if ( array() === $order_item_ids ) {
+			return array();
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $order_item_ids ), '%d' ) );
+		$sql          = 'SELECT * FROM ' . self::table() . " WHERE order_item_id IN ($placeholders)";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders built from count only.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, ...$order_item_ids ), ARRAY_A );
+		$out  = array();
+		foreach ( (array) $rows as $row ) {
+			if ( ! is_array( $row ) || empty( $row['order_item_id'] ) ) {
+				continue;
+			}
+			$out[ (int) $row['order_item_id'] ] = $row;
+		}
+		return $out;
+	}
 }

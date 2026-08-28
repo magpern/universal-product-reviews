@@ -29,6 +29,11 @@ final class ReviewModeration {
 			return $approved;
 		}
 
+		// Validated staff replies: pass core's approval through unchanged (never force approve).
+		if ( StaffReplyPolicy::is_validated_staff_reply( $commentdata ) ) {
+			return $approved;
+		}
+
 		if ( self::is_approved_result( $approved ) ) {
 			return 0;
 		}
