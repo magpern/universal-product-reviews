@@ -44,6 +44,7 @@ Hosts install via bind-mount (DEV) or plugin ZIP (staging/production) after vali
 | [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md) | **Frozen** M5 review moderation operations specification |
 | [`docs/roadmap/m5-review-moderation-operations-closure.md`](docs/roadmap/m5-review-moderation-operations-closure.md) | M5 closure (`v0.5.0`) |
 | [`docs/roadmap/m6-integration-and-developer-experience.md`](docs/roadmap/m6-integration-and-developer-experience.md) | **Frozen** M6 integration and developer experience specification |
+| [`docs/roadmap/m6-integration-and-developer-experience-closure.md`](docs/roadmap/m6-integration-and-developer-experience-closure.md) | M6 closure (`v0.6.0`) |
 | [`docs/integration/public-contracts.md`](docs/integration/public-contracts.md) | Canonical public contracts registry (`upr-public-contracts/v1`) |
 
 ## Development
