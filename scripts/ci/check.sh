@@ -28,17 +28,26 @@ grep -q 'namespace UniversalProductReviews' src/Plugin.php || fail "namespace"
 test -f src/Database/Schema.php || fail "missing Schema.php"
 test -f src/Database/Migrator.php || fail "missing Migrator.php"
 
+# Portable PHP content search (GNU and BusyBox grep — no --include).
+grep_php_src() {
+  local re="$1"
+  find src -name '*.php' -print0 2>/dev/null | xargs -0 grep -nE "$re" 2>/dev/null || true
+}
+
 echo "==> M2 scope guards (forbidden UI / Internal / bypass seams)"
-if grep -RIn --include='*.php' -E 'wc_add_notice|woocommerce_single_product_summary' src/ universal-product-reviews.php 2>/dev/null; then
+if grep_php_src 'wc_add_notice|woocommerce_single_product_summary' | grep -q .; then
   fail "forbidden PDP UI hooks detected"
 fi
-if grep -RIn --include='*.php' -E "add_action\s*\(\s*['\"]pre_comment_on_post" src/ universal-product-reviews.php 2>/dev/null; then
+if grep -nE 'wc_add_notice|woocommerce_single_product_summary' universal-product-reviews.php 2>/dev/null; then
+  fail "forbidden PDP UI hooks detected"
+fi
+if grep_php_src "add_action\s*\(\s*['\"]pre_comment_on_post" | grep -q .; then
   fail "guest guard must not use pre_comment_on_post"
 fi
-if grep -RIn --include='*.php' -E 'upr_test_guest_block_without_die|should_block_without_die' src/ universal-product-reviews.php 2>/dev/null; then
+if grep_php_src 'upr_test_guest_block_without_die|should_block_without_die' | grep -q .; then
   fail "production test seam for guest guard must not exist"
 fi
-if grep -RIn --include='*.php' -E 'upr_review_page_url' src/ universal-product-reviews.php 2>/dev/null; then
+if grep_php_src 'upr_review_page_url' | grep -q .; then
   fail "forbidden public filter receiving raw token"
 fi
 
@@ -49,7 +58,7 @@ fi
 if grep -n "function maybe_flush(" src/Http/RewriteRules.php 2>/dev/null; then
   fail "RewriteRules::maybe_flush (frontend) must not exist"
 fi
-if grep -RIn --include='*.php' -E "RewriteRules::class,\s*'maybe_flush'" src/ 2>/dev/null; then
+if grep_php_src "RewriteRules::class,\s*'maybe_flush'" | grep -q .; then
   fail "maybe_flush must not be registered"
 fi
 if ! grep -q 'function flush_controlled' src/Http/RewriteRules.php; then
@@ -60,7 +69,10 @@ if ! grep -q "add_action( 'admin_init', array( self::class, 'maybe_flush_control
 fi
 
 echo "==> Forbidden WooCommerce Internal references"
-if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews|Automattic\\WooCommerce\\Internal\\' src/ universal-product-reviews.php 2>/dev/null; then
+if grep_php_src 'Internal\\OrderReviews|Internal/OrderReviews|Automattic\\WooCommerce\\Internal\\' | grep -q .; then
+  fail "Internal WooCommerce API reference found"
+fi
+if grep -nE 'Internal\\OrderReviews|Internal/OrderReviews|Automattic\\WooCommerce\\Internal\\' universal-product-reviews.php 2>/dev/null; then
   fail "Internal WooCommerce API reference found"
 fi
 
@@ -86,6 +98,11 @@ while IFS= read -r match; do
   [[ -z "$match" ]] && continue
   file="${match%%:*}"
   rel="${file#"$ROOT"/}"
+  # match may be relative (src/...) when grep runs without absolute paths
+  if [[ "$rel" == "$match" && "$match" == src/* ]]; then
+    rel="$match"
+    file="$ROOT/$match"
+  fi
   if [[ "$rel" == "src/Moderation/SystemStatusOrigin.php" ]]; then
     continue
   fi
@@ -93,12 +110,16 @@ while IFS= read -r match; do
     continue
   fi
   fail "direct comment status API outside SystemStatusOrigin (freeze-amend allowlist to permit): $match"
-done < <(grep -RIn --include='*.php' -E "$STATUS_API_RE" src/ 2>/dev/null || true)
+done < <(grep_php_src "$STATUS_API_RE")
 # Also flag status-changing wp_update_comment usage (comment_approved) outside allowlist / SystemStatusOrigin.
 while IFS= read -r match; do
   [[ -z "$match" ]] && continue
   file="${match%%:*}"
   rel="${file#"$ROOT"/}"
+  if [[ "$rel" == "$match" && "$match" == src/* ]]; then
+    rel="$match"
+    file="$ROOT/$match"
+  fi
   if [[ "$rel" == "src/Moderation/SystemStatusOrigin.php" ]]; then
     continue
   fi
@@ -108,7 +129,7 @@ while IFS= read -r match; do
   if grep -n "comment_approved" "$file" >/dev/null 2>&1; then
     fail "wp_update_comment with comment_approved outside SystemStatusOrigin: $match"
   fi
-done < <(grep -RIn --include='*.php' -E 'wp_update_comment\s*\(' src/ 2>/dev/null || true)
+done < <(grep_php_src 'wp_update_comment\s*\(')
 
 echo "==> Forbidden site/vendor patterns in src/"
 SCAN_PATHS=(src)
@@ -153,10 +174,75 @@ required_docs=(
   docs/roadmap/m5-review-moderation-operations.md
   docs/roadmap/m5-review-moderation-operations-closure.md
   docs/roadmap/m6-integration-and-developer-experience.md
+  docs/integration/public-contracts.md
+  docs/integration/integrator-onboarding.md
+  docs/integration/wc-review-import-strategy.md
+  docs/decisions/ADR-0003-public-contract-compatibility.md
 )
 for f in "${required_docs[@]}"; do
   test -f "$f" || fail "missing $f"
 done
+
+echo "==> M6 stable public contracts inventory"
+REGISTRY="$ROOT/docs/integration/public-contracts.md"
+CONTRACTS_TSV="$ROOT/scripts/ci/m6-stable-contracts.tsv"
+test -f "$CONTRACTS_TSV" || fail "missing $CONTRACTS_TSV"
+while IFS=$'\t' read -r cid kind symbol sensitivity || [ -n "$cid" ]; do
+  [[ -z "$cid" || "$cid" =~ ^# ]] && continue
+  grep -q "$cid" "$REGISTRY" || fail "stable contract $cid not documented in public-contracts.md"
+  case "$kind" in
+    action|filter)
+      found=0
+      while IFS= read -r -d '' f; do
+        if grep -Fq "'${symbol}'" "$f"; then
+          if [ "$kind" = "action" ] && grep -Fq 'add_action' "$f"; then
+            found=1
+            break
+          fi
+          if [ "$kind" = "filter" ] && grep -Fq 'apply_filters' "$f"; then
+            found=1
+            break
+          fi
+        fi
+      done < <(find "$ROOT/src" -name '*.php' -print0)
+      [ "$found" = 1 ] || fail "stable ${kind} missing in src: $symbol"
+      ;;
+    php)
+      rel="${symbol#UniversalProductReviews\\}"
+      rel_path="src/$(echo "$rel" | tr '\\' '/').php"
+      test -f "$ROOT/$rel_path" || fail "stable PHP API missing file: $rel_path"
+      ;;
+    *)
+      fail "unknown contract kind: $kind"
+      ;;
+  esac
+  case "$sensitivity" in
+    none|sensitive) ;;
+    *) fail "stable contract $cid missing sensitivity none|sensitive" ;;
+  esac
+  if [ "$sensitivity" = "sensitive" ]; then
+    grep -qi "sensitive" "$REGISTRY" || fail "registry must document sensitive-data-bearing surfaces"
+  fi
+done < "$CONTRACTS_TSV"
+
+echo "==> M6 example privacy (no log/persist/forward helpers in adapter example)"
+EXAMPLE="$ROOT/docs/integration/site-upr-adapters.php.example"
+for bad in error_log update_option set_transient wp_remote_ wp_safe_remote_ file_put_contents; do
+  if grep -q "$bad" "$EXAMPLE"; then
+    fail "adapter example must not call $bad"
+  fi
+done
+
+echo "==> No public mint/resend API"
+if grep -RIn -E 'function\s+(mint_|resend_)|upr_mint_|upr_resend_' "$ROOT/src" 2>/dev/null; then
+  fail "public mint/resend API detected"
+fi
+
+echo "==> Support export schema unchanged"
+grep -q "upr-support-export/v1" "$ROOT/src/Admin/SupportExport.php" || fail "support export schema version drift"
+if grep -n "IntegrationReadiness\|'I1'\|\"I1\"" "$ROOT/src/Admin/SupportExport.php" 2>/dev/null; then
+  fail "support export must not include integration readiness"
+fi
 
 echo "==> CI workflow asserts DEV integration coordinates"
 grep -q '11.0.1' .github/workflows/ci.yml || fail "WC 11.0.1 mandatory leg missing from CI"

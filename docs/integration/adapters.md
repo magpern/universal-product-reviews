@@ -2,6 +2,10 @@
 
 Host integrations wire into UPR via public hooks. Adapters live **outside** the core plugin repository (MU-plugins, companion plugins, theme functions).
 
+**Canonical registry:** [`public-contracts.md`](public-contracts.md) (`upr-public-contracts/v1`).  
+**Onboarding:** [`integrator-onboarding.md`](integrator-onboarding.md).  
+**Compatibility:** [`../decisions/ADR-0003-public-contract-compatibility.md`](../decisions/ADR-0003-public-contract-compatibility.md).
+
 ## Delivery adapter
 
 **Purpose:** Signal when an entire order is confirmed delivered (not merely shipped).
@@ -9,23 +13,35 @@ Host integrations wire into UPR via public hooks. Adapters live **outside** the 
 ### Actions (adapter fires)
 
 ```php
-do_action( 'upr_order_delivery_confirmed', int $order_id, array $context );
+do_action( 'upr_order_delivery_confirmed', int $order_id, array $context = array() );
 do_action( 'upr_order_delivery_invalidated', int $order_id, string $reason );
 ```
+
+**C1 `$context` (M6):** optional `delivered_at` (unix) only. Unknown keys ignored. Core always schedules with source `'adapter'`. Invalid/implausible timestamps fall back to `time()`. Core listeners accept malformed args without fatal errors.
+
+**C2 `$reason`:** non-PII code matching `^[a-z0-9_]{1,64}$` (e.g. `cancel`, `refund`). Normalised reason is capped at **43** characters so `delivery_invalidated:` + code fits existing `suppression_code varchar(64)`; longer valid-pattern codes truncate at normalisation. Empty/invalid/non-string → stored as `delivery_invalidated:unspecified`. Free text never reaches storage.
 
 Requirements:
 
 - Emit `upr_order_delivery_confirmed` only when **all** line items satisfy host delivery rules.
-- Idempotent — at most one actionable confirmation per order until invalidated.
+- Idempotent re-confirm is safe (not exactly-once).
 - Invalidate on cancel, full refund, or delivery reversal.
 
-### Filter (adapter implements)
+### Filter (adapter implements — optional if you only fire C1)
 
 ```php
 apply_filters( 'upr_is_order_delivered', false, $order_id );
 ```
 
-Used by reconciliation CLI to find eligible orders without direct access to fulfillment databases.
+Used by reconciliation and completed-fallback skip. Missing this filter does **not** mean emails must not run.
+
+### Helper
+
+```php
+\UniversalProductReviews\Invitations\DeliveryStatus::has_confirmation( int $order_id ): bool
+```
+
+True when `_upr_delivery_confirmed_at` is set — discoverability only.
 
 ## Support adapter
 
@@ -81,7 +97,7 @@ Rules:
 
 See [`../roadmap/m3-invitation-email-controls.md`](../roadmap/m3-invitation-email-controls.md).
 
-## Mail transport adapter (M2 contract)
+## Mail transport adapter (**stable**, **sensitive-data-bearing**)
 
 **Purpose:** Replace or wrap the default mail transport. Host SES/SMTP adapters live **outside** this repository.
 
@@ -92,59 +108,37 @@ apply_filters( 'upr_mail_transport', ?MailTransport $transport );
 - Production default: `WpMailTransport` (`wp_mail`) — **at-least-once**, not exactly-once.
 - Non-production default: logging/fake transport (no real email).
 - Messages carry a stable UPR `message_id` for provider-side idempotency.
+- **Privacy:** transport sees recipient email and token-bearing invite URLs. Never log, persist, cache, or forward those fields to analytics/HTTP.
 
 See [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md).
 
-## Review link builder (M2 contract)
+## Review link builder
 
-Hosts may supply a `ReviewLinkBuilder` via `upr_review_link_builder`, or override the token-free form base via `upr_review_form_base_url`.
+### Token-free base URL (**stable**)
 
-**Forbidden:** public filters that receive raw invite or session secrets.
+```php
+apply_filters( 'upr_review_form_base_url', string $url ): string;
+```
+
+### Token-aware builder (**restricted**)
+
+Hosts may supply a `ReviewLinkBuilder` via `upr_review_link_builder`. `invite_exchange_url( string $raw_invite_token )` embeds the raw token by design. Never log/cache/forward the token or built URL.
 
 ## Host security duties (M2)
 
 When M2 runtime is enabled, hosts **must** redact or exclude `/upr-review/{token}/` from web-server access logs. See [`../runbooks/token-incidents.md`](../runbooks/token-incidents.md).
 
-## Storefront adapter
+## Storefront summary (**deferred** — not implemented in core)
 
-Optional filter for PDP summary data:
+Historical docs mentioned `upr_product_rating_summary`. That filter is **absent from code** (registry **D**). Hosts that need PDP summary data should use public WooCommerce rating APIs or a later milestone — do not rely on a UPR filter that does not exist.
 
-```php
-apply_filters( 'upr_product_rating_summary', null, $product_id );
-// Returns null or [ 'average' => float, 'count' => int, 'url' => string ]
-```
+## Availability messaging
 
-Host storefront plugin renders markup; UPR does not output theme HTML.
+**Source of truth:** Filter `upr_product_review_availability` (core default). See [`submission-availability.md`](submission-availability.md).
 
-## Availability messaging adapter (M1 contract / M3 UI)
+**Deferred:** `upr_product_review_unavailable_message` is **not** implemented in core. Hosts render copy from C9 reason codes.
 
-**Purpose:** Consume read-only submission eligibility data for customer-facing messaging.
-
-**Source of truth:** Filter `upr_product_review_availability` (core default). Native product-comment enforcement in core must align with that contract ([ADR-0002](../decisions/ADR-0002-productization-boundary.md); [submission-availability.md](submission-availability.md)).
-
-**M1:** UPR enforces policy via `preprocess_comment` (guest block) and exposes filters only. Host adapters **may** read filters for diagnostics or minimal copy; polished PDP unavailable-form UI is **M3**.
-
-**M2:** Guests with a valid form-session cookie may submit via the invitation form path; native PDP remains default-deny without that session.
-
-**M3:** Host storefront or theme adapter renders messaging when `can_submit` is false. Hosts **must not** set `comments_open` to false to express unavailable submission — that suppresses approved review lists in stock WooCommerce templates.
-
-**B1+ (`v0.2.2`):** Core adds availability-aligned native denial for all identities (`NativeSubmissionGuard`) and display-only `NativePdpForm::should_render()`. Hosts consume the helper for form visibility; they must not reimplement availability-aligned native POST denial as long-term security. UPR does not use `comments_open` as an availability gate. M2 guest forms remain exclusively on `/upr-review/form/`.
-
-### Filters (UPR provides defaults)
-
-```php
-apply_filters( 'upr_product_review_availability', $availability, $product_id, $user_id );
-apply_filters( 'upr_product_review_unavailable_message', null, $reason_code, $product_id, $user_id );
-```
-
-See [`submission-availability.md`](submission-availability.md) for reason codes:
-
-- `reviews_disabled`
-- `product_not_reviewable`
-- `guest_requires_invitation`
-- `not_verified_purchaser`
-
-Host adapters render markup; UPR never calls `wc_add_notice` or theme template hooks in M1/M2 core for PDP messaging.
+**B1+ (`v0.2.2`):** Core adds availability-aligned native denial (`NativeSubmissionGuard`) and display-only `NativePdpForm::should_render()`. UPR does not use `comments_open` as an availability gate. M2 guest forms remain exclusively on `/upr-review/form/`.
 
 ## Theme adapter
 
@@ -154,10 +148,18 @@ CSS on native WooCommerce reviews tab — host child theme responsibility.
 
 Host product-card plugin gates display (feature flag + minimum review count). UPR supplies data via native WC product rating APIs.
 
+## Email rewrite filters (**restricted**)
+
+`upr_invitation_email_body`, `upr_invitation_email_subject`, `upr_invitation_email_headers` may contain invite URLs/tokens. Prefer C7 mail transport. Never log/persist/forward rewrite inputs.
+
 ## Illustrative stub
 
-See [`site-upr-adapters.php.example`](site-upr-adapters.php.example) — **non-runnable** until adapted by host.
+See [`site-upr-adapters.php.example`](site-upr-adapters.php.example) — **non-runnable** until adapted by host. Examples must not log/persist/forward sensitive data.
 
 ## WooCommerce settings
 
 See [`woocommerce-settings.md`](woocommerce-settings.md).
+
+## Review import
+
+Docs-only strategy: [`wc-review-import-strategy.md`](wc-review-import-strategy.md). No M6 runtime importer.

@@ -9,7 +9,8 @@ Local JSON download from **Controls → Download support export**.
 | Capability | `manage_woocommerce` + nonce |
 | Delivery | Browser download only — no email, no remote POST |
 
-**M5:** Support export is **unchanged**. No new moderation fields.
+**M5:** Support export is **unchanged**. No new moderation fields.  
+**M6:** Support export is **unchanged**. Integration readiness (I1–I5) is Diagnostics/Site Health only — not exported.
 
 ## Allowlisted fields
 

@@ -1,0 +1,14 @@
+# id	kind	symbol	sensitivity
+# kind: action|filter|php
+# CI verifies symbols exist and public-contracts.md mentions each id.
+C1	action	upr_order_delivery_confirmed	none
+C2	action	upr_order_delivery_invalidated	none
+C3	filter	upr_is_order_delivered	none
+C5	filter	upr_review_invitation_action	none
+C6	filter	upr_invitation_send_authorisation	none
+C7	filter	upr_mail_transport	sensitive
+C7	php	UniversalProductReviews\Email\MailTransport	sensitive
+C8a	filter	upr_review_form_base_url	none
+C9	filter	upr_product_review_availability	none
+C10	php	UniversalProductReviews\Submission\NativePdpForm	none
+C18	php	UniversalProductReviews\Invitations\DeliveryStatus	none

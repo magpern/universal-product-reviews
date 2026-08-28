@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Admin;
 
+use UniversalProductReviews\Admin\Diagnostics\IntegrationReadiness;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\WooCommerce\WooCommerceGate;
@@ -49,6 +50,10 @@ final class SiteHealth {
 		$tests['direct']['upr_invitation_emails'] = array(
 			'label' => __( 'Universal Product Reviews invitation emails', 'universal-product-reviews' ),
 			'test'  => array( self::class, 'test_invitation_emails' ),
+		);
+		$tests['direct']['upr_integration_readiness'] = array(
+			'label' => __( 'Universal Product Reviews integration readiness', 'universal-product-reviews' ),
+			'test'  => array( self::class, 'test_integration_readiness' ),
 		);
 
 		return $tests;
@@ -156,6 +161,36 @@ final class SiteHealth {
 				: '<p>' . esc_html__( 'Invitation emails are disabled (informational; fail-closed default).', 'universal-product-reviews' ) . '</p>',
 			'actions'     => '',
 			'test'        => 'upr_invitation_emails',
+		);
+	}
+
+	/**
+	 * Non-critical advisory summary of I1–I5 (no sensitive evidence).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function test_integration_readiness(): array {
+		$codes = array();
+		try {
+			foreach ( IntegrationReadiness::run() as $row ) {
+				$codes[] = (string) ( $row['id'] ?? '' ) . '=' . (string) ( $row['evidence_code'] ?? '' );
+			}
+		} catch ( \Throwable $e ) {
+			$codes = array( 'unavailable' );
+		}
+
+		$summary = implode( '; ', $codes );
+
+		return array(
+			'label'       => __( 'UPR integration readiness', 'universal-product-reviews' ),
+			'status'      => 'good',
+			'badge'       => array(
+				'label' => __( 'Performance', 'universal-product-reviews' ),
+				'color' => 'blue',
+			),
+			'description' => '<p>' . esc_html__( 'Advisory wiring signals only (I1–I5). Not operational proof of delivery or mail.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( $summary ) . '</code></p>',
+			'actions'     => '',
+			'test'        => 'upr_integration_readiness',
 		);
 	}
 }

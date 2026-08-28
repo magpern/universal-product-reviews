@@ -95,6 +95,16 @@ if ( ! function_exists( 'add_filter' ) ) {
 	}
 }
 
+if ( ! function_exists( 'has_filter' ) ) {
+	function has_filter( $tag, $function_to_check = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $function_to_check );
+		if ( empty( $GLOBALS['upr_test_filters'][ $tag ] ) || ! is_array( $GLOBALS['upr_test_filters'][ $tag ] ) ) {
+			return false;
+		}
+		return 10;
+	}
+}
+
 if ( ! function_exists( 'remove_all_filters' ) ) {
 	function remove_all_filters( $tag, $priority = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		unset( $priority );

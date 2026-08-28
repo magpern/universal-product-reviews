@@ -2,9 +2,11 @@
 /**
  * Illustrative host adapter stub — NOT RUNNABLE as-is.
  *
- * Copy to host MU-plugins directory and adapt delivery/support integration
- * to your fulfillment and support desk systems. Do not commit host-specific
- * identifiers to the UPR core repository.
+ * Copy to a host MU-plugin and adapt to your fulfillment / support systems.
+ * Do not commit host-specific identifiers to the UPR core repository.
+ *
+ * Privacy (C7 / C8b / C14): never log, persist, cache, or forward emails,
+ * tokens, invite URLs, or email bodies from these callbacks.
  *
  * @package HostAdapters
  */
@@ -12,25 +14,42 @@
 defined( 'ABSPATH' ) || exit;
 
 /*
- * Example: bridge fulfillment "order delivered" signal to UPR.
+ * C1 — delivery confirmed (entire order). Optional context: delivered_at only.
  *
  * add_action(
  *   'your_fulfillment_order_delivered',
- *   function ( int $order_id, array $context ) {
- *     do_action( 'upr_order_delivery_confirmed', $order_id, $context );
+ *   static function ( $order_id ) {
+ *     do_action(
+ *       'upr_order_delivery_confirmed',
+ *       (int) $order_id,
+ *       array( 'delivered_at' => time() )
+ *     );
  *   },
  *   10,
- *   2
+ *   1
  * );
  */
 
 /*
- * Example: delivery read helper for reconciliation.
+ * C2 — delivery invalidated (reason codes only).
+ *
+ * add_action(
+ *   'your_fulfillment_order_undelivered',
+ *   static function ( $order_id ) {
+ *     do_action( 'upr_order_delivery_invalidated', (int) $order_id, 'delivery_reversed' );
+ *   },
+ *   10,
+ *   1
+ * );
+ */
+
+/*
+ * C3 — optional delivery lookup for reconciliation / completed-fallback skip.
  *
  * add_filter(
  *   'upr_is_order_delivered',
- *   function ( bool $delivered, int $order_id ) {
- *     return your_fulfillment_is_delivered( $order_id );
+ *   static function ( $delivered, $order_id ) {
+ *     return (bool) your_fulfillment_is_delivered( (int) $order_id );
  *   },
  *   10,
  *   2
@@ -38,22 +57,70 @@ defined( 'ABSPATH' ) || exit;
  */
 
 /*
- * Example: support desk delay/suppress.
+ * C5 — support delay / suppress.
  *
  * add_filter(
  *   'upr_review_invitation_action',
- *   function ( array $decision, int $order_id, int $order_item_id ) {
- *     if ( your_support_has_compliance_hold( $order_id ) ) {
- *       return [ 'action' => 'suppress', 'code' => 'compliance_hold' ];
+ *   static function ( $decision, $order_id, $order_item_id ) {
+ *     if ( your_support_has_compliance_hold( (int) $order_id ) ) {
+ *       return array( 'action' => 'suppress', 'code' => 'compliance_hold' );
  *     }
- *     if ( your_support_has_open_ticket( $order_id ) ) {
- *       return [
- *         'action'     => 'delay',
- *         'code'       => 'support_ticket',
- *         'delay_until'=> time() + WEEK_IN_SECONDS,
- *       ];
+ *     if ( your_support_has_open_ticket( (int) $order_id ) ) {
+ *       return array(
+ *         'action'      => 'delay',
+ *         'code'        => 'support_ticket',
+ *         'delay_until' => time() + WEEK_IN_SECONDS,
+ *       );
  *     }
  *     return $decision;
+ *   },
+ *   10,
+ *   3
+ * );
+ */
+
+/*
+ * C7 — custom mail transport (preferred over C14). Sensitive-data-bearing:
+ * never write message fields to logs, options, transients, or remote HTTP.
+ *
+ * add_filter(
+ *   'upr_mail_transport',
+ *   static function ( $transport ) {
+ *     return new Your_Host_Mail_Transport(); // implements MailTransport::send
+ *   }
+ * );
+ */
+
+/*
+ * C8a — token-free form base URL.
+ *
+ * add_filter(
+ *   'upr_review_form_base_url',
+ *   static function ( $url ) {
+ *     return home_url( '/reviews/' );
+ *   }
+ * );
+ */
+
+/*
+ * C8b — restricted: only if you must replace ReviewLinkBuilder.
+ * invite_exchange_url receives a raw token — never log or forward it.
+ *
+ * add_filter(
+ *   'upr_review_link_builder',
+ *   static function ( $builder ) {
+ *     return new Your_Review_Link_Builder();
+ *   }
+ * );
+ */
+
+/*
+ * C14 — restricted email rewrite. Prefer C7. Return only; do not write $body/$subject anywhere.
+ *
+ * add_filter(
+ *   'upr_invitation_email_subject',
+ *   static function ( $subject, $lines, $is_reminder ) {
+ *     return $subject;
  *   },
  *   10,
  *   3
