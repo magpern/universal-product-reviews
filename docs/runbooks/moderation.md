@@ -1,61 +1,51 @@
-# Runbook: Moderation queue
+# Runbook: Review moderation (native Comments admin)
 
 ## Scope
 
-Product reviews in `hold` (pending) state awaiting human approval.
+UPR product reviews are WordPress comments with `comment_type=review` on `product` posts. Moderators work in the **native WordPress Comments** screen (`edit-comments.php`). M5 enhances that screen with context columns and filters — it does **not** add a parallel UPR moderation queue.
 
-## M1 operation (native WordPress Comments)
+## Operator workflow
 
-M1 has no dedicated UPR admin queue (M4+). Moderators use the standard WordPress **Comments** admin:
+1. Open **Comments** in wp-admin.
+2. Use UPR views: **UPR product reviews** / **UPR pending**, and optionally source filter **Invitation-linked** or **All UPR product reviews**.
+3. WooCommerce’s review-type selector remains available and combines with UPR filters (AND).
+4. Columns show Product, Rating, Source (`Invitation-linked` | `Unlinked/unknown`), and Order (order link only when object-level edit capability passes).
+5. **Approve** genuine reviews — including negative reviews. Do not reject for rating or sentiment alone.
+6. Use native Approve / Unapprove / Spam / Trash. There is no UPR bulk-spam-reason UI in M5.
 
-1. Filter or identify comments with type **review** on **product** posts.
-2. All **new** product reviews enter **Pending** automatically (UPR `pre_comment_approved` hold).
-3. **Approve** genuine reviews — including negative reviews.
-4. Do not reject for rating or sentiment alone.
+## Hold policy
 
-### Interim guest policy (M1 / M2)
+- New **top-level** product reviews that WordPress would approve are forced to **Pending** by UPR.
+- Validated **staff replies** via the native Comments reply AJAX action (`replyto-comment` + verified nonce + caps + depth-one) are exempt from that downgrade; core’s approval result is passed through unchanged (never force-approve).
+- Guest native PDP submission and invitation submit guards are unchanged (M1–M3).
 
-- **Guests cannot submit** product reviews through the native WooCommerce PDP (UPR `preprocess_comment` guard).
-- Guest invitation submission is specified in **M2** ([`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)); runtime ships only after `m2-invitations-freeze`.
-- Customer-facing explanation of unavailable forms is **M3** (host adapter); M1/M2 enforcement for native PDP is core-only.
+## Editing
 
-### Global comment settings
+UPR adds **no** review-editing UX. Native WordPress **Edit Comment** remains available outside UPR.
 
-UPR does **not** change `comment_moderation` or `comment_whitelist`. Non-review comments follow existing site policy.
+## Audit
 
-## Access (by milestone)
+In-scope status transitions are audited:
 
-| Milestone | Interface |
-|-----------|-----------|
-| M1 | WordPress **Comments** admin (product reviews, pending) |
-| M2 | Same Comments admin; invitation-submitted reviews still enter Pending |
-| M4+ | UPR **Reviews → Queue** admin screen (future) |
+| Origin | Event |
+|--------|-------|
+| Operator (`moderate_comments` in admin) | `review.status_changed` |
+| UPR `SystemStatusOrigin` → spam | `review.system_spam` |
+| Other UPR / CLI / cron / plugin | `review.system_status_changed` |
 
-## Procedures
+Validated staff replies also emit `review.reply_posted`.
 
-### Triage new review
+Payloads are allowlisted operational IDs only (no comment body, email, token, URL, or direct customer PII).
 
-1. Open pending review; verify verified-purchase linkage (native WC meta / order item meta when present).
-2. **Approve** if genuine product experience — including negative reviews.
-3. **Spam** only with reason code if high-certainty match (M4+ deterministic rules).
-4. **Hold** if uncertain — do not reject for rating or sentiment.
+**Retention:** M5 adds **no** audit TTL or purge behaviour.
 
-### Bulk actions
+## Support export
 
-Require reason code in audit log when UPR audit exists (M2+ audit table; bulk UI is M4+). Never bulk-delete pending reviews.
-
-### Escalation
-
-Regulatory or compliance flags → legal/ops queue per host policy.
-
-## Metrics
-
-- Pending count and age
-- Moderation SLA (target: >90% within 48h during pilot)
+Unchanged (`upr-support-export/v1`). No new M5 fields. Order IDs remain absent from support export.
 
 ## Related
 
-- [`../milestones/M1-core-enablement.md`](../milestones/M1-core-enablement.md)
-- [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)
+- [`moderation-capabilities.md`](moderation-capabilities.md)
+- [`../roadmap/m5-review-moderation-operations.md`](../roadmap/m5-review-moderation-operations.md)
+- [`support-export.md`](support-export.md)
 - [`retention.md`](retention.md)
-- [`ai-outage.md`](ai-outage.md)

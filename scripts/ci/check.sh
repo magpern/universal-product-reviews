@@ -64,6 +64,52 @@ if grep -RIn --include='*.php' -E 'Internal\\OrderReviews|Internal/OrderReviews|
   fail "Internal WooCommerce API reference found"
 fi
 
+echo "==> Comment status APIs must go through SystemStatusOrigin"
+STATUS_API_RE='wp_set_comment_status|wp_spam_comment|wp_unspam_comment|wp_trash_comment|wp_untrash_comment'
+ALLOWLIST_FILE="$ROOT/scripts/ci/status-api-allowlist.txt"
+allowed_files=()
+if [[ -f "$ALLOWLIST_FILE" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    allowed_files+=( "$line" )
+  done < "$ALLOWLIST_FILE"
+fi
+is_allowlisted() {
+  local f="$1"
+  local a
+  for a in "${allowed_files[@]+"${allowed_files[@]}"}"; do
+    [[ "$f" == "$a" ]] && return 0
+  done
+  return 1
+}
+while IFS= read -r match; do
+  [[ -z "$match" ]] && continue
+  file="${match%%:*}"
+  rel="${file#"$ROOT"/}"
+  if [[ "$rel" == "src/Moderation/SystemStatusOrigin.php" ]]; then
+    continue
+  fi
+  if is_allowlisted "$rel"; then
+    continue
+  fi
+  fail "direct comment status API outside SystemStatusOrigin (freeze-amend allowlist to permit): $match"
+done < <(grep -RIn --include='*.php' -E "$STATUS_API_RE" src/ 2>/dev/null || true)
+# Also flag status-changing wp_update_comment usage (comment_approved) outside allowlist / SystemStatusOrigin.
+while IFS= read -r match; do
+  [[ -z "$match" ]] && continue
+  file="${match%%:*}"
+  rel="${file#"$ROOT"/}"
+  if [[ "$rel" == "src/Moderation/SystemStatusOrigin.php" ]]; then
+    continue
+  fi
+  if is_allowlisted "$rel"; then
+    continue
+  fi
+  if grep -n "comment_approved" "$file" >/dev/null 2>&1; then
+    fail "wp_update_comment with comment_approved outside SystemStatusOrigin: $match"
+  fi
+done < <(grep -RIn --include='*.php' -E 'wp_update_comment\s*\(' src/ 2>/dev/null || true)
+
 echo "==> Forbidden site/vendor patterns in src/"
 SCAN_PATHS=(src)
 while IFS= read -r pattern || [[ -n "$pattern" ]]; do
@@ -94,6 +140,7 @@ required_docs=(
   docs/compatibility/wordpress-woocommerce.md
   docs/compatibility/release-process.md
   docs/runbooks/moderation.md
+  docs/runbooks/moderation-capabilities.md
   docs/runbooks/invitation-failures.md
   docs/runbooks/reconciliation.md
   docs/runbooks/operator-controls.md

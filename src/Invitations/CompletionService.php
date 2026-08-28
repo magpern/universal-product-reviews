@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Invitations;
 
 use UniversalProductReviews\Audit\AuditLogger;
+use UniversalProductReviews\Moderation\SystemStatusOrigin;
 use UniversalProductReviews\Scheduling\Jobs;
 use UniversalProductReviews\Tokens\SessionCookie;
 use UniversalProductReviews\Tokens\TokenRepository;
@@ -198,7 +199,7 @@ final class CompletionService {
 		if ( $comment_id <= 0 ) {
 			return;
 		}
-		wp_set_comment_status( $comment_id, 'spam' );
+		SystemStatusOrigin::set_comment_status( $comment_id, 'spam' );
 	}
 
 	/**

@@ -1,0 +1,3 @@
+# Explicit allowlist for direct WordPress comment-status API calls outside
+# SystemStatusOrigin.php. Empty by default. Entries require a freeze amendment.
+# One relative path per line (e.g. src/Foo/Bar.php). Comments start with #.

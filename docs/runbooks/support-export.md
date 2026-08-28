@@ -9,6 +9,8 @@ Local JSON download from **Controls → Download support export**.
 | Capability | `manage_woocommerce` + nonce |
 | Delivery | Browser download only — no email, no remote POST |
 
+**M5:** Support export is **unchanged**. No new moderation fields.
+
 ## Allowlisted fields
 
 - Plugin / schema version strings and control booleans (emails enabled, pause, boundary-set).
@@ -20,4 +22,4 @@ Local JSON download from **Controls → Download support export**.
 
 Order IDs, order item IDs, emails, tokens / hashes, invite URLs, cookies, comment bodies, raw audit payloads, product names, Action Scheduler arguments, free-text errors.
 
-See also [`operator-controls.md`](operator-controls.md) and the M4 freeze.
+See also [`operator-controls.md`](operator-controls.md), [`moderation-capabilities.md`](moderation-capabilities.md), and the M4/M5 freezes.

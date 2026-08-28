@@ -305,3 +305,41 @@ if ( ! function_exists( '__' ) ) {
 	}
 }
 
+if ( ! function_exists( 'is_admin' ) ) {
+	function is_admin() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return (bool) ( $GLOBALS['upr_test_is_admin'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'wp_doing_ajax' ) ) {
+	function wp_doing_ajax() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return (bool) ( $GLOBALS['upr_test_doing_ajax'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $nonce, $action = -1 ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $nonce, $action );
+		return ! empty( $GLOBALS['upr_test_nonce_ok'] );
+	}
+}
+
+if ( ! function_exists( 'get_comment_meta' ) ) {
+	function get_comment_meta( $comment_id, $key = '', $single = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$comment_id = (int) $comment_id;
+		$meta       = $GLOBALS['upr_test_comment_meta'][ $comment_id ] ?? array();
+		if ( '' === $key ) {
+			return $meta;
+		}
+		$value = $meta[ $key ] ?? '';
+		return $single ? $value : array( $value );
+	}
+}
+
+if ( ! function_exists( 'get_comment' ) ) {
+	function get_comment( $comment = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$id = is_object( $comment ) ? (int) $comment->comment_ID : (int) $comment;
+		return $GLOBALS['upr_test_comments'][ $id ] ?? null;
+	}
+}
+

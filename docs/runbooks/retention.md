@@ -2,7 +2,9 @@
 
 ## Policy
 
-Product review spam/trash retained **30 days** (default) before authorized purge via `upr_purge_spam` inside `PurgeContext`.
+Product review spam/trash retained **30 days** (default) before authorized purge via `upr_purge_spam` inside `PurgeContext` (future retention milestone — not implemented in M5).
+
+**M5 note:** Moderation **audit** rows have **no** TTL or purge behaviour in M5. Do not expect automatic audit cleanup from this milestone.
 
 ## Symptoms
 
