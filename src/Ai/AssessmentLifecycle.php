@@ -103,7 +103,13 @@ final class AssessmentLifecycle {
 		if ( ! Eligibility::is_ai_assessable( $comment_id ) ) {
 			return false;
 		}
-		if ( ! current_user_can( 'moderate_comments' ) ) {
+
+		// OpenAI re-analysis requires manage_woocommerce; local shadow allows moderate_comments.
+		if ( 'openai' === ProviderResolver::kind() ) {
+			if ( ! current_user_can( 'manage_woocommerce' ) ) {
+				return false;
+			}
+		} elseif ( ! current_user_can( 'moderate_comments' ) ) {
 			return false;
 		}
 

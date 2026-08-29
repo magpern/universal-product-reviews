@@ -13,7 +13,9 @@ use UniversalProductReviews\Admin\AdminCache;
 use UniversalProductReviews\Admin\OverviewRepository;
 use UniversalProductReviews\Ai\AssessmentClaimsRepository;
 use UniversalProductReviews\Ai\AssessmentRepository;
+use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\ModerationOpsRepository;
+use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Database\Schema;
@@ -54,6 +56,9 @@ final class DiagnosticsService {
 			self::check_d13(),
 			self::check_d14(),
 			self::check_d15(),
+			self::check_d16(),
+			self::check_d17(),
+			self::check_d18(),
 		);
 
 		AdminCache::set(
@@ -499,6 +504,71 @@ final class DiagnosticsService {
 			'Information',
 			'Terminal assessment counts (24h): ' . implode( ', ', $parts ) . '.',
 			'assessment_counts_24h'
+		);
+	}
+
+	/**
+	 * @return array{id:string,status:string,severity:string,message:string,evidence_code:string}
+	 */
+	public static function check_d16(): array {
+		$external = Options::ai_external_enabled();
+		$provider = Options::ai_provider();
+		$code     = $external ? 'external_enabled_' . $provider : 'external_disabled_' . $provider;
+		return self::result(
+			'D16',
+			$external ? 'information' : 'pass',
+			$external ? 'Information' : 'Pass',
+			sprintf(
+				'External AI %s; provider=%s.',
+				$external ? 'enabled' : 'disabled',
+				sanitize_key( $provider )
+			),
+			sanitize_key( $code )
+		);
+	}
+
+	/**
+	 * @return array{id:string,status:string,headline:string,message:string,evidence_code:string}
+	 */
+	public static function check_d17(): array {
+		$status  = CredentialResolver::status();
+		$present = ! empty( $status['present'] );
+		$source  = sanitize_key( (string) ( $status['source'] ?? 'missing' ) );
+		return self::result(
+			'D17',
+			$present ? 'information' : 'pass',
+			$present ? 'Information' : 'Pass',
+			sprintf(
+				'OpenAI credential %s (source=%s).',
+				$present ? 'present' : 'missing',
+				$source
+			),
+			$present ? 'credential_present_' . $source : 'credential_missing'
+		);
+	}
+
+	/**
+	 * @return array{id:string,status:string,headline:string,message:string,evidence_code:string}
+	 */
+	public static function check_d18(): array {
+		try {
+			$q = ExternalQuotaRepository::summarize();
+		} catch ( \Throwable $e ) {
+			return self::result( 'D18', 'unavailable', 'Unavailable', 'External quota unavailable.', 'quota_query_failed' );
+		}
+		if ( empty( $q['ok'] ) ) {
+			return self::result( 'D18', 'unavailable', 'Unavailable', 'External quota row missing.', 'quota_row_missing' );
+		}
+		return self::result(
+			'D18',
+			'information',
+			'Information',
+			sprintf(
+				'External quota day=%d month=%d (caps not secrets).',
+				(int) $q['day_count'],
+				(int) $q['month_count']
+			),
+			'quota_aggregate'
 		);
 	}
 
