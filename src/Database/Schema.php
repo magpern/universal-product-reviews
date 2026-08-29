@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260829a';
+	public const DB_VERSION = '20260829b';
 
 	public const OPS_ROW_ID = 1;
 
@@ -130,6 +130,7 @@ final class Schema {
 				policy_version varchar(32) NOT NULL,
 				claim_token varchar(64) DEFAULT NULL,
 				claim_expires_at datetime DEFAULT NULL,
+				claim_provider_kind varchar(16) DEFAULT NULL,
 				requested_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (comment_id, policy_version)

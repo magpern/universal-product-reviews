@@ -465,7 +465,7 @@ final class AssessmentWorker {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 				$wpdb->query(
 					$wpdb->prepare(
-						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, claim_provider_kind = NULL, updated_at = %s
 						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
 						current_time( 'mysql', true ),
 						$comment_id,
@@ -482,7 +482,7 @@ final class AssessmentWorker {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 				$wpdb->query(
 					$wpdb->prepare(
-						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, claim_provider_kind = NULL, updated_at = %s
 						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
 						current_time( 'mysql', true ),
 						$comment_id,
@@ -498,7 +498,7 @@ final class AssessmentWorker {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 				$wpdb->query(
 					$wpdb->prepare(
-						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, claim_provider_kind = NULL, updated_at = %s
 						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
 						current_time( 'mysql', true ),
 						$comment_id,
@@ -539,7 +539,7 @@ final class AssessmentWorker {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 				$cleared = $wpdb->query(
 					$wpdb->prepare(
-						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, claim_provider_kind = NULL, updated_at = %s
 						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
 						current_time( 'mysql', true ),
 						$comment_id,

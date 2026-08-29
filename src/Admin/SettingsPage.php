@@ -262,11 +262,12 @@ final class SettingsPage {
 
 		$result = $enabled ? 'yes' : 'no';
 
-		// External disable: silently revoke in-flight OpenAI claims (no terminal row / AI audit).
-		// Only when provider is openai — leave local-shadow claims alone.
-		if ( $was && ! $enabled && 'openai' === Options::ai_provider() ) {
-			\UniversalProductReviews\Ai\AssessmentClaimsRepository::clear_all_active(
-				\UniversalProductReviews\Ai\PolicyAllowlist::POLICY_VERSION
+		// External disable: silently revoke in-flight OpenAI claims only (by claim_provider_kind).
+		// Local claims survive even if the selected provider option later changed to openai.
+		if ( $was && ! $enabled ) {
+			\UniversalProductReviews\Ai\AssessmentClaimsRepository::clear_all_active_for_provider(
+				\UniversalProductReviews\Ai\PolicyAllowlist::POLICY_VERSION,
+				'openai'
 			);
 		}
 

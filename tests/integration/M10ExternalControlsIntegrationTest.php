@@ -159,8 +159,11 @@ final class M10ExternalControlsIntegrationTest extends WP_UnitTestCase {
 		);
 		$this->assertIsInt( $comment_id );
 
-		$token = AssessmentClaimsRepository::acquire( (int) $comment_id, PolicyAllowlist::POLICY_VERSION );
+		$token = AssessmentClaimsRepository::acquire( (int) $comment_id, PolicyAllowlist::POLICY_VERSION, 'openai' );
 		$this->assertNotNull( $token );
+		$row = AssessmentClaimsRepository::get_row( (int) $comment_id, PolicyAllowlist::POLICY_VERSION );
+		$this->assertIsArray( $row );
+		$this->assertSame( 'openai', $row['claim_provider_kind'] );
 		$this->assertTrue(
 			AssessmentClaimsRepository::has_active_claim( (int) $comment_id, PolicyAllowlist::POLICY_VERSION )
 		);
@@ -170,6 +173,41 @@ final class M10ExternalControlsIntegrationTest extends WP_UnitTestCase {
 		$this->assertFalse(
 			AssessmentClaimsRepository::has_active_claim( (int) $comment_id, PolicyAllowlist::POLICY_VERSION )
 		);
+	}
+
+	public function test_local_claim_survives_provider_change_and_external_disable(): void {
+		update_option( Options::AI_PROVIDER, 'local', false );
+		update_option( Options::AI_EXTERNAL_ENABLED, 'yes', false );
+
+		$comment_id = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $this->upr_create_product(),
+				'comment_author'       => 'Reviewer',
+				'comment_author_email' => 'r@example.com',
+				'comment_content'      => 'Held review with an in-flight local claim.',
+				'comment_type'         => 'review',
+				'comment_approved'     => '0',
+				'comment_parent'       => 0,
+			)
+		);
+		$this->assertIsInt( $comment_id );
+
+		$token = AssessmentClaimsRepository::acquire( (int) $comment_id, PolicyAllowlist::POLICY_VERSION, 'local' );
+		$this->assertNotNull( $token );
+
+		// Operator later selects openai, then disables external AI.
+		update_option( Options::AI_PROVIDER, 'openai', false );
+		$returned = SettingsPage::sanitize_ai_external( 'no' );
+		$this->assertSame( 'no', $returned );
+
+		$this->assertTrue(
+			AssessmentClaimsRepository::has_active_claim( (int) $comment_id, PolicyAllowlist::POLICY_VERSION ),
+			'In-flight local claim must survive provider change + external disable'
+		);
+		$row = AssessmentClaimsRepository::get_row( (int) $comment_id, PolicyAllowlist::POLICY_VERSION );
+		$this->assertIsArray( $row );
+		$this->assertSame( $token, $row['claim_token'] );
+		$this->assertSame( 'local', $row['claim_provider_kind'] );
 	}
 
 	public function test_test_connection_consumes_external_quota_not_m9_rate(): void {
