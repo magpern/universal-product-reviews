@@ -8,7 +8,8 @@ Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-
 
 - **M9** local shadow is **implemented** on `main` (disabled by default; built-in-only).
 - **M10** external OpenAI advisory is **implemented and closed** on `main` after corrective PRs **#55–#57** (external opt-in **off**; provider default **`local`**; host-only credentials). SemVer / Release / ZIP / DEV-prod enablement remain **deferred** pending a separate privacy/governance/provider-limit GO. See [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md).
-- **M11** (auto-approval) remains unimplemented.
+- **M11** recommendation-only guidance: freeze [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md). **Never** auto-approves / auto-spams / mutates comment status. Actionable labels only while status is `hold`.
+- **M12** (auto-action) remains unimplemented and separately gated.
 
 ## Privacy gate
 
