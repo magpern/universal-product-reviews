@@ -1,12 +1,14 @@
 # M10 — External AI Advisory Assessments — closure
 
-**Verdict:** PASS — M10 documentation freeze and implementation (WP1–WP5) completed on `main`. Plugin SemVer remains **`0.8.0`**. No GitHub Release, ZIP, version tag (`v0.8.1` / `v0.9.0` / other), DEV/production WordPress access, deployment, email, real OpenAI customer-review traffic, bind mount, WordPress setting change to enable external AI, automatic moderation, M11, or movement of **`v0.8.0`** was performed as part of this closure.
+**Verdict:** PASS — M10 documentation freeze, implementation (WP1–WP5), and corrective hardening (PRs **#55–#57**) completed on `main`. **Implementation is accepted only after PRs #55–#57.** Plugin SemVer remains **`0.8.0`**. No GitHub Release, ZIP, version tag (`v0.8.1` / `v0.9.0` / other), DEV/production WordPress access, deployment, email, real OpenAI customer-review traffic, bind mount, WordPress setting change to enable external AI, automatic moderation, M11, or movement of **`v0.8.0`** was performed as part of this closure.
+
+External AI remains **disabled by default** (provider default `local`; external opt-in off) and still requires the separate privacy / governance / provider-limit **GO** before any enablement.
 
 ## Artifacts
 
 | Item | Reference |
 |------|-----------|
-| Freeze plan | [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md) |
+| Freeze plan | [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md) (unchanged by this closure amendment; freeze tag intact) |
 | Boundary ADR | [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md) |
 | WP5 regression evidence | [`m10-wp5-regression-evidence.md`](m10-wp5-regression-evidence.md) |
 | Freeze PR | [#48](https://github.com/magpern/universal-product-reviews/pull/48) |
@@ -25,7 +27,27 @@
 | WP4 admin controls / diagnostics / re-analysis gates | [#52](https://github.com/magpern/universal-product-reviews/pull/52) | `0e659045243638da7b6b26233ffff257996b74b3` | [33242554949](https://github.com/magpern/universal-product-reviews/actions/runs/33242554949) success |
 | WP5 runbooks / regression policy | [#53](https://github.com/magpern/universal-product-reviews/pull/53) | `8fa2a03b6505b65014f4c318b744c8e7df9fd791` | [33244949066](https://github.com/magpern/universal-product-reviews/actions/runs/33244949066) success |
 
-Implementation tip of `main` at WP5 merge: **`8fa2a03b6505b65014f4c318b744c8e7df9fd791`**. This closure documentation commit lands after that tip; it is **not** a release tag target.
+Implementation tip of `main` at WP5 merge: **`8fa2a03b6505b65014f4c318b744c8e7df9fd791`**. Initial closure documentation: PR [#54](https://github.com/magpern/universal-product-reviews/pull/54) → `669dfe45bb7a7e96a000d73fd63713154a1be60e`. Neither is a release tag target.
+
+## Corrective PRs (required for acceptance)
+
+Initial closure (#54) is **superseded for acceptance** by the following corrective merges. M10 is accepted only with all three on `main`:
+
+| Finding | PR | Merge commit | PR CI | Push CI (merge) |
+|---------|----|--------------|-------|-----------------|
+| External-disable race + disabled re-analysis refusal | [#55](https://github.com/magpern/universal-product-reviews/pull/55) | `a6d4fdc9a18016ec27420850f7eeed59b282d74e` | [33246237723](https://github.com/magpern/universal-product-reviews/actions/runs/33246237723) success | [33246277858](https://github.com/magpern/universal-product-reviews/actions/runs/33246277858) success |
+| Immutable `claim_provider_kind`; scoped openai-only clear | [#56](https://github.com/magpern/universal-product-reviews/pull/56) | `e3eca66fef1101c285b7078309879b873302c941` | [33247399089](https://github.com/magpern/universal-product-reviews/actions/runs/33247399089) success | [33247450626](https://github.com/magpern/universal-product-reviews/actions/runs/33247450626) success |
+| Worker bound to stamped claim provider; finalize kind check | [#57](https://github.com/magpern/universal-product-reviews/pull/57) | `6206e3e6de966ce07dbd792991df584403ac117b` | [33247877523](https://github.com/magpern/universal-product-reviews/actions/runs/33247877523) success | [33247939796](https://github.com/magpern/universal-product-reviews/actions/runs/33247939796) success |
+
+Accepted runtime tip of `main` after corrective hardening: **`6206e3e6de966ce07dbd792991df584403ac117b`**.
+
+### Corrective behaviour locked by #55–#57
+
+1. **External disable** silently clears **only** in-flight claims stamped `claim_provider_kind=openai` (no terminal assessment row, no AI audit for those clears). OpenAI re-analysis is refused while external AI is disabled.
+2. **Local claims survive** provider-option changes (including later selection of `openai` and subsequent external disable).
+3. **Every worker attempt** after acquisition uses the immutable `claim_provider_kind` stamped on the owned claim row for the entire attempt — it does **not** re-read the live selected-provider option.
+4. **Transactional finalisation** verifies the locked claim’s provider kind matches the attempt before writing a terminal assessment; on mismatch, clear/recover without persisting a terminal row or AI audit.
+5. **No** release, SemVer tag, DEV/production WordPress access, real OpenAI customer-review traffic, credential configuration, or external-AI enablement occurred in these corrective merges.
 
 ## Safeguards shipped
 
@@ -36,13 +58,14 @@ Implementation tip of `main` at WP5 merge: **`8fa2a03b6505b65014f4c318b744c8e7df
 - Host-only credentials (`UPR_OPENAI_API_KEY` constant then env); never displayed/logged/exported
 - Server-side external enable confirms + privacy/retention/PII acks
 - Atomic daily+monthly external quotas; test connection uses synthetic payload and does not touch M9 rate/circuit
-- OpenAI re-analysis requires `manage_woocommerce` (`moderate_comments` alone denied)
+- OpenAI re-analysis requires `manage_woocommerce` (`moderate_comments` alone denied); refused while external AI is off
 - Typed `ProviderError` / allowlisted failure codes; diagnostics D16–D18 / Site Health aggregates only
 - C19 `AiProvider::selected()`; CI path-scoped `wp_remote_post` under `src/Ai/OpenAi/`
+- Claim acquisition stamps `claim_provider_kind`; worker + finalize bind to that stamp (#56–#57)
 
 ## Tests (representative)
 
-Unit/integration suites added or extended: `M10AiProviderUnitTest`, `M10OpenAiClientUnitTest`, `M10ProviderResolverUnitTest`, `M10ExternalAiControlsUnitTest`, `M10RegressionPolicyUnitTest`, `M10ExternalQuotaIntegrationTest`, `M10WorkerOpenAiIntegrationTest`, `M10ExternalControlsIntegrationTest`, plus M1–M9 regression coverage remaining green on each PR CI.
+Unit/integration suites added or extended: `M10AiProviderUnitTest`, `M10OpenAiClientUnitTest`, `M10ProviderResolverUnitTest`, `M10ExternalAiControlsUnitTest`, `M10RegressionPolicyUnitTest`, `M10ExternalQuotaIntegrationTest`, `M10WorkerOpenAiIntegrationTest` (including mid-assess provider-option interleaving), `M10ExternalControlsIntegrationTest` (local claim survives openai disable), plus M1–M9 regression coverage remaining green on each PR CI.
 
 ## Explicit non-actions
 
@@ -65,6 +88,8 @@ Unit/integration suites added or extended: `M10AiProviderUnitTest`, `M10OpenAiCl
 - [x] Atomic dual quotas; test connection skips M9 rate/circuit
 - [x] Typed failure map; injection tests; secret redaction
 - [x] C19 registered; CI network allowlist path-scoped
+- [x] External disable silently clears openai-stamped claims only; local claims survive (#55–#56)
+- [x] Worker + finalize bound to immutable `claim_provider_kind` (#57)
 - [x] No SemVer / Release / ZIP / DEV-prod / real customer OpenAI traffic in milestone merges
 
 ## Exact later release / enablement decision
@@ -78,7 +103,7 @@ Before external AI may be **enabled** in any environment (including DEV with cus
 5. Operator acknowledgement that review text may contain personal data (Controls already gates enablement with server-side acks).
 6. Maintainer explicit **GO**.
 
-This closure does **not** authorise that GO.
+This closure does **not** authorise that GO. External AI remains disabled by default until that GO is granted.
 
 ## Related
 
