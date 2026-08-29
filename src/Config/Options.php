@@ -28,6 +28,8 @@ final class Options {
 
 	public const LOCAL_AI_SHADOW_ENABLED = 'upr_local_ai_shadow_enabled';
 
+	public const AI_RECOMMENDATIONS_DISPLAY = 'upr_ai_recommendations_display';
+
 	public const AI_EXTERNAL_ENABLED           = 'upr_ai_external_enabled';
 	public const AI_PROVIDER                   = 'upr_ai_provider';
 	public const OPENAI_MODEL                  = 'upr_openai_model';
@@ -63,6 +65,14 @@ final class Options {
 	 */
 	public static function local_ai_shadow_enabled(): bool {
 		return self::option_is_truthy( get_option( self::LOCAL_AI_SHADOW_ENABLED, 'no' ) );
+	}
+
+	/**
+	 * Show actionable AI recommendations in Comments. Absent / unset = enabled.
+	 * Independent of local/external shadow masters.
+	 */
+	public static function ai_recommendations_display_enabled(): bool {
+		return self::option_is_truthy( get_option( self::AI_RECOMMENDATIONS_DISPLAY, 'yes' ) );
 	}
 
 	public static function ai_external_enabled(): bool {

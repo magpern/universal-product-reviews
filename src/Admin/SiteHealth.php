@@ -13,6 +13,7 @@ use UniversalProductReviews\Admin\Diagnostics\IntegrationReadiness;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\ModerationOpsRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
+use UniversalProductReviews\Ai\RecommendationPolicy;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\WooCommerce\WooCommerceGate;
@@ -61,6 +62,10 @@ final class SiteHealth {
 		$tests['direct']['upr_local_ai_shadow'] = array(
 			'label' => __( 'Universal Product Reviews local AI shadow', 'universal-product-reviews' ),
 			'test'  => array( self::class, 'test_local_ai_shadow' ),
+		);
+		$tests['direct']['upr_ai_recommendations'] = array(
+			'label' => __( 'Universal Product Reviews AI recommendations', 'universal-product-reviews' ),
+			'test'  => array( self::class, 'test_ai_recommendations' ),
 		);
 		$tests['direct']['upr_external_ai'] = array(
 			'label' => __( 'Universal Product Reviews external AI', 'universal-product-reviews' ),
@@ -241,6 +246,32 @@ final class SiteHealth {
 			'description' => '<p>' . esc_html__( 'Advisory local-only shadow assessments (informational). Does not auto-moderate reviews.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( $summary ) . '</code></p>',
 			'actions'     => '',
 			'test'        => 'upr_local_ai_shadow',
+		);
+	}
+
+	/**
+	 * Informational M11 recommendations status (no auto-action).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function test_ai_recommendations(): array {
+		$display = Options::ai_recommendations_display_enabled();
+		$codes   = array(
+			$display ? 'recommendations_display_on' : 'recommendations_display_off',
+			'policy_' . sanitize_key( RecommendationPolicy::RECOMMENDATION_POLICY_VERSION ),
+			'auto_action_unavailable',
+		);
+
+		return array(
+			'label'       => __( 'UPR AI recommendations', 'universal-product-reviews' ),
+			'status'      => 'good',
+			'badge'       => array(
+				'label' => __( 'Performance', 'universal-product-reviews' ),
+				'color' => 'blue',
+			),
+			'description' => '<p>' . esc_html__( 'Recommendation-only labels for held reviews. Risk score: higher means greater publication risk. Does not auto-moderate. Auto-action requires M12.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( implode( '; ', $codes ) ) . '</code></p>',
+			'actions'     => '',
+			'test'        => 'upr_ai_recommendations',
 		);
 	}
 
