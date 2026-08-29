@@ -140,6 +140,7 @@ final class Migrator {
 			dbDelta( $sql );
 		}
 		Schema::seed_moderation_ops_row();
+		Schema::seed_moderation_external_ops_row();
 		++self::$schema_runs;
 	}
 

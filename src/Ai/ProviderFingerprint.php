@@ -27,4 +27,29 @@ final class ProviderFingerprint {
 			)
 		);
 	}
+
+	public static function for_openai(
+		string $model,
+		int $max_tokens,
+		string $guidance_hash,
+		string $phrases_hash,
+		string $policy_version = PolicyAllowlist::POLICY_VERSION
+	): string {
+		return hash(
+			'sha256',
+			implode(
+				"\n",
+				array(
+					'openai',
+					$policy_version,
+					PolicyAllowlist::OPENAI_PROVIDER_STABLE_ID,
+					$model,
+					(string) $max_tokens,
+					$guidance_hash,
+					$phrases_hash,
+					PolicyAllowlist::CONFIG_REVISION,
+				)
+			)
+		);
+	}
 }

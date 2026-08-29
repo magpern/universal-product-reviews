@@ -31,6 +31,7 @@ final class M9SchemaIntegrationTest extends WP_UnitTestCase {
 			$wpdb->prefix . 'upr_moderation_assessments',
 			$wpdb->prefix . 'upr_moderation_assessment_claims',
 			$wpdb->prefix . 'upr_moderation_ops',
+			$wpdb->prefix . 'upr_moderation_external_ops',
 		) as $table ) {
 			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
 			$this->assertSame( $table, $found );

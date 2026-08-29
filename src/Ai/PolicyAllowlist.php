@@ -19,6 +19,8 @@ final class PolicyAllowlist {
 
 	public const PROVIDER_STABLE_ID = 'upr.builtin.local';
 
+	public const OPENAI_PROVIDER_STABLE_ID = 'upr.openai.responses';
+
 	public const CONFIG_REVISION = '1';
 
 	public const MAX_REASON_CODES = 8;
@@ -53,6 +55,11 @@ final class PolicyAllowlist {
 		'unsupported_language',
 		'ineligible_comment',
 		'circuit_open',
+		'budget_exceeded',
+		'credential_missing',
+		'model_invalid',
+		'input_too_large',
+		'provider_incomplete',
 	);
 
 	/** @var list<string> */
