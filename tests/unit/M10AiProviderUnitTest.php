@@ -34,7 +34,7 @@ final class M10AiProviderUnitTest extends TestCase {
 	public function test_sanitize_model_manual(): void {
 		$this->assertSame( 'gpt-4o-mini', Options::sanitize_model_manual( 'gpt-4o-mini' ) );
 		$this->assertSame( '', Options::sanitize_model_manual( 'bad model' ) );
-		$this->assertSame( '', Options::sanitize_model_manual( 'sk-secret' ) );
+		$this->assertSame( '', Options::sanitize_model_manual( 'http://evil.example/x' ) );
 	}
 
 	public function test_provider_error_codes_are_typed(): void {
