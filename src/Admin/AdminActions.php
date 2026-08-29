@@ -10,6 +10,8 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Ai\AssessmentLifecycle;
+use UniversalProductReviews\Ai\OpenAi\ExternalAiTestConnection;
+use UniversalProductReviews\Ai\ProviderResolver;
 use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
@@ -25,6 +27,7 @@ final class AdminActions {
 		add_action( 'admin_post_upr_db_upgrade', array( self::class, 'handle_db_upgrade' ) );
 		add_action( 'admin_post_upr_support_export', array( self::class, 'handle_support_export' ) );
 		add_action( 'admin_post_upr_ai_reanalyze', array( self::class, 'handle_ai_reanalyze' ) );
+		add_action( 'admin_post_upr_ai_test_connection', array( self::class, 'handle_ai_test_connection' ) );
 		add_action( 'admin_notices', array( self::class, 'render_edit_comments_notices' ) );
 	}
 
@@ -161,7 +164,12 @@ final class AdminActions {
 	}
 
 	public static function handle_ai_reanalyze(): void {
-		if ( ! current_user_can( 'moderate_comments' ) ) {
+		$is_openai = 'openai' === ProviderResolver::kind();
+		if ( $is_openai ) {
+			if ( ! current_user_can( 'manage_woocommerce' ) ) {
+				wp_die( esc_html__( 'Sorry, you are not allowed to do this.', 'universal-product-reviews' ), 403 );
+			}
+		} elseif ( ! current_user_can( 'moderate_comments' ) ) {
 			wp_die( esc_html__( 'Sorry, you are not allowed to do this.', 'universal-product-reviews' ), 403 );
 		}
 
@@ -180,6 +188,33 @@ final class AdminActions {
 					'upr_ai_notice' => $ok ? 'reanalysis_requested' : 'reanalysis_refused',
 				),
 				admin_url( 'edit-comments.php' )
+			)
+		);
+		exit;
+	}
+
+	public static function handle_ai_test_connection(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do this.', 'universal-product-reviews' ), 403 );
+		}
+
+		check_admin_referer( 'upr_ai_test_connection' );
+
+		$confirmed = isset( $_POST['upr_confirm_test_connection'] ) && '1' === (string) wp_unslash( $_POST['upr_confirm_test_connection'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
+		if ( ! $confirmed ) {
+			$code = 'connection_refused';
+		} else {
+			$code = ExternalAiTestConnection::run();
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'        => SettingsPage::MENU_SLUG,
+					'tab'         => 'controls',
+					'upr_ai_conn' => sanitize_key( $code ),
+				),
+				admin_url( 'admin.php' )
 			)
 		);
 		exit;

@@ -10,7 +10,9 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Admin\Diagnostics\IntegrationReadiness;
+use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\ModerationOpsRepository;
+use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\WooCommerce\WooCommerceGate;
@@ -59,6 +61,10 @@ final class SiteHealth {
 		$tests['direct']['upr_local_ai_shadow'] = array(
 			'label' => __( 'Universal Product Reviews local AI shadow', 'universal-product-reviews' ),
 			'test'  => array( self::class, 'test_local_ai_shadow' ),
+		);
+		$tests['direct']['upr_external_ai'] = array(
+			'label' => __( 'Universal Product Reviews external AI', 'universal-product-reviews' ),
+			'test'  => array( self::class, 'test_external_ai' ),
 		);
 
 		return $tests;
@@ -235,6 +241,46 @@ final class SiteHealth {
 			'description' => '<p>' . esc_html__( 'Advisory local-only shadow assessments (informational). Does not auto-moderate reviews.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( $summary ) . '</code></p>',
 			'actions'     => '',
 			'test'        => 'upr_local_ai_shadow',
+		);
+	}
+
+	/**
+	 * Privacy-safe aggregate of external AI configuration (no secrets).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function test_external_ai(): array {
+		$external = Options::ai_external_enabled();
+		$provider = Options::ai_provider();
+		$cred     = CredentialResolver::status();
+		$codes    = array(
+			$external ? 'external_enabled' : 'external_disabled',
+			'provider_' . sanitize_key( $provider ),
+			$cred['present'] ? 'credential_present_' . sanitize_key( $cred['source'] ) : 'credential_missing',
+		);
+
+		try {
+			$q = ExternalQuotaRepository::summarize();
+			if ( ! empty( $q['ok'] ) ) {
+				$codes[] = 'quota_day_' . (int) $q['day_count'];
+				$codes[] = 'quota_month_' . (int) $q['month_count'];
+			} else {
+				$codes[] = 'quota_unavailable';
+			}
+		} catch ( \Throwable $e ) {
+			$codes[] = 'quota_unavailable';
+		}
+
+		return array(
+			'label'       => __( 'UPR external AI', 'universal-product-reviews' ),
+			'status'      => 'good',
+			'badge'       => array(
+				'label' => __( 'Performance', 'universal-product-reviews' ),
+				'color' => 'blue',
+			),
+			'description' => '<p>' . esc_html__( 'External advisory assessments (informational). Never auto-moderates. Secrets are never shown.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( implode( '; ', $codes ) ) . '</code></p>',
+			'actions'     => '',
+			'test'        => 'upr_external_ai',
 		);
 	}
 }

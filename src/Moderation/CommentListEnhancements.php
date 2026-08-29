@@ -190,6 +190,11 @@ final class CommentListEnhancements {
 			$parts[] = $state;
 		}
 
+		$kind = isset( $assessment['provider_kind'] ) ? (string) $assessment['provider_kind'] : '';
+		if ( in_array( $kind, array( 'local', 'openai' ), true ) ) {
+			$parts[] = $kind;
+		}
+
 		if ( 'completed' === $state && isset( $assessment['publication_safety_score'] ) && is_numeric( $assessment['publication_safety_score'] ) ) {
 			$parts[] = (string) (int) $assessment['publication_safety_score'];
 		}
@@ -234,10 +239,19 @@ final class CommentListEnhancements {
 	}
 
 	private static function maybe_render_reanalyse_link( int $comment_id ): void {
-		if ( ! Options::local_ai_shadow_enabled() || ! current_user_can( 'moderate_comments' ) ) {
+		if ( ! Options::local_ai_shadow_enabled() ) {
 			return;
 		}
 		if ( ! Eligibility::is_ai_assessable( $comment_id ) ) {
+			return;
+		}
+
+		$is_openai = 'openai' === \UniversalProductReviews\Ai\ProviderResolver::kind();
+		if ( $is_openai ) {
+			if ( ! current_user_can( 'manage_woocommerce' ) ) {
+				return;
+			}
+		} elseif ( ! current_user_can( 'moderate_comments' ) ) {
 			return;
 		}
 

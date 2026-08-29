@@ -13,6 +13,8 @@ use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Invitations\EmergencyPause;
 use UniversalProductReviews\Invitations\InvitationEmailControls;
+use UniversalProductReviews\Ai\ExternalQuotaRepository;
+use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -28,6 +30,14 @@ final class SettingsPage {
 
 	/** Posted confirmation required to enable local AI shadow mode. */
 	public const CONFIRM_ENABLE_LOCAL_AI_SHADOW = 'upr_confirm_enable_local_ai_shadow';
+
+	/** Posted confirmation required to enable external AI. */
+	public const CONFIRM_ENABLE_AI_EXTERNAL = 'upr_confirm_enable_ai_external';
+
+	/** Governance acknowledgements required with external enable. */
+	public const ACK_OPENAI_PRIVACY   = 'upr_ack_openai_privacy';
+	public const ACK_OPENAI_RETENTION = 'upr_ack_openai_retention';
+	public const ACK_REVIEW_MAY_PII   = 'upr_ack_review_may_contain_pii';
 
 	/**
 	 * Register Settings API options only (menu owned by AdminController).
@@ -66,6 +76,116 @@ final class SettingsPage {
 				'type'              => 'string',
 				'sanitize_callback' => array( self::class, 'sanitize_local_ai_shadow' ),
 				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::AI_EXTERNAL_ENABLED,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_ai_external' ),
+				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::AI_PROVIDER,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( Options::class, 'sanitize_provider' ),
+				'default'           => 'local',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::OPENAI_MODEL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_openai_model' ),
+				'default'           => Options::OPENAI_MODEL_DEFAULT,
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::OPENAI_MODEL_MANUAL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( Options::class, 'sanitize_model_manual' ),
+				'default'           => '',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::OPENAI_MAX_OUTPUT_TOKENS,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( self::class, 'sanitize_max_output_tokens' ),
+				'default'           => Options::OPENAI_MAX_OUTPUT_TOKENS_DEFAULT,
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::AI_OPERATOR_GUIDANCE,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_guidance' ),
+				'default'           => '',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::AI_ALLOWED_PHRASES,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( Options::class, 'sanitize_phrase_list' ),
+				'default'           => array(),
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::AI_DISALLOWED_PHRASES,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( Options::class, 'sanitize_phrase_list' ),
+				'default'           => array(),
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::OPENAI_DAILY_REQUEST_CAP,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( self::class, 'sanitize_daily_cap' ),
+				'default'           => Options::OPENAI_DAILY_CAP_DEFAULT,
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::OPENAI_MONTHLY_REQUEST_CAP,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( self::class, 'sanitize_monthly_cap' ),
+				'default'           => Options::OPENAI_MONTHLY_CAP_DEFAULT,
 				'show_in_rest'      => false,
 			)
 		);
@@ -122,6 +242,72 @@ final class SettingsPage {
 	}
 
 	/**
+	 * External AI enablement — requires confirm + privacy/governance acks server-side.
+	 *
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_ai_external( $value ): string {
+		$enabled = self::is_checked( $value );
+		$was     = Options::ai_external_enabled();
+
+		if ( $enabled && ! $was ) {
+			$ok = self::posted_confirm( self::CONFIRM_ENABLE_AI_EXTERNAL )
+				&& self::posted_confirm( self::ACK_OPENAI_PRIVACY )
+				&& self::posted_confirm( self::ACK_OPENAI_RETENTION )
+				&& self::posted_confirm( self::ACK_REVIEW_MAY_PII );
+			if ( ! $ok ) {
+				return $was ? 'yes' : 'no';
+			}
+		}
+
+		return $enabled ? 'yes' : 'no';
+	}
+
+	/**
+	 * @param mixed $value Raw model dropdown.
+	 */
+	public static function sanitize_openai_model( $value ): string {
+		$v = trim( (string) $value );
+		if ( in_array( $v, Options::OPENAI_SUGGESTED_MODELS, true ) ) {
+			return $v;
+		}
+		return Options::OPENAI_MODEL_DEFAULT;
+	}
+
+	/**
+	 * @param mixed $value Raw int.
+	 */
+	public static function sanitize_max_output_tokens( $value ): int {
+		$n = (int) $value;
+		return max( Options::OPENAI_MAX_OUTPUT_TOKENS_MIN, min( Options::OPENAI_MAX_OUTPUT_TOKENS_MAX, $n ) );
+	}
+
+	/**
+	 * @param mixed $value Raw guidance.
+	 */
+	public static function sanitize_guidance( $value ): string {
+		$raw = wp_strip_all_tags( (string) $value );
+		if ( strlen( $raw ) > Options::GUIDANCE_MAX_CHARS ) {
+			$raw = substr( $raw, 0, Options::GUIDANCE_MAX_CHARS );
+		}
+		return $raw;
+	}
+
+	/**
+	 * @param mixed $value Raw int.
+	 */
+	public static function sanitize_daily_cap( $value ): int {
+		return max( 1, min( 10000, (int) $value ) );
+	}
+
+	/**
+	 * @param mixed $value Raw int.
+	 */
+	public static function sanitize_monthly_cap( $value ): int {
+		return max( 1, min( 100000, (int) $value ) );
+	}
+
+	/**
 	 * True when the named confirmation checkbox was posted as "1".
 	 */
 	public static function posted_confirm( string $field ): bool {
@@ -153,12 +339,26 @@ final class SettingsPage {
 		$enabled      = Options::invitation_emails_enabled();
 		$paused       = Options::invitation_emergency_pause();
 		$shadow       = Options::local_ai_shadow_enabled();
+		$external     = Options::ai_external_enabled();
+		$provider     = Options::ai_provider();
+		$cred         = CredentialResolver::status();
+		$quota        = ExternalQuotaRepository::summarize();
 		$meta         = EmergencyPause::meta();
 		$schema_ok    = ! Migrator::needs_upgrade();
 		$admin_post   = admin_url( 'admin-post.php' );
+		$model        = (string) get_option( Options::OPENAI_MODEL, Options::OPENAI_MODEL_DEFAULT );
+		$model_manual = (string) get_option( Options::OPENAI_MODEL_MANUAL, '' );
+		$max_tokens   = Options::openai_max_output_tokens();
+		$guidance     = Options::ai_operator_guidance();
+		$allowed      = Options::ai_allowed_phrases();
+		$disallowed   = Options::ai_disallowed_phrases();
+		$daily_cap    = Options::openai_daily_request_cap();
+		$monthly_cap  = Options::openai_monthly_request_cap();
 		?>
 		<div class="upr-controls">
 			<h2><?php echo esc_html__( 'Controls', 'universal-product-reviews' ); ?></h2>
+
+			<?php self::render_controls_notices(); ?>
 
 			<h3><?php echo esc_html__( 'Status', 'universal-product-reviews' ); ?></h3>
 			<ul>
@@ -188,6 +388,36 @@ final class SettingsPage {
 					echo $shadow
 						? esc_html__( 'enabled (advisory only)', 'universal-product-reviews' )
 						: esc_html__( 'disabled', 'universal-product-reviews' );
+					?>
+				</li>
+				<li>
+					<strong><?php echo esc_html__( 'External AI', 'universal-product-reviews' ); ?>:</strong>
+					<?php
+					echo $external
+						? esc_html__( 'enabled (advisory only)', 'universal-product-reviews' )
+						: esc_html__( 'disabled', 'universal-product-reviews' );
+					?>
+					—
+					<?php echo esc_html( sprintf( /* translators: %s: local|openai */ __( 'provider %s', 'universal-product-reviews' ), $provider ) ); ?>
+				</li>
+				<li>
+					<strong><?php echo esc_html__( 'OpenAI credential', 'universal-product-reviews' ); ?>:</strong>
+					<?php
+					echo $cred['present']
+						? esc_html( sprintf( /* translators: %s: constant|environment */ __( 'present (%s)', 'universal-product-reviews' ), $cred['source'] ) )
+						: esc_html__( 'missing', 'universal-product-reviews' );
+					?>
+				</li>
+				<li>
+					<strong><?php echo esc_html__( 'External quota (today / month)', 'universal-product-reviews' ); ?>:</strong>
+					<?php
+					echo esc_html(
+						sprintf(
+							'%d / %d',
+							(int) ( $quota['day_count'] ?? 0 ),
+							(int) ( $quota['month_count'] ?? 0 )
+						)
+					);
 					?>
 				</li>
 			</ul>
@@ -274,6 +504,101 @@ final class SettingsPage {
 							</p>
 						</td>
 					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Assessment provider', 'universal-product-reviews' ); ?></th>
+						<td>
+							<select name="<?php echo esc_attr( Options::AI_PROVIDER ); ?>" id="upr_ai_provider">
+								<option value="local" <?php selected( $provider, 'local' ); ?>><?php echo esc_html__( 'Local (built-in)', 'universal-product-reviews' ); ?></option>
+								<option value="openai" <?php selected( $provider, 'openai' ); ?>><?php echo esc_html__( 'OpenAI (external)', 'universal-product-reviews' ); ?></option>
+							</select>
+							<p class="description">
+								<?php echo esc_html__( 'Exactly local or openai. OpenAI never silently falls back to local.', 'universal-product-reviews' ); ?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Enable external AI (OpenAI)', 'universal-product-reviews' ); ?></th>
+						<td>
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_EXTERNAL_ENABLED ); ?>" value="no" />
+							<label>
+								<input type="checkbox" id="upr_ai_external_enabled" name="<?php echo esc_attr( Options::AI_EXTERNAL_ENABLED ); ?>" value="yes" <?php checked( $external ); ?> data-upr-was="<?php echo $external ? '1' : '0'; ?>" />
+								<?php echo esc_html__( 'Allow OpenAI advisory assessments when provider is openai. Requires host credential UPR_OPENAI_API_KEY.', 'universal-product-reviews' ); ?>
+							</label>
+							<p class="description" style="color:#b32d2e;">
+								<strong><?php echo esc_html__( 'Warning:', 'universal-product-reviews' ); ?></strong>
+								<?php echo esc_html__( 'Review text may contain personal data and will be sent to OpenAI when external AI runs. Plugin limits are not a defence against a compromised administrator or leaked secret — configure provider-side spend/rate limits first.', 'universal-product-reviews' ); ?>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_AI_EXTERNAL ); ?>" value="1" id="upr_confirm_enable_ai_external" />
+									<?php echo esc_html__( 'I confirm enabling external AI (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::ACK_OPENAI_PRIVACY ); ?>" value="1" id="upr_ack_openai_privacy" />
+									<?php echo esc_html__( 'I acknowledge processor/privacy terms for OpenAI apply to this site.', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::ACK_OPENAI_RETENTION ); ?>" value="1" id="upr_ack_openai_retention" />
+									<?php echo esc_html__( 'I acknowledge OpenAI project retention/privacy posture is configured appropriately.', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::ACK_REVIEW_MAY_PII ); ?>" value="1" id="upr_ack_review_may_contain_pii" />
+									<?php echo esc_html__( 'I acknowledge review text may contain personal data.', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'OpenAI model', 'universal-product-reviews' ); ?></th>
+						<td>
+							<select name="<?php echo esc_attr( Options::OPENAI_MODEL ); ?>" id="upr_openai_model">
+								<?php foreach ( Options::OPENAI_SUGGESTED_MODELS as $suggested ) : ?>
+									<option value="<?php echo esc_attr( $suggested ); ?>" <?php selected( $model, $suggested ); ?>><?php echo esc_html( $suggested ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<p>
+								<label for="upr_openai_model_manual"><?php echo esc_html__( 'Manual model ID (advanced)', 'universal-product-reviews' ); ?></label><br />
+								<input type="text" class="regular-text" id="upr_openai_model_manual" name="<?php echo esc_attr( Options::OPENAI_MODEL_MANUAL ); ?>" value="<?php echo esc_attr( $model_manual ); ?>" maxlength="64" autocomplete="off" />
+							</p>
+							<p>
+								<label for="upr_openai_max_output_tokens"><?php echo esc_html__( 'Max output tokens', 'universal-product-reviews' ); ?></label><br />
+								<input type="number" id="upr_openai_max_output_tokens" name="<?php echo esc_attr( Options::OPENAI_MAX_OUTPUT_TOKENS ); ?>" value="<?php echo esc_attr( (string) $max_tokens ); ?>" min="<?php echo esc_attr( (string) Options::OPENAI_MAX_OUTPUT_TOKENS_MIN ); ?>" max="<?php echo esc_attr( (string) Options::OPENAI_MAX_OUTPUT_TOKENS_MAX ); ?>" />
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Operator guidance & phrases', 'universal-product-reviews' ); ?></th>
+						<td>
+							<label for="upr_ai_operator_guidance"><?php echo esc_html__( 'Operator guidance (evidence cue only)', 'universal-product-reviews' ); ?></label><br />
+							<textarea class="large-text" rows="3" id="upr_ai_operator_guidance" name="<?php echo esc_attr( Options::AI_OPERATOR_GUIDANCE ); ?>" maxlength="<?php echo esc_attr( (string) Options::GUIDANCE_MAX_CHARS ); ?>"><?php echo esc_textarea( $guidance ); ?></textarea>
+							<p>
+								<label for="upr_ai_allowed_phrases"><?php echo esc_html__( 'Allowed phrases (one per line)', 'universal-product-reviews' ); ?></label><br />
+								<textarea class="large-text" rows="3" id="upr_ai_allowed_phrases" name="<?php echo esc_attr( Options::AI_ALLOWED_PHRASES ); ?>"><?php echo esc_textarea( implode( "\n", $allowed ) ); ?></textarea>
+							</p>
+							<p>
+								<label for="upr_ai_disallowed_phrases"><?php echo esc_html__( 'Disallowed phrases (one per line)', 'universal-product-reviews' ); ?></label><br />
+								<textarea class="large-text" rows="3" id="upr_ai_disallowed_phrases" name="<?php echo esc_attr( Options::AI_DISALLOWED_PHRASES ); ?>"><?php echo esc_textarea( implode( "\n", $disallowed ) ); ?></textarea>
+							</p>
+							<p class="description">
+								<?php echo esc_html__( 'Bounded evidence cues only. They cannot change schema, provider, tools, quotas, or moderation status.', 'universal-product-reviews' ); ?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'External request caps', 'universal-product-reviews' ); ?></th>
+						<td>
+							<label for="upr_openai_daily_request_cap"><?php echo esc_html__( 'Daily request cap', 'universal-product-reviews' ); ?></label>
+							<input type="number" id="upr_openai_daily_request_cap" name="<?php echo esc_attr( Options::OPENAI_DAILY_REQUEST_CAP ); ?>" value="<?php echo esc_attr( (string) $daily_cap ); ?>" min="1" max="10000" />
+							<label for="upr_openai_monthly_request_cap" style="margin-left:1em;"><?php echo esc_html__( 'Monthly request cap', 'universal-product-reviews' ); ?></label>
+							<input type="number" id="upr_openai_monthly_request_cap" name="<?php echo esc_attr( Options::OPENAI_MONTHLY_REQUEST_CAP ); ?>" value="<?php echo esc_attr( (string) $monthly_cap ); ?>" min="1" max="100000" />
+						</td>
+					</tr>
 				</table>
 				<?php submit_button( __( 'Save controls', 'universal-product-reviews' ) ); ?>
 			</form>
@@ -288,6 +613,11 @@ final class SettingsPage {
 					var confirmPause = document.getElementById('upr_confirm_emergency_pause');
 					var shadow = document.getElementById('upr_local_ai_shadow_enabled');
 					var confirmShadow = document.getElementById('upr_confirm_enable_local_ai_shadow');
+					var external = document.getElementById('upr_ai_external_enabled');
+					var confirmExternal = document.getElementById('upr_confirm_enable_ai_external');
+					var ackPrivacy = document.getElementById('upr_ack_openai_privacy');
+					var ackRetention = document.getElementById('upr_ack_openai_retention');
+					var ackPii = document.getElementById('upr_ack_review_may_contain_pii');
 					if (emails && emails.checked && emails.getAttribute('data-upr-was') === '0') {
 						if (!confirmEmails || !confirmEmails.checked) {
 							window.alert(<?php echo wp_json_encode( __( 'Check the confirmation box to enable invitation emails.', 'universal-product-reviews' ) ); ?>);
@@ -317,11 +647,37 @@ final class SettingsPage {
 						}
 						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable local AI shadow mode? Assessments are advisory only and never change review status.', 'universal-product-reviews' ) ); ?>)) {
 						 e.preventDefault();
+						 return;
+						}
+					}
+					if (external && external.checked && external.getAttribute('data-upr-was') === '0') {
+						if (!confirmExternal || !confirmExternal.checked || !ackPrivacy || !ackPrivacy.checked || !ackRetention || !ackRetention.checked || !ackPii || !ackPii.checked) {
+							window.alert(<?php echo wp_json_encode( __( 'Confirm enabling external AI and all governance acknowledgements.', 'universal-product-reviews' ) ); ?>);
+							e.preventDefault();
+							return;
+						}
+						if (!window.confirm(<?php echo wp_json_encode( __( 'Enable external AI? Review text may be sent to OpenAI. Advisory only — never auto-moderates.', 'universal-product-reviews' ) ); ?>)) {
+							e.preventDefault();
 						}
 					}
 				});
 			})();
 			</script>
+
+			<hr />
+			<h3><?php echo esc_html__( 'OpenAI test connection', 'universal-product-reviews' ); ?></h3>
+			<p class="description">
+				<?php echo esc_html__( 'Sends a fixed synthetic payload only (no customer reviews). Consumes external quota. Does not touch local AI rate or circuit state.', 'universal-product-reviews' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>">
+				<input type="hidden" name="action" value="upr_ai_test_connection" />
+				<?php wp_nonce_field( 'upr_ai_test_connection' ); ?>
+				<label>
+					<input type="checkbox" name="upr_confirm_test_connection" value="1" required />
+					<?php echo esc_html__( 'I confirm running a paid synthetic OpenAI test connection.', 'universal-product-reviews' ); ?>
+				</label>
+				<?php submit_button( __( 'Test OpenAI connection', 'universal-product-reviews' ), 'secondary', 'submit', false ); ?>
+			</form>
 
 			<hr />
 			<h3><?php echo esc_html__( 'Reconciliation', 'universal-product-reviews' ); ?></h3>
@@ -382,5 +738,31 @@ final class SettingsPage {
 			</form>
 		</div>
 		<?php
+	}
+
+	private static function render_controls_notices(): void {
+		if ( empty( $_GET['upr_ai_conn'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$code = sanitize_key( wp_unslash( (string) $_GET['upr_ai_conn'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$map  = array(
+			'connection_ok'         => array( 'success', __( 'OpenAI test connection succeeded (synthetic payload).', 'universal-product-reviews' ) ),
+			'budget_exceeded'       => array( 'warning', __( 'External quota exhausted; test connection skipped.', 'universal-product-reviews' ) ),
+			'credential_missing'    => array( 'error', __( 'OpenAI credential missing.', 'universal-product-reviews' ) ),
+			'external_disabled'     => array( 'warning', __( 'External AI is disabled.', 'universal-product-reviews' ) ),
+			'provider_unavailable'  => array( 'error', __( 'OpenAI provider unavailable.', 'universal-product-reviews' ) ),
+			'provider_incomplete'   => array( 'error', __( 'OpenAI response incomplete.', 'universal-product-reviews' ) ),
+			'validation_rejected'   => array( 'error', __( 'OpenAI response failed validation.', 'universal-product-reviews' ) ),
+			'malformed'             => array( 'error', __( 'OpenAI response malformed.', 'universal-product-reviews' ) ),
+			'connection_refused'    => array( 'error', __( 'Test connection refused (capability, nonce, or confirmation).', 'universal-product-reviews' ) ),
+		);
+		if ( ! isset( $map[ $code ] ) ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( $map[ $code ][0] ),
+			esc_html( $map[ $code ][1] )
+		);
 	}
 }
