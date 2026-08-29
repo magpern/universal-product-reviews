@@ -249,18 +249,39 @@ if grep -RIn -E 'function\s+(mint_|resend_)|upr_mint_|upr_resend_' "$ROOT/src" 2
   fail "public mint/resend API detected"
 fi
 
-echo "==> M9 AI module local-only boundary"
+echo "==> M10 AI module network path allowlist + provider filter forbid"
 AI_DIR="$ROOT/src/Ai"
+OPENAI_DIR="$AI_DIR/OpenAi"
+# Note: avoid `cmd | grep -q` under pipefail (SIGPIPE false negatives).
 if [[ -d "$AI_DIR" ]]; then
-  if grep -RIn -E 'wp_remote_|wp_safe_remote_|curl_|fsockopen|stream_socket_client|socket_create' "$AI_DIR" --include='*.php' 2>/dev/null | grep -q .; then
-    fail "src/Ai must not use network primitives"
+  # Network primitives forbidden outside the allowlisted OpenAI client path.
+  bad_net="$(grep -RnE 'wp_remote_|wp_safe_remote_|curl_|fsockopen|stream_socket_client|socket_create' "$AI_DIR" 2>/dev/null | grep -v '/OpenAi/' || true)"
+  if [[ -n "$bad_net" ]]; then
+    fail "src/Ai network primitives only allowed under src/Ai/OpenAi/"
   fi
 fi
-if grep -RIn -F "upr_local_moderation_assessment_provider" "$ROOT/src" --include='*.php' 2>/dev/null | grep -q .; then
-  fail "AI provider filter must not be registered in src until M10"
+if [[ -d "$OPENAI_DIR" ]]; then
+  bad_openai="$(grep -RnE 'curl_|fsockopen|stream_socket_client|socket_create|wp_safe_remote_|wp_remote_get|wp_remote_head|wp_remote_request' "$OPENAI_DIR" 2>/dev/null || true)"
+  if [[ -n "$bad_openai" ]]; then
+    fail "src/Ai/OpenAi may only use wp_remote_post (no curl/sockets/other wp_remote_*)"
+  fi
+  if ! grep -RqF 'wp_remote_post' "$OPENAI_DIR" 2>/dev/null; then
+    fail "src/Ai/OpenAi must contain the allowlisted wp_remote_post client"
+  fi
+  store_ok="$(grep -RnE "['\"]store['\"]\s*=>\s*false" "$OPENAI_DIR" 2>/dev/null || true)"
+  if [[ -z "$store_ok" ]]; then
+    fail "OpenAI client must set store => false"
+  fi
 fi
-if grep -RIn -E "apply_filters\s*\(\s*['\"]upr_.*moderation.*provider" "$ROOT/src" --include='*.php' 2>/dev/null | grep -q .; then
-  fail "replaceable AI provider filters forbidden in M9"
+for banned_filter in upr_local_moderation_assessment_provider upr_moderation_assessment_provider; do
+  hits="$(grep -RnF "$banned_filter" "$ROOT/src" 2>/dev/null || true)"
+  if [[ -n "$hits" ]]; then
+    fail "AI provider filter hook $banned_filter is forbidden"
+  fi
+done
+filter_hits="$(grep -RnE "apply_filters\s*\(\s*['\"]upr_.*moderation.*provider" "$ROOT/src" 2>/dev/null || true)"
+if [[ -n "$filter_hits" ]]; then
+  fail "replaceable AI provider filters forbidden"
 fi
 
 echo "==> Support export schema unchanged"
