@@ -2,21 +2,33 @@
 
 ## Scope
 
-Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md), [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
+Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md), [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md), [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
 
-**Runtime status:** M9 local shadow is **implemented** on `main` (disabled by default; built-in-only). M10 external OpenAI advisory is specified by freeze [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md) (implementation authorised by that freeze; SemVer/release deferred). M11 (auto-approval) remains unimplemented.
+**Runtime status:**
+
+- **M9** local shadow is **implemented** on `main` (disabled by default; built-in-only).
+- **M10** external OpenAI advisory is **implemented** on `main` (external opt-in **off**; provider default **`local`**; host-only credentials). SemVer / Release / ZIP / DEV-prod enablement remain **deferred**.
+- **M11** (auto-approval) remains unimplemented.
 
 ## Privacy gate
 
-### External processing (M10+)
+### External processing (M10)
 
-Do **not** enable external AI until the host has completed processor/privacy terms, configured OpenAI project retention/privacy posture, dedicated OpenAI project **provider-side** spend/rate limits, operator acknowledgement that review text may contain personal data, and maintainer GO. A documented DPIA is a **human/process** obligation — UPR does **not** treat a “DPIA done” checkbox as machine-enforced proof of compliance. Machine gates: shadow + external opt-in default **off**; server-side confirms/acks.
+Do **not** enable external AI in any environment until all of the following are true:
+
+1. Documented processor/privacy terms with OpenAI.
+2. OpenAI project retention/privacy posture configured.
+3. Dedicated OpenAI project/service account with **provider-side** spend and rate limits (mandatory — plugin caps alone cannot defend a compromised administrator or leaked secret).
+4. Operator acknowledgement that review text may contain personal data (Controls requires these server-side acks to enable).
+5. Maintainer explicit GO.
+
+UPR does **not** treat a “DPIA done” checkbox as machine-enforced proof of compliance. Machine gates: shadow + external opt-in default **off**; server-side confirms/acks; fail-closed OpenAI (no silent local fallback).
 
 ### Secrets
 
-Provider API keys must live in the `UPR_OPENAI_API_KEY` PHP constant or environment variable (constant wins). **Never** store keys in UPR options, audit, diagnostics, or support export.
+Provider API keys must live in the `UPR_OPENAI_API_KEY` PHP constant or environment variable (constant wins). **Never** store keys in UPR options, audit, diagnostics, support export, logs, or exceptions. Controls / Site Health / Diagnostics show **present/absent** and source (`constant` \| `environment` \| `missing`) only.
 
-Until AI is enabled: deterministic rules and human moderation only; no review-text transmission off-host (M9 is local-only by design; review text stays inside UPR core `src/Ai/`).
+Until external AI is enabled: deterministic rules and human moderation only; M9 keeps review text inside UPR core (no outbound HTTP outside the allowlisted OpenAI client path).
 
 ## AI disabled / local outage (M9)
 
@@ -34,9 +46,26 @@ When the circuit breaker is open or the hourly rate limit is hit (shadow **enabl
 
 When the cooperative deadline discards a late result (shadow still enabled, claim still owned): `failed` / `deadline_exceeded`.
 
+## External AI outage / misconfiguration (M10)
+
+When provider=`openai` and any of the following hold — **fail closed** (terminal allowlisted `failed`/`skipped`; **never** silent local assessor):
+
+| Condition | Typical terminal |
+|-----------|------------------|
+| External AI disabled | `failed` / `provider_unavailable` |
+| Credential missing | `failed` / `credential_missing` |
+| Daily/monthly quota exhausted | `skipped` / `budget_exceeded` (+ claim cleared) |
+| Model / input / incomplete / unavailable / validation | `failed` + typed code |
+
+Disabling external AI fails closed for **new** external work. Disabling **local shadow** retains M9 precedence: silent revoke of in-flight claims without terminal AI rows where locked.
+
+### Test connection
+
+Controls → OpenAI test connection: paid **synthetic** payload only; consumes **external** quota; must **not** consume M9 site rate or trip the circuit. Confirmation + `manage_woocommerce` required.
+
 ## Circuit breaker and rate limit (M9)
 
-Site-wide ops state lives in `{prefix}upr_moderation_ops` with atomic updates (not option read-modify-write). Rate slots are consumed **only after** claim acquisition and **immediately before** `assess()`.
+Site-wide ops state lives in `{prefix}upr_moderation_ops` with atomic updates. Rate slots are consumed **only after** claim acquisition and **immediately before** assessor work (local or OpenAI). External daily/monthly quotas are a **separate** row (`upr_moderation_external_ops`) and apply only to OpenAI outbound attempts (including test connection).
 
 ## Non-held comments
 
@@ -45,9 +74,10 @@ Once a review is approved, spammed, or trashed: no new assessment jobs and no re
 - Shadow **enabled** + active claim → terminal `skipped` / `ineligible_comment` + clear claim + AI audit
 - Shadow **disabled** → clear claim silently; retention recompute only; no new row; no AI audit
 
-## Shadow mode (M9)
+## Shadow / external modes
 
-- Built-in in-process heuristic only; CI enforces no network primitives and no provider filter in core
+- Provider enum exactly **`local` \| `openai`** — no provider filter / class override
+- OpenAI: Responses API only, `store: false`, no tools / conversation chaining
 - AI outputs stored as terminal assessment rows only (when enabled paths complete)
 - **Zero** automated approve / spam / delete from AI
 - Operators compare advisory output to human decisions for calibration
@@ -61,6 +91,8 @@ PII or health-related content in reviews → human moderation regardless of AI s
 
 - [`moderation.md`](moderation.md)
 - [`moderation-capabilities.md`](moderation-capabilities.md)
+- [`operator-controls.md`](operator-controls.md)
 - [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md)
+- [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md)
 - [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) (M11 appendix)
 - `ARCHITECTURE.md` §9

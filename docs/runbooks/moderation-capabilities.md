@@ -11,18 +11,20 @@
 
 Staff-reply hold exemption additionally requires `moderate_comments` and `edit_post` on the product, plus a verified `replyto-comment` nonce on the exact native reply AJAX action.
 
-### AI advisory (M9 freeze; runtime after implementation)
+### AI advisory (M9 / M10)
 
 | Surface | Capability |
 |---------|------------|
 | View AI advisory column/detail | `moderate_comments` |
-| Request **local** re-analysis of a **currently held** top-level product review | `moderate_comments` + nonce |
+| Request **local** re-analysis of a **currently held** top-level product review | `moderate_comments` + nonce (provider=`local`) |
+| Request **OpenAI** re-analysis of a **currently held** top-level product review | `manage_woocommerce` + nonce (provider=`openai`; `moderate_comments` alone **denied**) |
 | Enable/disable local AI shadow | `manage_woocommerce` + confirmation (default **off**) |
-| Trigger **external** (re)processing (M10+) | `manage_woocommerce` + nonce + external opt-in |
+| Enable/disable external AI + provider/model/caps | `manage_woocommerce` + confirms/acks (external default **off**) |
+| OpenAI test connection | `manage_woocommerce` + nonce + confirm |
 
 Approved, spam, trash, deleted, replies, and out-of-scope comments must not be newly assessed or re-analysed. Historical advisory may remain visible without a re-analysis control. Shadow **disabled** stops all new assessment output and AI audit events; historical rows stay visible.
 
-M9 uses a **built-in-only** local assessor — no host-replaceable provider filter.
+Provider enum is exactly **`local` \| `openai`** — **no** host-replaceable provider filter.
 
 ## Privacy boundaries (M5)
 
@@ -33,17 +35,17 @@ M9 uses a **built-in-only** local assessor — no host-replaceable provider filt
 | Source labels Invitation-linked / Unlinked/unknown | Labelling unlinked reviews as “Native” |
 | | Order IDs in support export, diagnostics, or lower-capability UI |
 
-### AI privacy (M8 / M9)
+### AI privacy (M8 / M9 / M10)
 
 | Allowed | Forbidden |
 |---------|-----------|
-| Bounded score / allowlisted reason codes in Comments admin for authorised moderators | Raw prompts, provider JSON, review body copies in audit/export |
-| Aggregate AI failure counters in diagnostics | Provider API keys in options, audit, diagnostics, or support export |
-| | Rating as assessor input; sentiment reason codes; exception messages/traces |
+| Bounded score / allowlisted reason codes / provider_kind labels in Comments admin | Raw prompts, provider JSON, review body copies in audit/export |
+| Aggregate AI failure / quota counters; credential present + source | Provider API keys, raw review text, request/response bodies, provider request IDs that identify content |
+| | Rating as assessor input; sentiment reason codes; exception messages/traces with secrets |
 
 ## Support export
 
-Schema remains `upr-support-export/v1`. M5–M9 must not add assessment payloads without a separate export-schema freeze.
+Schema remains `upr-support-export/v1`. M5–M10 must not add assessment payloads, secrets, or review text without a separate export-schema freeze.
 
 ## Editing
 
@@ -56,4 +58,5 @@ Native WordPress Edit Comment is outside UPR-added UX. Customer review edits are
 - [`ai-outage.md`](ai-outage.md)
 - [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md)
 - [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md)
+- [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md)
 - [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md)
