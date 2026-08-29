@@ -1,6 +1,6 @@
 <?php
 /**
- * Action Scheduler worker for local AI shadow assessment (Point B).
+ * Action Scheduler worker for AI shadow assessment (Point B).
  *
  * @package UniversalProductReviews
  */
@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Ai;
 
+use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
 use UniversalProductReviews\Config\Options;
 
 defined( 'ABSPATH' ) || exit;
@@ -59,7 +60,9 @@ final class AssessmentWorker {
 				array(),
 				'ineligible_comment',
 				$requested,
-				false
+				false,
+				'local',
+				ProviderFingerprint::for_builtin( $policy_version )
 			);
 			return;
 		}
@@ -76,7 +79,9 @@ final class AssessmentWorker {
 				array(),
 				'circuit_open',
 				$requested,
-				true
+				true,
+				'local',
+				ProviderFingerprint::for_builtin( $policy_version )
 			);
 			return;
 		}
@@ -91,17 +96,52 @@ final class AssessmentWorker {
 				array(),
 				'rate_limited',
 				$requested,
-				true
+				true,
+				'local',
+				ProviderFingerprint::for_builtin( $policy_version )
 			);
 			return;
 		}
 
+		$provider_kind = ProviderResolver::kind();
+		$fingerprint   = ProviderResolver::fingerprint( $provider_kind, $policy_version );
+
+		if ( 'openai' === $provider_kind ) {
+			self::handle_openai(
+				$comment_id,
+				$policy_version,
+				$claim_token,
+				$requested,
+				$fingerprint
+			);
+			return;
+		}
+
+		self::handle_local(
+			$comment_id,
+			$policy_version,
+			$claim_token,
+			$requested,
+			$fingerprint
+		);
+	}
+
+	/**
+	 * Local built-in path (unchanged M9 semantics).
+	 */
+	private static function handle_local(
+		int $comment_id,
+		string $policy_version,
+		string $claim_token,
+		string $requested,
+		string $fingerprint
+	): void {
 		$comment = get_comment( $comment_id );
 		$text    = ( $comment && isset( $comment->comment_content ) ) ? (string) $comment->comment_content : '';
 
 		$t0 = microtime( true );
 		try {
-			$raw = BuiltInLocalAssessor::assess(
+			$raw = ProviderResolver::resolve( 'local' )->assess(
 				new AssessmentRequest( $text, $policy_version )
 			);
 		} catch ( \Throwable $e ) {
@@ -116,7 +156,9 @@ final class AssessmentWorker {
 				array(),
 				'provider_unavailable',
 				$requested,
-				true
+				true,
+				'local',
+				$fingerprint
 			);
 			if ( null !== $assessment_id ) {
 				ModerationOpsRepository::record_failure();
@@ -124,6 +166,169 @@ final class AssessmentWorker {
 			return;
 		}
 
+		self::complete_after_assess(
+			$comment_id,
+			$policy_version,
+			$claim_token,
+			$requested,
+			$t0,
+			$raw,
+			'local',
+			$fingerprint
+		);
+	}
+
+	/**
+	 * OpenAI path — fail closed; never silent-fallback to local.
+	 */
+	private static function handle_openai(
+		int $comment_id,
+		string $policy_version,
+		string $claim_token,
+		string $requested,
+		string $fingerprint
+	): void {
+		if ( ! Options::ai_external_enabled() ) {
+			$assessment_id = self::finalize_terminal(
+				$comment_id,
+				$policy_version,
+				$claim_token,
+				'failed',
+				null,
+				null,
+				array(),
+				'provider_unavailable',
+				$requested,
+				true,
+				'openai',
+				$fingerprint
+			);
+			if ( null !== $assessment_id ) {
+				ModerationOpsRepository::record_failure();
+			}
+			return;
+		}
+
+		$cred = CredentialResolver::status();
+		if ( ! $cred['present'] ) {
+			$assessment_id = self::finalize_terminal(
+				$comment_id,
+				$policy_version,
+				$claim_token,
+				'failed',
+				null,
+				null,
+				array(),
+				'credential_missing',
+				$requested,
+				true,
+				'openai',
+				$fingerprint
+			);
+			if ( null !== $assessment_id ) {
+				ModerationOpsRepository::record_failure();
+			}
+			return;
+		}
+
+		$quota = ExternalQuotaRepository::try_consume(
+			Options::openai_daily_request_cap(),
+			Options::openai_monthly_request_cap()
+		);
+		if ( 'budget_exceeded' === $quota ) {
+			self::finalize_terminal(
+				$comment_id,
+				$policy_version,
+				$claim_token,
+				'skipped',
+				null,
+				null,
+				array(),
+				'budget_exceeded',
+				$requested,
+				true,
+				'openai',
+				$fingerprint
+			);
+			return;
+		}
+
+		$comment = get_comment( $comment_id );
+		$text    = ( $comment && isset( $comment->comment_content ) ) ? (string) $comment->comment_content : '';
+
+		$t0 = microtime( true );
+		try {
+			$raw = ProviderResolver::resolve( 'openai' )->assess(
+				new AssessmentRequest( $text, $policy_version )
+			);
+		} catch ( ProviderError $e ) {
+			$code  = $e->failure_code();
+			$state = ( ProviderError::BUDGET_EXCEEDED === $code ) ? 'skipped' : 'failed';
+			$assessment_id = self::finalize_terminal(
+				$comment_id,
+				$policy_version,
+				$claim_token,
+				$state,
+				null,
+				null,
+				array(),
+				$code,
+				$requested,
+				true,
+				'openai',
+				$fingerprint
+			);
+			if ( null !== $assessment_id && 'failed' === $state ) {
+				ModerationOpsRepository::record_failure();
+			}
+			return;
+		} catch ( \Throwable $e ) {
+			unset( $e );
+			$assessment_id = self::finalize_terminal(
+				$comment_id,
+				$policy_version,
+				$claim_token,
+				'failed',
+				null,
+				null,
+				array(),
+				'provider_unavailable',
+				$requested,
+				true,
+				'openai',
+				$fingerprint
+			);
+			if ( null !== $assessment_id ) {
+				ModerationOpsRepository::record_failure();
+			}
+			return;
+		}
+
+		self::complete_after_assess(
+			$comment_id,
+			$policy_version,
+			$claim_token,
+			$requested,
+			$t0,
+			$raw,
+			'openai',
+			$fingerprint
+		);
+	}
+
+	/**
+	 * @param 'local'|'openai' $provider_kind
+	 */
+	private static function complete_after_assess(
+		int $comment_id,
+		string $policy_version,
+		string $claim_token,
+		string $requested,
+		float $t0,
+		AssessmentResult $raw,
+		string $provider_kind,
+		string $fingerprint
+	): void {
 		if ( ( microtime( true ) - $t0 ) > self::ASSESS_DEADLINE_SECONDS ) {
 			$assessment_id = self::finalize_terminal(
 				$comment_id,
@@ -135,7 +340,9 @@ final class AssessmentWorker {
 				array(),
 				'deadline_exceeded',
 				$requested,
-				true
+				true,
+				$provider_kind,
+				$fingerprint
 			);
 			if ( null !== $assessment_id ) {
 				ModerationOpsRepository::record_failure();
@@ -155,7 +362,9 @@ final class AssessmentWorker {
 				array(),
 				$validated,
 				$requested,
-				true
+				true,
+				$provider_kind,
+				$fingerprint
 			);
 			if ( null !== $assessment_id ) {
 				ModerationOpsRepository::record_failure();
@@ -173,7 +382,9 @@ final class AssessmentWorker {
 			$validated->reason_codes,
 			null,
 			$requested,
-			true
+			true,
+			$provider_kind,
+			$fingerprint
 		);
 
 		if ( null === $assessment_id ) {
@@ -181,7 +392,7 @@ final class AssessmentWorker {
 		}
 
 		ModerationOpsRepository::record_success();
-		AssessmentAudit::completed( $comment_id, $assessment_id, $validated->state, $policy_version );
+		AssessmentAudit::completed( $comment_id, $assessment_id, $validated->state, $policy_version, $provider_kind );
 	}
 
 	/**
@@ -204,6 +415,7 @@ final class AssessmentWorker {
 
 		$token     = (string) $row['claim_token'];
 		$requested = (string) ( $row['requested_at'] ?? current_time( 'mysql', true ) );
+		$kind      = ProviderResolver::kind();
 
 		self::finalize_terminal(
 			$comment_id,
@@ -215,14 +427,17 @@ final class AssessmentWorker {
 			array(),
 			'ineligible_comment',
 			$requested,
-			false
+			false,
+			$kind,
+			ProviderResolver::fingerprint( $kind, $policy )
 		);
 
 		AssessmentRepository::recompute_retention( $comment_id, $new_status );
 	}
 
 	/**
-	 * @param list<string> $reason_codes
+	 * @param list<string>     $reason_codes
+	 * @param 'local'|'openai' $provider_kind
 	 */
 	private static function finalize_terminal(
 		int $comment_id,
@@ -234,11 +449,15 @@ final class AssessmentWorker {
 		array $reason_codes,
 		?string $failure_code,
 		string $requested_at,
-		bool $require_held
+		bool $require_held,
+		string $provider_kind = 'local',
+		?string $provider_fingerprint = null
 	): ?int {
 		global $wpdb;
 
 		$claims_table = AssessmentClaimsRepository::table();
+		$provider_kind = 'openai' === $provider_kind ? 'openai' : 'local';
+		$fingerprint   = $provider_fingerprint ?? ProviderResolver::fingerprint( $provider_kind, $policy_version );
 
 		$wpdb->query( 'START TRANSACTION' );
 		try {
@@ -301,7 +520,9 @@ final class AssessmentWorker {
 				$policy_version,
 				$failure_code,
 				$requested_at,
-				$comment_status
+				$comment_status,
+				$provider_kind,
+				$fingerprint
 			);
 
 			if ( $assessment_id <= 0 ) {
@@ -336,9 +557,9 @@ final class AssessmentWorker {
 			$wpdb->query( 'COMMIT' );
 
 			if ( 'skipped' === $state && null !== $failure_code ) {
-				AssessmentAudit::skipped( $comment_id, $assessment_id, $policy_version, $failure_code );
+				AssessmentAudit::skipped( $comment_id, $assessment_id, $policy_version, $failure_code, $provider_kind );
 			} elseif ( 'failed' === $state && null !== $failure_code ) {
-				AssessmentAudit::failed( $comment_id, $assessment_id, $policy_version, $failure_code );
+				AssessmentAudit::failed( $comment_id, $assessment_id, $policy_version, $failure_code, $provider_kind );
 			}
 
 			return $assessment_id;
