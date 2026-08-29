@@ -118,7 +118,7 @@ final class M4DiagnosticsUnitTest extends TestCase {
 
 		AdminCache::invalidate();
 		$results = DiagnosticsService::run( false );
-		$this->assertCount( 15, $results );
+		$this->assertCount( 18, $results );
 
 		$by_id = array();
 		foreach ( $results as $row ) {
@@ -137,10 +137,13 @@ final class M4DiagnosticsUnitTest extends TestCase {
 		$this->assertSame( 'warning', $by_id['D5']['status'] );
 		$this->assertSame( 'unavailable', $by_id['D6']['status'] );
 		$this->assertSame( 'pass', $by_id['D10']['status'] );
+		$this->assertArrayHasKey( 'D16', $by_id );
+		$this->assertArrayHasKey( 'D17', $by_id );
+		$this->assertArrayHasKey( 'D18', $by_id );
 
 		// Cache path: AdminCache get returns false initially after invalidate; second run with cache uses set value.
 		$cached = DiagnosticsService::run( true );
-		$this->assertCount( 15, $cached );
+		$this->assertCount( 18, $cached );
 	}
 
 	public function test_d4_warns_when_version_matches_but_tables_missing(): void {
