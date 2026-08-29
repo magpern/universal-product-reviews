@@ -64,6 +64,14 @@ final class M9SchemaIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'comment_id', 'policy_version' ), $cols );
 	}
 
+	public function test_claims_provider_kind_column_exists(): void {
+		global $wpdb;
+
+		$table   = $wpdb->prefix . 'upr_moderation_assessment_claims';
+		$columns = $wpdb->get_col( "DESCRIBE {$table}", 0 ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$this->assertContains( 'claim_provider_kind', $columns );
+	}
+
 	public function test_upgrade_is_idempotent_at_target_version(): void {
 		Migrator::reset_schema_run_count();
 		$this->assertTrue( Migrator::upgrade_now() );
