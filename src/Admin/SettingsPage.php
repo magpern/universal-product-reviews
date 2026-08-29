@@ -82,6 +82,17 @@ final class SettingsPage {
 
 		register_setting(
 			'upr_settings',
+			Options::AI_RECOMMENDATIONS_DISPLAY,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_ai_recommendations_display' ),
+				'default'           => 'yes',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
 			Options::AI_EXTERNAL_ENABLED,
 			array(
 				'type'              => 'string',
@@ -242,6 +253,15 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Recommendation display — absent defaults to enabled; no confirmation required.
+	 *
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_ai_recommendations_display( $value ): string {
+		return self::is_checked( $value ) ? 'yes' : 'no';
+	}
+
+	/**
 	 * External AI enablement — requires confirm + privacy/governance acks server-side.
 	 *
 	 * @param mixed $value Raw POST.
@@ -350,6 +370,7 @@ final class SettingsPage {
 		$enabled      = Options::invitation_emails_enabled();
 		$paused       = Options::invitation_emergency_pause();
 		$shadow       = Options::local_ai_shadow_enabled();
+		$rec_display  = Options::ai_recommendations_display_enabled();
 		$external     = Options::ai_external_enabled();
 		$provider     = Options::ai_provider();
 		$cred         = CredentialResolver::status();
@@ -512,6 +533,19 @@ final class SettingsPage {
 									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_LOCAL_AI_SHADOW ); ?>" value="1" id="upr_confirm_enable_local_ai_shadow" />
 									<?php echo esc_html__( 'I confirm enabling local AI shadow mode (required when turning this on).', 'universal-product-reviews' ); ?>
 								</label>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'AI recommendations (M11)', 'universal-product-reviews' ); ?></th>
+						<td>
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_RECOMMENDATIONS_DISPLAY ); ?>" value="no" />
+							<label>
+								<input type="checkbox" id="upr_ai_recommendations_display" name="<?php echo esc_attr( Options::AI_RECOMMENDATIONS_DISPLAY ); ?>" value="yes" <?php checked( $rec_display ); ?> />
+								<?php echo esc_html__( 'Show recommendation labels in Comments for held reviews that have assessments.', 'universal-product-reviews' ); ?>
+							</label>
+							<p class="description">
+								<?php echo esc_html__( 'Absent option defaults to on. Independent of local/external shadow masters. Risk score: higher means greater publication risk. Actionable labels only while Pending (hold). Does not auto-moderate. Auto-action requires M12 and is unavailable.', 'universal-product-reviews' ); ?>
 							</p>
 						</td>
 					</tr>

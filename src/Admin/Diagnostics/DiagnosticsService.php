@@ -59,6 +59,7 @@ final class DiagnosticsService {
 			self::check_d16(),
 			self::check_d17(),
 			self::check_d18(),
+			self::check_d19(),
 		);
 
 		AdminCache::set(
@@ -569,6 +570,26 @@ final class DiagnosticsService {
 				(int) $q['month_count']
 			),
 			'quota_aggregate'
+		);
+	}
+
+	/**
+	 * M11 recommendation display + policy (informational).
+	 *
+	 * @return array{id:string,status:string,headline:string,message:string,evidence_code:string}
+	 */
+	public static function check_d19(): array {
+		$display = Options::ai_recommendations_display_enabled();
+		return self::result(
+			'D19',
+			'information',
+			'Information',
+			sprintf(
+				'AI recommendations display %s; policy=%s; risk score: higher means greater publication risk; auto-action unavailable (M12).',
+				$display ? 'enabled' : 'disabled',
+				sanitize_key( \UniversalProductReviews\Ai\RecommendationPolicy::RECOMMENDATION_POLICY_VERSION )
+			),
+			$display ? 'recommendations_display_on' : 'recommendations_display_off'
 		);
 	}
 

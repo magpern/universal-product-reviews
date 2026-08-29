@@ -11,6 +11,7 @@ namespace UniversalProductReviews\Moderation;
 
 use UniversalProductReviews\Ai\Eligibility;
 use UniversalProductReviews\Ai\PolicyAllowlist;
+use UniversalProductReviews\Ai\RecommendationPolicy;
 use UniversalProductReviews\Config\Options;
 
 defined( 'ABSPATH' ) || exit;
@@ -169,34 +170,47 @@ final class CommentListEnhancements {
 	 */
 	private static function render_ai_advisory( int $comment_id, array $ctx ): void {
 		$assessment = isset( $ctx['ai_assessment'] ) && is_array( $ctx['ai_assessment'] ) ? $ctx['ai_assessment'] : null;
+		$comment    = get_comment( $comment_id );
+		$is_held    = $comment && Eligibility::is_held_status( Eligibility::approval_status( $comment ) );
 
-		if ( null === $assessment ) {
-			echo '&mdash;';
-		} else {
-			echo esc_html( self::format_ai_advisory( $assessment ) );
-		}
+		echo esc_html( self::format_ai_advisory_display( $assessment, (bool) $is_held, Options::ai_recommendations_display_enabled() ) );
 
 		self::maybe_render_reanalyse_link( $comment_id );
 	}
 
 	/**
-	 * @param array<string, mixed> $assessment Terminal assessment row.
+	 * Build escaped-safe plain text for the AI advisory column.
+	 *
+	 * @param array<string, mixed>|null $assessment Terminal assessment or null.
 	 */
-	private static function format_ai_advisory( array $assessment ): string {
-		$parts = array();
-
-		$state = isset( $assessment['state'] ) ? (string) $assessment['state'] : '';
-		if ( '' !== $state ) {
-			$parts[] = $state;
+	public static function format_ai_advisory_display( ?array $assessment, bool $is_held, bool $display_enabled ): string {
+		if ( null === $assessment ) {
+			return '—';
 		}
 
-		$kind = isset( $assessment['provider_kind'] ) ? (string) $assessment['provider_kind'] : '';
+		if ( ! $display_enabled ) {
+			return '—';
+		}
+
+		if ( ! $is_held ) {
+			return __( 'Historical assessment', 'universal-product-reviews' );
+		}
+
+		$rec   = RecommendationPolicy::suggest( $assessment );
+		$parts = array( RecommendationPolicy::action_label( $rec->action ) );
+
+		$state = isset( $assessment['state'] ) ? (string) $assessment['state'] : '';
+		$kind  = isset( $assessment['provider_kind'] ) ? (string) $assessment['provider_kind'] : '';
 		if ( in_array( $kind, array( 'local', 'openai' ), true ) ) {
 			$parts[] = $kind;
 		}
 
 		if ( 'completed' === $state && isset( $assessment['publication_safety_score'] ) && is_numeric( $assessment['publication_safety_score'] ) ) {
-			$parts[] = (string) (int) $assessment['publication_safety_score'];
+			$parts[] = sprintf(
+				/* translators: %d: publication risk score 1–100 (higher = greater risk) */
+				__( 'risk %d', 'universal-product-reviews' ),
+				(int) $assessment['publication_safety_score']
+			);
 		}
 
 		$confidence = isset( $assessment['confidence'] ) ? (string) $assessment['confidence'] : '';
@@ -209,7 +223,8 @@ final class CommentListEnhancements {
 			$parts[] = implode( ', ', $labels );
 		}
 
-		return array() !== $parts ? implode( ' · ', $parts ) : '—';
+		unset( $rec );
+		return implode( ' · ', $parts );
 	}
 
 	/**
