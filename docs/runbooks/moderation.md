@@ -9,9 +9,9 @@ UPR product reviews are WordPress comments with `comment_type=review` on `produc
 1. Open **Comments** in wp-admin.
 2. Use UPR views: **UPR product reviews** / **UPR pending**, and optionally source filter **Invitation-linked** or **All UPR product reviews**.
 3. WooCommerce’s review-type selector remains available and combines with UPR filters (AND).
-4. Columns show Product, Rating, Source (`Invitation-linked` | `Unlinked/unknown`), and Order (order link only when object-level edit capability passes).
+4. Columns show Product, Rating, Source (`Invitation-linked` | `Unlinked/unknown`), Order (order link only when object-level edit capability passes), and **AI advisory** (M9–M11).
 5. **Approve** genuine reviews — including negative reviews. Do not reject for rating or sentiment alone.
-6. Use native Approve / Unapprove / Spam / Trash. There is no UPR bulk-spam-reason UI in M5.
+6. Use native Approve / Unapprove / Spam / Trash. There is no UPR bulk-spam-reason UI in M5. **M11** may show allowlisted recommendation labels (risk score: higher = greater publication risk) **only while the review is Pending (`hold`)**. Recommendations are advisory — humans must approve. Leaving Pending hides actionable labels; assessments remain for audit. There is **no** M11 attention filter and **no** automatic status change from AI.
 
 ## Hold policy
 
@@ -47,5 +47,7 @@ Unchanged (`upr-support-export/v1`). No new M5 fields. Order IDs remain absent f
 
 - [`moderation-capabilities.md`](moderation-capabilities.md)
 - [`../roadmap/m5-review-moderation-operations.md`](../roadmap/m5-review-moderation-operations.md)
+- [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md)
 - [`support-export.md`](support-export.md)
 - [`retention.md`](retention.md)
+- [`ai-outage.md`](ai-outage.md)

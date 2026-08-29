@@ -8,7 +8,8 @@ Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-
 
 - **M9** local shadow is **implemented** on `main` (disabled by default; built-in-only).
 - **M10** external OpenAI advisory is **implemented and closed** on `main` after corrective PRs **#55–#57** (external opt-in **off**; provider default **`local`**; host-only credentials). SemVer / Release / ZIP / DEV-prod enablement remain **deferred** pending a separate privacy/governance/provider-limit GO. See [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md).
-- **M11** (auto-approval) remains unimplemented.
+- **M11** recommendation-only guidance: freeze [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md). **Never** auto-approves / auto-spams / mutates comment status. Actionable labels only while status is `hold`.
+- **M12** (auto-action) remains unimplemented and separately gated.
 
 ## Privacy gate
 
@@ -69,19 +70,19 @@ Site-wide ops state lives in `{prefix}upr_moderation_ops` with atomic updates. R
 
 ## Non-held comments
 
-Once a review is approved, spammed, or trashed: no new assessment jobs and no re-analysis. Historical advisory may remain visible.
+Once a review is approved, spammed, or trashed: no new assessment jobs and no re-analysis. **M11:** hide actionable recommendation labels and reason badges; retain assessment rows for audit/retention only (optional non-actionable “historical” marker only).
 
 - Shadow **enabled** + active claim → terminal `skipped` / `ineligible_comment` + clear claim + AI audit
 - Shadow **disabled** → clear claim silently; retention recompute only; no new row; no AI audit
 
-## Shadow / external modes
+## Shadow / external / recommendation modes
 
 - Provider enum exactly **`local` \| `openai`** — no provider filter / class override
 - OpenAI: Responses API only, `store: false`, no tools / conversation chaining
 - AI outputs stored as terminal assessment rows only (when enabled paths complete)
-- **Zero** automated approve / spam / delete from AI
-- Operators compare advisory output to human decisions for calibration
-- Sentiment fairness is **not** proven by unit tests — requires a governed calibration set before M11
+- **Zero** automated approve / spam / delete from AI (M11 recommendations never mutate status)
+- Operators compare advisory output / M11 recommendations to human decisions for calibration
+- Sentiment fairness is **not** proven by unit tests — requires a governed calibration set before **M12** auto-action
 
 ## Escalation
 
@@ -95,5 +96,6 @@ PII or health-related content in reviews → human moderation regardless of AI s
 - [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md)
 - [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md)
 - [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md)
-- [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) (M11 appendix)
+- [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md)
+- [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) (M12 appendix)
 - `ARCHITECTURE.md` §9
