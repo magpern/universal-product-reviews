@@ -23,41 +23,54 @@ final class AssessmentAudit {
 
 	/**
 	 * @param 'completed'|'indeterminate' $state
+	 * @param 'local'|'openai'            $provider_kind
 	 */
-	public static function completed( int $comment_id, int $assessment_id, string $state, string $policy_version ): void {
+	public static function completed( int $comment_id, int $assessment_id, string $state, string $policy_version, string $provider_kind = 'local' ): void {
 		self::emit(
 			self::EVENT_COMPLETED,
 			$comment_id,
 			$assessment_id,
 			$state,
 			$policy_version,
-			null
+			null,
+			$provider_kind
 		);
 	}
 
-	public static function failed( int $comment_id, int $assessment_id, string $policy_version, string $failure_code ): void {
+	/**
+	 * @param 'local'|'openai' $provider_kind
+	 */
+	public static function failed( int $comment_id, int $assessment_id, string $policy_version, string $failure_code, string $provider_kind = 'local' ): void {
 		self::emit(
 			self::EVENT_FAILED,
 			$comment_id,
 			$assessment_id,
 			'failed',
 			$policy_version,
-			$failure_code
+			$failure_code,
+			$provider_kind
 		);
 	}
 
-	public static function skipped( int $comment_id, int $assessment_id, string $policy_version, string $failure_code ): void {
+	/**
+	 * @param 'local'|'openai' $provider_kind
+	 */
+	public static function skipped( int $comment_id, int $assessment_id, string $policy_version, string $failure_code, string $provider_kind = 'local' ): void {
 		self::emit(
 			self::EVENT_SKIPPED,
 			$comment_id,
 			$assessment_id,
 			'skipped',
 			$policy_version,
-			$failure_code
+			$failure_code,
+			$provider_kind
 		);
 	}
 
-	public static function reanalysis_requested( int $comment_id, string $policy_version ): void {
+	/**
+	 * @param 'local'|'openai' $provider_kind
+	 */
+	public static function reanalysis_requested( int $comment_id, string $policy_version, string $provider_kind = 'local' ): void {
 		$product_id = ReviewContext::product_id( get_comment( $comment_id ) ?? $comment_id );
 		$payload    = self::allowlisted_payload(
 			$comment_id,
@@ -65,18 +78,23 @@ final class AssessmentAudit {
 			null,
 			'skipped',
 			$policy_version,
-			null
+			null,
+			$provider_kind
 		);
 		AuditLogger::log( self::EVENT_REANALYSIS, 'moderator', null, null, $payload );
 	}
 
+	/**
+	 * @param 'local'|'openai' $provider_kind
+	 */
 	private static function emit(
 		string $event,
 		int $comment_id,
 		int $assessment_id,
 		string $state,
 		string $policy_version,
-		?string $failure_code
+		?string $failure_code,
+		string $provider_kind = 'local'
 	): void {
 		$product_id = ReviewContext::product_id( get_comment( $comment_id ) ?? $comment_id );
 		$payload    = self::allowlisted_payload(
@@ -85,12 +103,14 @@ final class AssessmentAudit {
 			$assessment_id,
 			$state,
 			$policy_version,
-			$failure_code
+			$failure_code,
+			$provider_kind
 		);
 		AuditLogger::log( $event, 'system', null, null, $payload );
 	}
 
 	/**
+	 * @param 'local'|'openai' $provider_kind
 	 * @return array<string, int|string>
 	 */
 	private static function allowlisted_payload(
@@ -99,14 +119,15 @@ final class AssessmentAudit {
 		?int $assessment_id,
 		string $state,
 		string $policy_version,
-		?string $failure_code
+		?string $failure_code,
+		string $provider_kind = 'local'
 	): array {
 		$payload = array(
 			'comment_id'     => $comment_id,
 			'product_id'     => $product_id,
 			'state'          => $state,
 			'policy_version' => $policy_version,
-			'provider_kind'  => 'local',
+			'provider_kind'  => 'openai' === $provider_kind ? 'openai' : 'local',
 		);
 		if ( null !== $assessment_id && $assessment_id > 0 ) {
 			$payload['assessment_id'] = $assessment_id;

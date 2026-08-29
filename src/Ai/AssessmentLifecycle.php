@@ -114,7 +114,7 @@ final class AssessmentLifecycle {
 
 		set_transient( $key, '1', self::REANALYSIS_LIMIT_SECONDS );
 		Jobs::schedule_assess_review( $comment_id, PolicyAllowlist::POLICY_VERSION );
-		AssessmentAudit::reanalysis_requested( $comment_id, PolicyAllowlist::POLICY_VERSION );
+		AssessmentAudit::reanalysis_requested( $comment_id, PolicyAllowlist::POLICY_VERSION, ProviderResolver::kind() );
 		return true;
 	}
 

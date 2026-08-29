@@ -32,6 +32,7 @@ final class AssessmentRepository {
 
 	/**
 	 * @param list<string> $reason_codes
+	 * @param 'local'|'openai' $provider_kind
 	 */
 	public static function insert_terminal(
 		int $comment_id,
@@ -42,13 +43,23 @@ final class AssessmentRepository {
 		string $policy_version,
 		?string $failure_code,
 		string $requested_at,
-		string $comment_status
+		string $comment_status,
+		string $provider_kind = 'local',
+		?string $provider_fingerprint = null
 	): int {
 		global $wpdb;
 
 		if ( self::$force_insert_fail_for_tests ) {
 			return 0;
 		}
+
+		$provider_kind = 'openai' === $provider_kind ? 'openai' : 'local';
+		if ( null === $provider_fingerprint || '' === $provider_fingerprint ) {
+			$provider_fingerprint = 'openai' === $provider_kind
+				? \UniversalProductReviews\Ai\OpenAi\OpenAiAdvisoryAssessor::fingerprint_for_current_options( $policy_version )
+				: ProviderFingerprint::for_builtin( $policy_version );
+		}
+		$fingerprint = $provider_fingerprint;
 
 		$completed_at = current_time( 'mysql', true );
 		$retention    = AssessmentRetention::due_at_for_status( $comment_status, strtotime( $completed_at . ' UTC' ) );
@@ -65,8 +76,8 @@ final class AssessmentRepository {
 				'confidence'               => $confidence,
 				'reason_codes'             => $codes_json,
 				'policy_version'           => $policy_version,
-				'provider_kind'            => 'local',
-				'provider_fingerprint'     => ProviderFingerprint::for_builtin( $policy_version ),
+				'provider_kind'            => $provider_kind,
+				'provider_fingerprint'     => $fingerprint,
 				'failure_code'             => $failure_code,
 				'requested_at'             => $requested_at,
 				'completed_at'             => $completed_at,
