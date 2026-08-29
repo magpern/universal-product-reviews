@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M11** planning (auto-approval) after M10 closure — or operational GO for external AI enablement under the M10 freeze privacy checklist. M10 freeze: [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed.
+**Recommended next implementation milestone:** **M11** planning (auto-approval), or a separately authorised SemVer/enablement GO for M10 external AI. M10 implementation is **closed** (docs only; SemVer deferred): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed.
 
 ---
 
@@ -69,7 +69,7 @@ Each milestone below requires its own **plan → documentation freeze → implem
 
 ## M10 / M11 (forward)
 
-- **M10** — External AI advisory assessments (OpenAI); freeze [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md). Implementation on `main` (WP1–WP5); SemVer deferred — see WP5 evidence [`m10-wp5-regression-evidence.md`](m10-wp5-regression-evidence.md) and forthcoming closure doc.  
+- **M10** — External AI advisory assessments (OpenAI); freeze [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md). **Closed (implementation; SemVer deferred):** [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md).  
 - **M11** — automatic approval (ADR amendment + governed calibration). See [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md).
 
 ---

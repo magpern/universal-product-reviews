@@ -221,11 +221,13 @@ Implement WP1–WP5 on focused PRs from current `main` after this freeze tag. Me
 
 ### Acceptance checklist
 
-- [ ] Enum `local`\|`openai`; no provider filter; fail-closed OpenAI
-- [ ] `store: false`; no tools/conversation chaining
-- [ ] Host-only credentials; never displayed/logged/exported
-- [ ] Server-side enablement confirms/acks; OpenAI re-analysis `manage_woocommerce`
-- [ ] Atomic dual quotas; test connection skips M9 rate/circuit
-- [ ] Typed failure map; injection tests; secret redaction
-- [ ] C19 registered; CI network allowlist path-scoped
-- [ ] No SemVer / Release / ZIP / DEV-prod / real customer OpenAI traffic in milestone merges
+- [x] Enum `local`\|`openai`; no provider filter; fail-closed OpenAI
+- [x] `store: false`; no tools/conversation chaining
+- [x] Host-only credentials; never displayed/logged/exported
+- [x] Server-side enablement confirms/acks; OpenAI re-analysis `manage_woocommerce`
+- [x] Atomic dual quotas; test connection skips M9 rate/circuit
+- [x] Typed failure map; injection tests; secret redaction
+- [x] C19 registered; CI network allowlist path-scoped
+- [x] No SemVer / Release / ZIP / DEV-prod / real customer OpenAI traffic in milestone merges
+
+Closure: [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md).
