@@ -10,7 +10,9 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Tests\Integration;
 
 use UniversalProductReviews\Admin\SettingsPage;
+use UniversalProductReviews\Ai\AssessmentClaimsRepository;
 use UniversalProductReviews\Ai\AssessmentLifecycle;
+use UniversalProductReviews\Ai\AssessmentRepository;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\ModerationOpsRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
@@ -76,6 +78,7 @@ final class M10ExternalControlsIntegrationTest extends WP_UnitTestCase {
 
 		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
 		update_option( Options::AI_PROVIDER, 'openai', false );
+		update_option( Options::AI_EXTERNAL_ENABLED, 'yes', false );
 
 		$user_id = $this->factory()->user->create( array( 'role' => 'editor' ) );
 		$user    = get_user_by( 'id', $user_id );
@@ -90,6 +93,83 @@ final class M10ExternalControlsIntegrationTest extends WP_UnitTestCase {
 		wp_set_current_user( $user_id );
 		delete_transient( 'upr_reanalysis_' . $comment_id );
 		$this->assertTrue( AssessmentLifecycle::request_reanalysis( (int) $comment_id ) );
+	}
+
+	public function test_openai_reanalysis_refused_when_external_disabled(): void {
+		$product_id = $this->upr_create_product();
+		$comment_id = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $product_id,
+				'comment_author'       => 'Reviewer',
+				'comment_author_email' => 'r@example.com',
+				'comment_content'      => 'Held review with openai selected but external off.',
+				'comment_type'         => 'review',
+				'comment_approved'     => '0',
+				'comment_parent'       => 0,
+			)
+		);
+		$this->assertIsInt( $comment_id );
+
+		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
+		update_option( Options::AI_PROVIDER, 'openai', false );
+		update_option( Options::AI_EXTERNAL_ENABLED, 'no', false );
+
+		$user_id = $this->factory()->user->create( array( 'role' => 'administrator' ) );
+		$user    = get_user_by( 'id', $user_id );
+		$this->assertInstanceOf( \WP_User::class, $user );
+		$user->add_cap( 'manage_woocommerce' );
+		$user->add_cap( 'moderate_comments' );
+		wp_set_current_user( $user_id );
+
+		$this->assertFalse( AssessmentLifecycle::request_reanalysis( (int) $comment_id ) );
+		$this->assertFalse( (bool) get_transient( 'upr_reanalysis_' . $comment_id ) );
+
+		global $wpdb;
+		$count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
+				$comment_id
+			)
+		);
+		$this->assertSame( 0, $count );
+
+		$audit = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->prefix}upr_audit WHERE event_type = %s",
+				'review.ai_reanalysis_requested'
+			)
+		);
+		$this->assertSame( 0, $audit );
+	}
+
+	public function test_external_disable_clears_active_openai_claims(): void {
+		update_option( Options::AI_PROVIDER, 'openai', false );
+		update_option( Options::AI_EXTERNAL_ENABLED, 'yes', false );
+
+		$comment_id = wp_insert_comment(
+			array(
+				'comment_post_ID'      => $this->upr_create_product(),
+				'comment_author'       => 'Reviewer',
+				'comment_author_email' => 'r@example.com',
+				'comment_content'      => 'Held review with an active openai claim.',
+				'comment_type'         => 'review',
+				'comment_approved'     => '0',
+				'comment_parent'       => 0,
+			)
+		);
+		$this->assertIsInt( $comment_id );
+
+		$token = AssessmentClaimsRepository::acquire( (int) $comment_id, PolicyAllowlist::POLICY_VERSION );
+		$this->assertNotNull( $token );
+		$this->assertTrue(
+			AssessmentClaimsRepository::has_active_claim( (int) $comment_id, PolicyAllowlist::POLICY_VERSION )
+		);
+
+		$returned = SettingsPage::sanitize_ai_external( 'no' );
+		$this->assertSame( 'no', $returned );
+		$this->assertFalse(
+			AssessmentClaimsRepository::has_active_claim( (int) $comment_id, PolicyAllowlist::POLICY_VERSION )
+		);
 	}
 
 	public function test_test_connection_consumes_external_quota_not_m9_rate(): void {

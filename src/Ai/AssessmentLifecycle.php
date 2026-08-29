@@ -104,8 +104,11 @@ final class AssessmentLifecycle {
 			return false;
 		}
 
-		// OpenAI re-analysis requires manage_woocommerce; local shadow allows moderate_comments.
+		// OpenAI re-analysis requires manage_woocommerce + external AI enabled.
 		if ( 'openai' === ProviderResolver::kind() ) {
+			if ( ! Options::ai_external_enabled() ) {
+				return false;
+			}
 			if ( ! current_user_can( 'manage_woocommerce' ) ) {
 				return false;
 			}
