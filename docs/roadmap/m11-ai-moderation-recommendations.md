@@ -116,3 +116,9 @@ See §1. Mandatory tests include: risk-direction matrix (fail if inverted); mand
 ## 8. M12 forward pointer
 
 Guarded automatic action (if ever) is **M12**, not M11. Gates: ADR amendment authorising a named action contract; calibration including legitimate negative reviews; dry-run; separate master enable + kill switch; never auto-approve without near-zero false-approval evidence; never sentiment/rating rejection. Appendix: [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md).
+
+---
+
+## 9. Closure
+
+Closure: [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md).
