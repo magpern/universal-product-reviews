@@ -28,11 +28,157 @@ final class Options {
 
 	public const LOCAL_AI_SHADOW_ENABLED = 'upr_local_ai_shadow_enabled';
 
+	public const AI_EXTERNAL_ENABLED           = 'upr_ai_external_enabled';
+	public const AI_PROVIDER                   = 'upr_ai_provider';
+	public const OPENAI_MODEL                  = 'upr_openai_model';
+	public const OPENAI_MODEL_MANUAL           = 'upr_openai_model_manual';
+	public const OPENAI_MAX_OUTPUT_TOKENS      = 'upr_openai_max_output_tokens';
+	public const AI_OPERATOR_GUIDANCE          = 'upr_ai_operator_guidance';
+	public const AI_ALLOWED_PHRASES            = 'upr_ai_allowed_phrases';
+	public const AI_DISALLOWED_PHRASES         = 'upr_ai_disallowed_phrases';
+	public const OPENAI_DAILY_REQUEST_CAP      = 'upr_openai_daily_request_cap';
+	public const OPENAI_MONTHLY_REQUEST_CAP    = 'upr_openai_monthly_request_cap';
+
+	public const OPENAI_MODEL_DEFAULT          = 'gpt-4o-mini';
+	public const OPENAI_MAX_OUTPUT_TOKENS_DEFAULT = 256;
+	public const OPENAI_MAX_OUTPUT_TOKENS_MIN  = 64;
+	public const OPENAI_MAX_OUTPUT_TOKENS_MAX  = 512;
+	public const OPENAI_DAILY_CAP_DEFAULT      = 100;
+	public const OPENAI_MONTHLY_CAP_DEFAULT    = 2000;
+	public const REVIEW_TEXT_MAX_CHARS         = 4096;
+	public const GUIDANCE_MAX_CHARS            = 2048;
+	public const PHRASE_MAX_COUNT              = 20;
+	public const PHRASE_MAX_CHARS              = 64;
+
+	/** @var list<string> */
+	public const OPENAI_SUGGESTED_MODELS = array(
+		'gpt-4o-mini',
+		'gpt-4.1-mini',
+		'gpt-4.1-nano',
+		'gpt-5.6',
+	);
+
 	/**
 	 * Local AI shadow assessment. Absent / unset = disabled (fail-closed).
 	 */
 	public static function local_ai_shadow_enabled(): bool {
 		return self::option_is_truthy( get_option( self::LOCAL_AI_SHADOW_ENABLED, 'no' ) );
+	}
+
+	public static function ai_external_enabled(): bool {
+		return self::option_is_truthy( get_option( self::AI_EXTERNAL_ENABLED, 'no' ) );
+	}
+
+	/**
+	 * @return 'local'|'openai'
+	 */
+	public static function ai_provider(): string {
+		return self::sanitize_provider( get_option( self::AI_PROVIDER, 'local' ) );
+	}
+
+	public static function openai_model(): string {
+		$manual = self::sanitize_model_manual( get_option( self::OPENAI_MODEL_MANUAL, '' ) );
+		if ( '' !== $manual ) {
+			return $manual;
+		}
+		$dropdown = (string) get_option( self::OPENAI_MODEL, self::OPENAI_MODEL_DEFAULT );
+		if ( in_array( $dropdown, self::OPENAI_SUGGESTED_MODELS, true ) ) {
+			return $dropdown;
+		}
+		return self::OPENAI_MODEL_DEFAULT;
+	}
+
+	public static function openai_max_output_tokens(): int {
+		$n = (int) get_option( self::OPENAI_MAX_OUTPUT_TOKENS, self::OPENAI_MAX_OUTPUT_TOKENS_DEFAULT );
+		return max( self::OPENAI_MAX_OUTPUT_TOKENS_MIN, min( self::OPENAI_MAX_OUTPUT_TOKENS_MAX, $n ) );
+	}
+
+	public static function openai_daily_request_cap(): int {
+		$n = (int) get_option( self::OPENAI_DAILY_REQUEST_CAP, self::OPENAI_DAILY_CAP_DEFAULT );
+		return max( 1, min( 10000, $n ) );
+	}
+
+	public static function openai_monthly_request_cap(): int {
+		$n = (int) get_option( self::OPENAI_MONTHLY_REQUEST_CAP, self::OPENAI_MONTHLY_CAP_DEFAULT );
+		return max( 1, min( 100000, $n ) );
+	}
+
+	public static function ai_operator_guidance(): string {
+		$raw = (string) get_option( self::AI_OPERATOR_GUIDANCE, '' );
+		$raw = wp_strip_all_tags( $raw );
+		if ( strlen( $raw ) > self::GUIDANCE_MAX_CHARS ) {
+			$raw = substr( $raw, 0, self::GUIDANCE_MAX_CHARS );
+		}
+		return $raw;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public static function ai_allowed_phrases(): array {
+		return self::sanitize_phrase_list( get_option( self::AI_ALLOWED_PHRASES, array() ) );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public static function ai_disallowed_phrases(): array {
+		return self::sanitize_phrase_list( get_option( self::AI_DISALLOWED_PHRASES, array() ) );
+	}
+
+	/**
+	 * @param mixed $value Raw provider.
+	 * @return 'local'|'openai'
+	 */
+	public static function sanitize_provider( $value ): string {
+		$v = strtolower( trim( (string) $value ) );
+		return 'openai' === $v ? 'openai' : 'local';
+	}
+
+	/**
+	 * @param mixed $value Manual model id.
+	 */
+	public static function sanitize_model_manual( $value ): string {
+		$v = trim( (string) $value );
+		if ( '' === $v ) {
+			return '';
+		}
+		if ( 1 !== preg_match( '/^[a-zA-Z0-9._:-]{1,64}$/', $v ) ) {
+			return '';
+		}
+		return $v;
+	}
+
+	/**
+	 * @param mixed $raw Option value.
+	 * @return list<string>
+	 */
+	public static function sanitize_phrase_list( $raw ): array {
+		if ( is_string( $raw ) ) {
+			$decoded = json_decode( $raw, true );
+			$raw     = is_array( $decoded ) ? $decoded : preg_split( '/\r\n|\r|\n/', $raw );
+		}
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $raw as $item ) {
+			if ( ! is_string( $item ) && ! is_numeric( $item ) ) {
+				continue;
+			}
+			$p = trim( wp_strip_all_tags( (string) $item ) );
+			if ( '' === $p ) {
+				continue;
+			}
+			if ( strlen( $p ) > self::PHRASE_MAX_CHARS ) {
+				$p = substr( $p, 0, self::PHRASE_MAX_CHARS );
+			}
+			$out[] = $p;
+			if ( count( $out ) >= self::PHRASE_MAX_COUNT ) {
+				break;
+			}
+		}
+		return $out;
 	}
 
 	/**

@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260828a';
+	public const DB_VERSION = '20260829a';
 
 	public const OPS_ROW_ID = 1;
 
@@ -30,6 +30,7 @@ final class Schema {
 		$assessments  = $wpdb->prefix . 'upr_moderation_assessments';
 		$claims       = $wpdb->prefix . 'upr_moderation_assessment_claims';
 		$ops          = $wpdb->prefix . 'upr_moderation_ops';
+		$external_ops = $wpdb->prefix . 'upr_moderation_external_ops';
 
 		return array(
 			$invite => "CREATE TABLE {$invite} (
@@ -142,6 +143,15 @@ final class Schema {
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id)
 			) {$charset};",
+			$external_ops => "CREATE TABLE {$external_ops} (
+				id tinyint unsigned NOT NULL,
+				day_key varchar(10) NOT NULL,
+				day_count int unsigned NOT NULL DEFAULT 0,
+				month_key varchar(7) NOT NULL,
+				month_count int unsigned NOT NULL DEFAULT 0,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id)
+			) {$charset};",
 		);
 	}
 
@@ -162,6 +172,32 @@ final class Schema {
 				self::OPS_ROW_ID,
 				$now,
 				0,
+				0,
+				$now
+			)
+		);
+	}
+
+	/**
+	 * Idempotent seed for external OpenAI quota row.
+	 */
+	public static function seed_moderation_external_ops_row(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'upr_moderation_external_ops';
+		$now   = gmdate( 'Y-m-d H:i:s' );
+		$day   = gmdate( 'Y-m-d' );
+		$month = gmdate( 'Y-m' );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$table} (id, day_key, day_count, month_key, month_count, updated_at)
+				VALUES (%d, %s, %d, %s, %d, %s)",
+				self::OPS_ROW_ID,
+				$day,
+				0,
+				$month,
 				0,
 				$now
 			)

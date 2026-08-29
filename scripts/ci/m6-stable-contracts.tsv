@@ -12,3 +12,4 @@ C8a	filter	upr_review_form_base_url	none
 C9	filter	upr_product_review_availability	none
 C10	php	UniversalProductReviews\Submission\NativePdpForm	none
 C18	php	UniversalProductReviews\Invitations\DeliveryStatus	none
+C19	php	UniversalProductReviews\Ai\AiProvider	none
