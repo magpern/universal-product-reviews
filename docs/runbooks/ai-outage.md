@@ -57,7 +57,7 @@ When provider=`openai` and any of the following hold — **fail closed** (termin
 | Daily/monthly quota exhausted | `skipped` / `budget_exceeded` (+ claim cleared) |
 | Model / input / incomplete / unavailable / validation | `failed` + typed code |
 
-Disabling external AI fails closed for **new** external work. Disabling **local shadow** retains M9 precedence: silent revoke of in-flight claims without terminal AI rows where locked.
+Disabling external AI fails closed for **new** external work and **silently** clears in-flight OpenAI claims (no terminal assessment row, no AI audit). Disabling **local shadow** retains M9 precedence: silent revoke of in-flight claims without terminal AI rows where locked. OpenAI re-analysis is refused (and the Comments control is hidden) while external AI is disabled.
 
 ### Test connection
 

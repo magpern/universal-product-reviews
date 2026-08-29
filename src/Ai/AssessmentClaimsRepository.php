@@ -114,6 +114,27 @@ final class AssessmentClaimsRepository {
 	}
 
 	/**
+	 * Clear every active claim for a policy (external-AI disable / recovery).
+	 * Does not insert terminal rows or emit AI audit.
+	 */
+	public static function clear_all_active( string $policy_version ): void {
+		global $wpdb;
+
+		$table = self::table();
+		$now   = current_time( 'mysql', true );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+				WHERE policy_version = %s AND claim_token IS NOT NULL",
+				$now,
+				$policy_version
+			)
+		);
+	}
+
+	/**
 	 * @return array<string, mixed>|null
 	 */
 	public static function get_row( int $comment_id, string $policy_version ): ?array {

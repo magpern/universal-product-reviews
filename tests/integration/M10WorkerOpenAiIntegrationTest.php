@@ -76,7 +76,7 @@ final class M10WorkerOpenAiIntegrationTest extends WP_UnitTestCase {
 		update_option( Options::AI_EXTERNAL_ENABLED, 'yes', false );
 	}
 
-	public function test_openai_without_external_fails_closed_no_local_fallback(): void {
+	public function test_openai_without_external_silent_no_row_or_audit(): void {
 		$comment_id = $this->held_review( 'See http://spam.example for deals' );
 		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
 		update_option( Options::AI_PROVIDER, 'openai', false );
@@ -97,18 +97,63 @@ final class M10WorkerOpenAiIntegrationTest extends WP_UnitTestCase {
 		$this->assertFalse( $probe->called, 'OpenAI assessor must not run when external disabled' );
 
 		global $wpdb;
-		$row = $wpdb->get_row(
+		$count = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				'SELECT state, failure_code, provider_kind, publication_safety_score FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
+				'SELECT COUNT(*) FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
 				$comment_id
-			),
-			ARRAY_A
+			)
 		);
-		$this->assertIsArray( $row );
-		$this->assertSame( 'failed', $row['state'] );
-		$this->assertSame( 'provider_unavailable', $row['failure_code'] );
-		$this->assertSame( 'openai', $row['provider_kind'] );
-		$this->assertNull( $row['publication_safety_score'] );
+		$this->assertSame( 0, $count, 'No terminal assessment when external AI disabled' );
+		$this->assertFalse(
+			AssessmentClaimsRepository::has_active_claim( $comment_id, PolicyAllowlist::POLICY_VERSION )
+		);
+		$this->assertSame( 0, $this->count_ai_audit_events() );
+	}
+
+	public function test_claim_then_external_disable_before_finalize_persists_nothing(): void {
+		$comment_id = $this->held_review();
+		$this->enable_openai_shadow();
+		CredentialResolver::set_test_credential( 'sk-test', CredentialResolver::SOURCE_CONSTANT );
+
+		ProviderResolver::set_test_openai_provider(
+			new class() implements AssessmentProvider {
+				public function assess( AssessmentRequest $request ): AssessmentResult {
+					// Race: external AI disabled after claim / during provider work.
+					update_option( Options::AI_EXTERNAL_ENABLED, 'no', false );
+					return new AssessmentResult( 'completed', 66, 'high', array( 'spam_pattern' ), null );
+				}
+			}
+		);
+
+		AssessmentWorker::handle( $comment_id, PolicyAllowlist::POLICY_VERSION );
+
+		global $wpdb;
+		$count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
+				$comment_id
+			)
+		);
+		$this->assertSame( 0, $count );
+		$this->assertFalse(
+			AssessmentClaimsRepository::has_active_claim( $comment_id, PolicyAllowlist::POLICY_VERSION )
+		);
+		$this->assertSame( 0, $this->count_ai_audit_events() );
+	}
+
+	/**
+	 * @return int
+	 */
+	private function count_ai_audit_events(): int {
+		global $wpdb;
+		$table = $wpdb->prefix . 'upr_audit';
+		$n     = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE event_type LIKE %s",
+				'review.ai_assessment_%'
+			)
+		);
+		return (int) $n;
 	}
 
 	public function test_openai_missing_credential_fail_closed(): void {

@@ -248,6 +248,9 @@ final class CommentListEnhancements {
 
 		$is_openai = 'openai' === \UniversalProductReviews\Ai\ProviderResolver::kind();
 		if ( $is_openai ) {
+			if ( ! Options::ai_external_enabled() ) {
+				return;
+			}
 			if ( ! current_user_can( 'manage_woocommerce' ) ) {
 				return;
 			}

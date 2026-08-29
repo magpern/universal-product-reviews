@@ -189,23 +189,8 @@ final class AssessmentWorker {
 		string $fingerprint
 	): void {
 		if ( ! Options::ai_external_enabled() ) {
-			$assessment_id = self::finalize_terminal(
-				$comment_id,
-				$policy_version,
-				$claim_token,
-				'failed',
-				null,
-				null,
-				array(),
-				'provider_unavailable',
-				$requested,
-				true,
-				'openai',
-				$fingerprint
-			);
-			if ( null !== $assessment_id ) {
-				ModerationOpsRepository::record_failure();
-			}
+			// Disable-silent for external AI: clear owned claim; no terminal row / AI audit.
+			AssessmentClaimsRepository::clear_owned( $comment_id, $policy_version, $claim_token );
 			return;
 		}
 
@@ -477,6 +462,23 @@ final class AssessmentWorker {
 			}
 
 			if ( ! Options::local_ai_shadow_enabled() ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, updated_at = %s
+						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
+						current_time( 'mysql', true ),
+						$comment_id,
+						$policy_version,
+						$claim_token
+					)
+				);
+				$wpdb->query( 'COMMIT' );
+				return null;
+			}
+
+			// External AI disable-silent (OpenAI path only): clear claim; no terminal row / AI audit.
+			if ( 'openai' === $provider_kind && ! Options::ai_external_enabled() ) {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
 				$wpdb->query(
 					$wpdb->prepare(
