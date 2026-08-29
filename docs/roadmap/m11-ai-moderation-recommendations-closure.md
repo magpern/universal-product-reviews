@@ -23,7 +23,7 @@ M11 is **recommendation-only**. Automatic status mutation remains deferred to **
 |-------------|----|--------------|--------------|-------|
 | RecommendationPolicy, held-only Comments UX, display option, D19 diagnostics / Site Health, M11 tests | [#60](https://github.com/magpern/universal-product-reviews/pull/60) | `c86e289d66044f8bde2805ba1389377f555f7cde` | `40a124d` (feature) + `73455fb` (D19 diagnostics expectation correction) | [run 33279265552](https://github.com/magpern/universal-product-reviews/actions/runs/33279265552) — **success** on `73455fb` |
 
-Accepted runtime tip of `main` after #60: **`c86e289d66044f8bde2805ba1389377f555f7cde`**.
+Accepted runtime tip of `main` after #60: **`c86e289d66044f8bde2805ba1389377f555f7cde`**. Post-merge push CI: [run 33279690233](https://github.com/magpern/universal-product-reviews/actions/runs/33279690233) — **success**.
 
 ### D19 correction (`73455fb`)
 
