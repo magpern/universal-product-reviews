@@ -47,7 +47,20 @@ final class AssessmentWorker {
 		}
 
 		$claim_row = AssessmentClaimsRepository::get_row( $comment_id, $policy_version );
-		$requested = is_array( $claim_row ) ? (string) ( $claim_row['requested_at'] ?? current_time( 'mysql', true ) ) : current_time( 'mysql', true );
+		if ( ! is_array( $claim_row ) || (string) ( $claim_row['claim_token'] ?? '' ) !== $claim_token ) {
+			AssessmentClaimsRepository::clear_owned( $comment_id, $policy_version, $claim_token );
+			return;
+		}
+
+		// Immutable for this attempt — never re-read selected provider after acquire.
+		$stamped = (string) ( $claim_row['claim_provider_kind'] ?? '' );
+		if ( 'local' !== $stamped && 'openai' !== $stamped ) {
+			AssessmentClaimsRepository::clear_owned( $comment_id, $policy_version, $claim_token );
+			return;
+		}
+		$provider_kind = $stamped;
+		$requested     = (string) ( $claim_row['requested_at'] ?? current_time( 'mysql', true ) );
+		$fingerprint   = ProviderResolver::fingerprint( $provider_kind, $policy_version );
 
 		if ( ! Eligibility::is_ai_assessable( $comment_id ) ) {
 			self::finalize_terminal(
@@ -61,8 +74,8 @@ final class AssessmentWorker {
 				'ineligible_comment',
 				$requested,
 				false,
-				'local',
-				ProviderFingerprint::for_builtin( $policy_version )
+				$provider_kind,
+				$fingerprint
 			);
 			return;
 		}
@@ -80,8 +93,8 @@ final class AssessmentWorker {
 				'circuit_open',
 				$requested,
 				true,
-				'local',
-				ProviderFingerprint::for_builtin( $policy_version )
+				$provider_kind,
+				$fingerprint
 			);
 			return;
 		}
@@ -97,14 +110,11 @@ final class AssessmentWorker {
 				'rate_limited',
 				$requested,
 				true,
-				'local',
-				ProviderFingerprint::for_builtin( $policy_version )
+				$provider_kind,
+				$fingerprint
 			);
 			return;
 		}
-
-		$provider_kind = ProviderResolver::kind();
-		$fingerprint   = ProviderResolver::fingerprint( $provider_kind, $policy_version );
 
 		if ( 'openai' === $provider_kind ) {
 			self::handle_openai(
@@ -400,7 +410,8 @@ final class AssessmentWorker {
 
 		$token     = (string) $row['claim_token'];
 		$requested = (string) ( $row['requested_at'] ?? current_time( 'mysql', true ) );
-		$kind      = ProviderResolver::kind();
+		$stamped   = (string) ( $row['claim_provider_kind'] ?? '' );
+		$kind      = ( 'openai' === $stamped ) ? 'openai' : 'local';
 
 		self::finalize_terminal(
 			$comment_id,
@@ -458,6 +469,24 @@ final class AssessmentWorker {
 
 			if ( ! is_array( $claim ) || (string) ( $claim['claim_token'] ?? '' ) !== $claim_token ) {
 				$wpdb->query( 'ROLLBACK' );
+				return null;
+			}
+
+			$claim_kind = (string) ( $claim['claim_provider_kind'] ?? '' );
+			if ( $claim_kind !== $provider_kind ) {
+				// Attempt/provider mismatch vs locked claim: clear without terminal row/audit.
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$claims_table} SET claim_token = NULL, claim_expires_at = NULL, claim_provider_kind = NULL, updated_at = %s
+						WHERE comment_id = %d AND policy_version = %s AND claim_token = %s",
+						current_time( 'mysql', true ),
+						$comment_id,
+						$policy_version,
+						$claim_token
+					)
+				);
+				$wpdb->query( 'COMMIT' );
 				return null;
 			}
 

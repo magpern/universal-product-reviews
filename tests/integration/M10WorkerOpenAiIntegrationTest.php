@@ -15,6 +15,7 @@ use UniversalProductReviews\Ai\AssessmentRepository;
 use UniversalProductReviews\Ai\AssessmentRequest;
 use UniversalProductReviews\Ai\AssessmentResult;
 use UniversalProductReviews\Ai\AssessmentWorker;
+use UniversalProductReviews\Ai\BuiltInLocalAssessor;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
 use UniversalProductReviews\Ai\PolicyAllowlist;
@@ -40,6 +41,7 @@ final class M10WorkerOpenAiIntegrationTest extends WP_UnitTestCase {
 		ProviderResolver::set_test_openai_provider( null );
 		AssessmentRepository::set_force_insert_fail_for_tests( false );
 		AssessmentWorker::set_force_claim_clear_fail_for_tests( false );
+		BuiltInLocalAssessor::set_test_assessor( null );
 		Plugin::reset_for_tests();
 		Plugin::init();
 	}
@@ -47,6 +49,7 @@ final class M10WorkerOpenAiIntegrationTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		CredentialResolver::set_test_credential( null );
 		ProviderResolver::set_test_openai_provider( null );
+		BuiltInLocalAssessor::set_test_assessor( null );
 		delete_option( Options::LOCAL_AI_SHADOW_ENABLED );
 		delete_option( Options::AI_EXTERNAL_ENABLED );
 		delete_option( Options::AI_PROVIDER );
@@ -290,5 +293,92 @@ final class M10WorkerOpenAiIntegrationTest extends WP_UnitTestCase {
 		$this->assertIsArray( $row );
 		$this->assertSame( 'local', $row['provider_kind'] );
 		$this->assertContains( $row['state'], array( 'completed', 'indeterminate' ) );
+	}
+
+	public function test_worker_keeps_local_path_when_provider_option_changes_mid_assess(): void {
+		$comment_id = $this->held_review( 'Nice enough review text for local path.' );
+		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
+		update_option( Options::AI_PROVIDER, 'local', false );
+		update_option( Options::AI_EXTERNAL_ENABLED, 'no', false );
+
+		$openai = new class() implements AssessmentProvider {
+			public bool $called = false;
+			public function assess( AssessmentRequest $request ): AssessmentResult {
+				$this->called = true;
+				return new AssessmentResult( 'completed', 99, 'high', array( 'spam_pattern' ), null );
+			}
+		};
+		ProviderResolver::set_test_openai_provider( $openai );
+
+		BuiltInLocalAssessor::set_test_assessor(
+			static function ( AssessmentRequest $request ): AssessmentResult {
+				unset( $request );
+				// Live option flips after the claim was stamped local.
+				update_option( Options::AI_PROVIDER, 'openai', false );
+				return new AssessmentResult( 'completed', 41, 'medium', array( 'spam_pattern' ), null );
+			}
+		);
+
+		AssessmentWorker::handle( $comment_id, PolicyAllowlist::POLICY_VERSION );
+
+		$this->assertFalse( $openai->called, 'OpenAI assessor must not run for a local-stamped claim' );
+
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT state, provider_kind, publication_safety_score FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
+				$comment_id
+			),
+			ARRAY_A
+		);
+		$this->assertIsArray( $row );
+		$this->assertSame( 'local', $row['provider_kind'] );
+		$this->assertSame( 'completed', $row['state'] );
+		$this->assertSame( 41, (int) $row['publication_safety_score'] );
+		$this->assertFalse(
+			AssessmentClaimsRepository::has_active_claim( $comment_id, PolicyAllowlist::POLICY_VERSION )
+		);
+	}
+
+	public function test_worker_keeps_openai_path_when_provider_option_changes_to_local_mid_assess(): void {
+		$comment_id = $this->held_review();
+		$this->enable_openai_shadow();
+		CredentialResolver::set_test_credential( 'sk-test', CredentialResolver::SOURCE_CONSTANT );
+
+		$local_called = false;
+		BuiltInLocalAssessor::set_test_assessor(
+			static function ( AssessmentRequest $request ) use ( &$local_called ): AssessmentResult {
+				unset( $request );
+				$local_called = true;
+				return new AssessmentResult( 'completed', 12, 'medium', array(), null );
+			}
+		);
+
+		ProviderResolver::set_test_openai_provider(
+			new class() implements AssessmentProvider {
+				public function assess( AssessmentRequest $request ): AssessmentResult {
+					unset( $request );
+					update_option( Options::AI_PROVIDER, 'local', false );
+					return new AssessmentResult( 'completed', 77, 'high', array( 'link_abuse' ), null );
+				}
+			}
+		);
+
+		AssessmentWorker::handle( $comment_id, PolicyAllowlist::POLICY_VERSION );
+
+		$this->assertFalse( $local_called, 'Local assessor must not run for an openai-stamped claim' );
+
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT state, provider_kind, publication_safety_score FROM ' . AssessmentRepository::table() . ' WHERE comment_id = %d',
+				$comment_id
+			),
+			ARRAY_A
+		);
+		$this->assertIsArray( $row );
+		$this->assertSame( 'openai', $row['provider_kind'] );
+		$this->assertSame( 'completed', $row['state'] );
+		$this->assertSame( 77, (int) $row['publication_safety_score'] );
 	}
 }
