@@ -4,17 +4,17 @@
 
 Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md), [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
 
-**Runtime status:** M9 local shadow is **implemented** on `main` (disabled by default; built-in-only). See freeze [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md) and closure [`../roadmap/m9-local-ai-shadow-mode-closure.md`](../roadmap/m9-local-ai-shadow-mode-closure.md). M10 (external) and M11 (auto-approval) remain unimplemented.
+**Runtime status:** M9 local shadow is **implemented** on `main` (disabled by default; built-in-only). M10 external OpenAI advisory is specified by freeze [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md) (implementation authorised by that freeze; SemVer/release deferred). M11 (auto-approval) remains unimplemented.
 
 ## Privacy gate
 
 ### External processing (M10+)
 
-Do **not** enable external AI until the host has completed its own DPIA / processor terms process and maintainer GO. A documented DPIA is a **human/process** obligation — UPR does **not** treat a “DPIA done” checkbox as a machine-enforced proof of compliance. Machine gates are: feature enable + external opt-in default **off**.
+Do **not** enable external AI until the host has completed processor/privacy terms, configured OpenAI project retention/privacy posture, dedicated OpenAI project **provider-side** spend/rate limits, operator acknowledgement that review text may contain personal data, and maintainer GO. A documented DPIA is a **human/process** obligation — UPR does **not** treat a “DPIA done” checkbox as machine-enforced proof of compliance. Machine gates: shadow + external opt-in default **off**; server-side confirms/acks.
 
 ### Secrets
 
-Provider API keys (M10+) must live in host environment variables or `wp-config.php` constants read by host adapters. **Never** store keys in UPR options, audit, diagnostics, or support export.
+Provider API keys must live in the `UPR_OPENAI_API_KEY` PHP constant or environment variable (constant wins). **Never** store keys in UPR options, audit, diagnostics, or support export.
 
 Until AI is enabled: deterministic rules and human moderation only; no review-text transmission off-host (M9 is local-only by design; review text stays inside UPR core `src/Ai/`).
 

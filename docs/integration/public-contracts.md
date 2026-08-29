@@ -122,6 +122,15 @@ Support export schema `upr-support-export/v1` is **unchanged** by M6 and is not 
 | **Notes** | True iff order meta `_upr_delivery_confirmed_at` is non-empty. Invalid/missing order → false. Discoverability only — not adapter/ops proof. |
 | **Code** | `Invitations\DeliveryStatus` |
 
+### C19 — `AiProvider::selected` (**S**, none)
+
+| | |
+|--|--|
+| **Type** | PHP helper |
+| **Signature** | `UniversalProductReviews\Ai\AiProvider::selected(): string` |
+| **Notes** | Returns `'local'` or `'openai'` from sanitised settings (default `'local'`). Discoverability only — never secrets, review text, or raw provider output. Implemented in M10. |
+| **Code** | `Ai\AiProvider` |
+
 ---
 
 ## Provisional (P)

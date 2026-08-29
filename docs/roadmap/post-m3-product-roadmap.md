@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** **M10** (external AI / replaceable provider — requires its own freeze). M7 and M9 are closed at **`v0.8.0`** (`v0.7.0` intentionally not published). M8 planning is closed.
+**Recommended next implementation milestone:** **M10** ([`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md) freeze — OpenAI advisory; SemVer deferred). M7 and M9 are closed at **`v0.8.0`** (`v0.7.0` intentionally not published). M8 planning is closed.
 
 ---
 
@@ -69,7 +69,7 @@ Each milestone below requires its own **plan → documentation freeze → implem
 
 ## M10 / M11 (forward)
 
-- **M10** — external AI processing / replaceable provider (separate freeze).  
+- **M10** — External AI advisory assessments (OpenAI); freeze [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md). Fixed enum `local` \| `openai`; no provider filter.  
 - **M11** — automatic approval (ADR amendment + governed calibration). See [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md).
 
 ---
