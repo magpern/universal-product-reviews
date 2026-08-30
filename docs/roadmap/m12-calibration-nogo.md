@@ -1,49 +1,51 @@
-# M12 calibration — NO-GO / automatic action deferred
+# M12 calibration / simulation gates — current posture
 
-**Status:** **Calibration NO-GO.** Automatic action remains **unimplemented**.  
-**Date:** 2026-08-30 (updated with evidence kit)  
-**Baseline:** `main` @ freeze tag `m12-guarded-auto-spam-freeze` → `79d9a94a5c82489e988e6543050c3b6b5182ef0c` (PR [#62](https://github.com/magpern/universal-product-reviews/pull/62)).
+**Status:** **Calibration GO not issued.** Production automatic action remains prohibited. **Simulation GO not yet issued** in this repository (no committed synthetic_simulation corpus). Automatic action runtime remains **unimplemented**.  
+**Date:** 2026-08-30 (amended: two-gate Simulation / Calibration model)  
+**Baseline freeze:** `m12-guarded-auto-spam-freeze` → `79d9a94a5c82489e988e6543050c3b6b5182ef0c` (PR [#62](https://github.com/magpern/universal-product-reviews/pull/62)).
 
-## Finding
+## Two-gate model (exact verdicts)
 
-A compliant labelled calibration corpus meeting the frozen gates in [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md) §5 is **not available** in this repository. Fabricating labels is forbidden. Unauthorised WordPress / DEV / prod review access is out of scope.
+| Verdict | Meaning |
+|---------|---------|
+| `SIMULATION GO — implementation and non-production testing only` | Privacy-safe **synthetic / AI-generated** corpus (`evidence_status: synthetic_simulation`) passed offline gates. May authorise implementation with masters **default-off** and DEV/pre-prod testing with controlled synthetic fixtures. **Must not** authorise production enablement, production customer-review action, or a claim of real-world precision/false-positive performance. |
+| `CALIBRATION GO — production enablement decision may be considered` | Authorised **real-world** human-labelled privacy-safe corpus (`evidence_status: authorised_labelled`) passed frozen metrics. Required before any **production** automatic-action enablement may be considered. Does **not** itself enable production. |
+| `NO-GO — automatic action deferred` | Empty, incomplete, template/example/bare-synthetic, contaminated, or threshold-failing evidence. |
 
-Therefore **Calibration GO is not satisfied**. Automatic action must not be implemented.
+No harness verdict sets `production_enablement_authorised`. Production automatic moderation remains forbidden without Calibration GO **and** a separate production enablement GO.
 
-## Evidence-collection workflow (preparation)
+## Finding (current)
 
-Authorised humans may later supply privacy-safe evidence using the kit:
+No Simulation GO corpus and no Calibration GO corpus are present in Git. Templates/examples evaluate to **NO-GO**.
 
-1. Read [`../../scripts/calibration/evidence-kit/README.md`](../../scripts/calibration/evidence-kit/README.md) and [`../../scripts/calibration/evidence-kit/taxonomy.md`](../../scripts/calibration/evidence-kit/taxonomy.md).
-2. Obtain maintainer + legal/privacy authorisation (see kit “Authority required”).
-3. Lock holdout assignments and hashes **before** final labelling / tuning.
-4. Export **only** opaque ids + labels + assessment field maps into `m12-cal-v1` (`evidence_status: authorised_labelled`).
-5. Evaluate offline: `php scripts/calibration/evaluate.php <evidence.json>`.
+## Evidence workflows
 
-Templates and examples **must** evaluate to **NO-GO**. Incomplete, synthetic, or undocumented evidence **cannot** become Calibration GO.
+### Simulation (synthetic / AI-generated)
 
-## Harness delivered (safe)
+1. Use [`../../scripts/calibration/evidence-kit/`](../../scripts/calibration/evidence-kit/) with `evidence_status: synthetic_simulation` and `provenance.source_class: synthetic_authorised`.
+2. Privacy-safe opaque ids + labels + assessment maps only — no customer PII/bodies in Git.
+3. Evaluate: `php scripts/calibration/evaluate.php <file.json>` → exit **10** on Simulation GO.
 
-Offline tooling under `scripts/calibration/`:
+### Calibration (real-world)
 
-- Privacy-safe schema `m12-cal-v1` + structural parser (provenance, hashes, holdout lock, privacy, non-placeholder tuple)
-- Deterministic would-act evaluator (M11 `RecommendationPolicy` conjunction)
-- Wilson 95% UCB + precision / size / holdout / double-label gates
-- Evidence kit templates (empty / example-safe only)
-- Unit tests: `tests/unit/M12CalibrationHarnessUnitTest.php`
+1. Maintainer + legal/privacy authorisation; `evidence_status: authorised_labelled`; non-synthetic `source_class`.
+2. Same privacy rules; frozen size/holdout/Wilson/precision gates.
+3. Evaluate → exit **0** on Calibration GO only.
 
-No providers, no comment status changes, no DEV/prod access, no credentials, no customer corpus in Git.
+## Harness
 
-## Explicit non-actions
+Offline tooling under `scripts/calibration/` enforces both gates. Unit tests: `tests/unit/M12CalibrationHarnessUnitTest.php`.
 
-- No `ActionPolicy` runtime, CAS mutator, ledger, Controls masters, or enablement
-- No SemVer / Release / ZIP / `v*` tag / movement of `v0.8.0`
-- No dry-run or live auto-action in any environment
+## Explicit non-actions (this document)
 
-## Next explicit gate
+- No runtime auto-spam implementation in this amendment alone
+- No SemVer / Release / ZIP / production enablement
 
-After an **authorised** privacy-safe `m12-cal-v1` corpus passes the offline harness (**Calibration GO**), Implementation GO may be considered. Until then M12 remains deferred.
+## Next gates
 
-## Verdict
+1. Optional: supply synthetic_simulation corpus → **Simulation GO** → Implementation GO (masters off) → DEV/pre-prod synthetic testing.  
+2. Mandatory before production: authorised real-world corpus → **Calibration GO** → separate production enablement GO.
 
-**NO-GO — AUTOMATIC ACTION DEFERRED**
+## Verdict (repository posture)
+
+**NO-GO — automatic action deferred** (neither Simulation GO nor Calibration GO issued on `main` evidence).

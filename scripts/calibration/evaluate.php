@@ -46,7 +46,14 @@ if ( ! is_array( $data ) ) {
 $result = EvidenceEvaluator::evaluate( $data );
 echo wp_json_encode_safe( $result ) . "\n";
 
-exit( 'Calibration GO' === ( $result['verdict'] ?? '' ) ? 0 : 1 );
+$verdict = (string) ( $result['verdict'] ?? '' );
+if ( EvidenceEvaluator::VERDICT_CALIBRATION === $verdict ) {
+	exit( 0 );
+}
+if ( EvidenceEvaluator::VERDICT_SIMULATION === $verdict ) {
+	exit( 10 );
+}
+exit( 1 );
 
 /**
  * Encode without requiring WordPress.

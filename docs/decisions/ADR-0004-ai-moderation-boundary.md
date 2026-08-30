@@ -1,9 +1,9 @@
 # ADR-0004: AI moderation boundary
 
-**Status:** Accepted (M8); **amended M11** (recommendation-only); **amended M12** (named auto-spam contract; enablement separately gated)  
+**Status:** Accepted (M8); **amended M11** (recommendation-only); **amended M12** (named auto-spam contract; two-gate Simulation / Calibration model)  
 **Date:** 2026-08-28  
-**Amended:** 2026-08-30 (M11 freeze); 2026-08-30 (M12 freeze)  
-**Context:** UPR may later offer optional AI-assisted review moderation. Human moderation via native Comments admin must remain authoritative. Prior forward notes (`docs/future/ai-review-scoring.md`, `ARCHITECTURE.md` §9) were non-binding. M8 freezes the product boundary before any runtime AI work. M11 freezes recommendation-only operator guidance. M12 freezes the sole named automatic-action contract `auto_spam_held_technical` as design only; runtime action remains gated by Calibration / Implementation / Dry-run / enablement GOs.
+**Amended:** 2026-08-30 (M11 freeze); 2026-08-30 (M12 freeze); 2026-08-30 (M12 Simulation GO)  
+**Context:** UPR may later offer optional AI-assisted review moderation. Human moderation via native Comments admin must remain authoritative. Prior forward notes (`docs/future/ai-review-scoring.md`, `ARCHITECTURE.md` §9) were non-binding. M8 freezes the product boundary before any runtime AI work. M11 freezes recommendation-only operator guidance. M12 freezes the sole named automatic-action contract `auto_spam_held_technical` as design; runtime action remains gated. **Simulation GO** may authorise implementation (masters default-off) and DEV/pre-prod synthetic testing; **Calibration GO** remains mandatory before production automatic-action enablement may be considered.
 
 ## Decision
 
@@ -14,7 +14,7 @@
    - **M9** — local-only in-process shadow assessment.  
    - **M10** — external OpenAI advisory assessments per [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md). Core enforces external classification and opt-in before any outbound call; fixed enum `local` \| `openai`; no replaceable provider filter.  
    - **M11** — **recommendation-only** operator guidance per [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md): deterministic `suggested_action` labels in Comments (held-only actionable UI). **M11 never changes WordPress comment status.**  
-   - **M12** — sole automatic-action contract **`auto_spam_held_technical`**: reversible native **`hold` → `spam`** via UPR-owned CAS + proven public-hook parity, leased action ledger, calibrated tuple, and strict post-enablement boundary. Authoritative freeze: [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md). **Auto-approve is permanently excluded.** Documentation freeze does **not** authorise runtime action.
+   - **M12** — sole automatic-action contract **`auto_spam_held_technical`**: reversible native **`hold` → `spam`** via UPR-owned CAS + proven public-hook parity, leased action ledger, calibrated tuple, and strict post-enablement boundary. Authoritative freeze: [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md). **Auto-approve is permanently excluded.** Documentation freeze does **not** authorise runtime action. **Two-gate evidence model:** Simulation GO (synthetic) vs Calibration GO (real-world).
 
 3. **Held-only assessment and actionable recommendations.** Auto-enqueue and re-analysis apply only to **currently held**, top-level, in-scope product reviews. Approved, spam, trash, deleted, replies, and out-of-scope comments must not receive new assessments or re-analysis. **Actionable** recommendation labels and reason badges show **only** while current status is `hold`. On transition away from `hold`, hide those labels/badges; retain assessment rows for audit/retention; do not offer re-analysis. Restore to hold re-enables eligibility based on current status (M9/M10 rules). M12 action eligibility is likewise held-only and assessment-bound.
 
@@ -30,7 +30,7 @@
 
 9. **Public contracts.** Do not register unimplemented AI provider surfaces in `upr-public-contracts/v1`. M10 registers **C19** `AiProvider::selected(): string` (`local`\|`openai` only). **C18** remains `DeliveryStatus::has_confirmation`. M11/M12 do not add a public contract. Support export `upr-support-export/v1` remains unchanged in M12 unless a later freeze amends it.
 
-10. **Negative-review parity.** Policy and reason-code allowlists must not encode sentiment or rating disadvantage. Structural tests prove rating exclusion and forbid sentiment reason codes; model fairness requires a separate calibration programme before **M12** auto-action enablement (Wilson false-spam bound on legitimate-negative holdout).
+10. **Negative-review parity.** Policy and reason-code allowlists must not encode sentiment or rating disadvantage. Structural tests prove rating exclusion and forbid sentiment reason codes. **Simulation GO** may exercise false-positive scenarios with synthetic fixtures but does **not** prove real-world fairness. **Calibration GO** (Wilson false-spam bound on legitimate-negative holdout from authorised real-world labels) remains mandatory before production auto-action enablement may be considered.
 
 11. **M11 recommendations.** Deterministic local mapping from validated assessment fields to allowlisted `suggested_action` values only. No provider-emitted actions. No free-form model explanations in UI. Recommendation display option: **absent = enabled**, independent of shadow masters. No native Comments attention filter/view in M11. Column-only UX remains unchanged under M12.
 
@@ -43,7 +43,9 @@
     - Leased action ledger is sole durable authority; states include `processing`, `cas_succeeded`, `acted`, `abstained`, `observed`, `unknown_after_crash`. Successful CAS and `cas_succeeded` must share one DB transaction. **Never** replay public WordPress transition hooks after a crash; crash after `cas_succeeded` → `unknown_after_crash` + critical diagnostic + manual reconciliation.  
     - Distinct audit event `review.ai_auto_spam` under `AiActionOrigin`; `review.system_spam` remains invitation-abandon only. No claim tokens in audit payloads.  
     - Masters default **off**; independent kill switch; dry-run mode; separate quotas/circuit.  
-    - Automatic action requires separate **Calibration GO**, **Implementation GO**, **Dry-run GO**, **DEV enablement GO**, and later **production enablement GO**. If CAS/hook-parity or atomic CAS+`cas_succeeded` cannot be proven, M12 closes as **deferred / NO-GO**.
+    - **Simulation GO** (`SIMULATION GO — implementation and non-production testing only`): privacy-safe synthetic / AI-generated fixtures may validate taxonomy, CAS/ledger safety, hook parity, reversibility, rate limits, disable boundaries, and false-positive scenarios; may authorise **implementation (masters default-off)** and **DEV/pre-production testing only**. Must **not** authorise production enablement, production customer-review action, or claims of real-world precision/false-positive performance.  
+    - **Calibration GO** (`CALIBRATION GO — production enablement decision may be considered`): authorised real-world human-labelled privacy-safe evidence; **unchanged** requirement before any **production** automatic-action enablement may be considered; does not itself enable production.  
+    - Further gates: Implementation GO, Dry-run GO, DEV enablement GO, and separate **production enablement GO** (requires Calibration GO). Harness `NO-GO — automatic action deferred` otherwise. If CAS/hook-parity or atomic CAS+`cas_succeeded` cannot be proven, M12 closes as **deferred / NO-GO**.
 
 ## Consequences
 
