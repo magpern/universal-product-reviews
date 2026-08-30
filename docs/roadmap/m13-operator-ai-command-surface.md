@@ -1,8 +1,8 @@
 # M13 — Operator AI Moderation Command Surface (authoritative freeze)
 
-**Status:** Frozen M13 **product and implementation** specification. Authorises **documentation freeze** and subsequent **implementation with M12 masters default-off**. Does **not** authorise Calibration GO, production enablement, DEV/production WordPress access, credentials, provider configuration, external-AI enablement, email, auto-spam master enablement, host-specific code, GitHub Release, ZIP, plugin SemVer / version tag, or movement of `v0.8.0`.  
+**Status:** Frozen M13 **product and implementation** specification. **Implementation closed:** [`m13-operator-ai-command-surface-closure.md`](m13-operator-ai-command-surface-closure.md) (PR [#70](https://github.com/magpern/universal-product-reviews/pull/70) → `4fbe6068fe6e6ef8a737ffdd19004ab4954490fc`). Authorises **documentation freeze** and **implementation with M12 masters default-off**. Does **not** authorise Calibration GO, production enablement, DEV/production WordPress access, credentials, provider configuration, external-AI enablement, email, auto-spam master enablement, host-specific code, GitHub Release, ZIP, plugin SemVer / version tag, or movement of `v0.8.0`.  
 **Baseline:** Universal Product Reviews `main` @ **`d4513bb037d15edd91816e0c1a9dfeb7cc192a86`** (PR [#68](https://github.com/magpern/universal-product-reviews/pull/68) — M12 Simulation-GO implementation closure). Runtime remains **`0.8.0`**.  
-**Freeze tag:** `m13-operator-ai-command-surface-freeze` (annotated; peels to the merge commit of this freeze).
+**Freeze tag:** `m13-operator-ai-command-surface-freeze` (annotated; peels to **`c82b176f08d932c3f413a7b1cd1eb712ca8aa67b`** — merge of this freeze).
 
 **Related:** [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md), [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md), [`m11-ai-moderation-recommendations.md`](m11-ai-moderation-recommendations.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md).
 
