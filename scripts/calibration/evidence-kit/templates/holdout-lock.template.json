@@ -1,0 +1,11 @@
+{
+  "description": "Lock train/holdout assignment before final labelling and before threshold tuning. Replace placeholder hash after computing sha256 over canonical id→split map.",
+  "locked_before_labelling_complete": true,
+  "locked_before_tuning": true,
+  "assignment_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "assignments": {
+    "SAMPLEID_EXAMPLE_01": "holdout",
+    "SAMPLEID_EXAMPLE_02": "train"
+  },
+  "note": "Example keys are illustrative only — delete before use. Do not commit real review text here."
+}

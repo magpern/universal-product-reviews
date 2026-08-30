@@ -12,11 +12,11 @@ namespace UniversalProductReviews\Calibration;
 /**
  * Evaluates a labelled evidence document against frozen M12 calibration gates.
  *
- * Never fabricates labels. Missing/insufficient corpus → fail closed (NO-GO).
+ * Never fabricates labels. Incomplete / synthetic / undocumented → fail closed (NO-GO).
  */
 final class EvidenceEvaluator {
 
-	public const SCHEMA_VERSION = 'm12-cal-v1';
+	public const SCHEMA_VERSION = EvidenceDocumentParser::SCHEMA_VERSION;
 
 	public const MIN_LEGIT_NEGATIVE = 400;
 
@@ -30,62 +30,31 @@ final class EvidenceEvaluator {
 
 	public const MIN_TECHNICAL_SPAM_PRECISION = 0.95;
 
-	/**
-	 * Required calibrated tuple keys (immutable approval surface).
-	 *
-	 * @var list<string>
-	 */
-	public const TUPLE_KEYS = array(
-		'provider_kind',
-		'assessor_version',
-		'heuristic_or_model_fingerprint',
-		'validator_version',
-		'assessment_policy_version',
-		'recommendation_policy_version',
-		'action_policy_version',
-	);
+	/** @var list<string> */
+	public const TUPLE_KEYS = EvidenceDocumentParser::TUPLE_KEYS;
 
 	/**
 	 * @param array<string,mixed> $doc Evidence document.
 	 * @return array<string,mixed> Result with verdict Calibration GO | NO-GO.
 	 */
 	public static function evaluate( array $doc ): array {
-		$errors   = array();
+		$parsed   = EvidenceDocumentParser::parse( $doc );
+		$errors   = $parsed['errors'];
+		$warnings = $parsed['warnings'];
 		$metrics  = array();
-		$warnings = array();
+		$tuple    = $parsed['tuple'];
 
-		if ( ( $doc['schema_version'] ?? '' ) !== self::SCHEMA_VERSION ) {
-			$errors[] = 'schema_version must be ' . self::SCHEMA_VERSION;
-		}
+		$legit = $parsed['rows_by_stratum']['legitimate_negative'];
+		$spam  = $parsed['rows_by_stratum']['technical_spam'];
+		$mh    = $parsed['rows_by_stratum']['mandatory_human'];
+		$excl  = $parsed['rows_by_stratum']['excluded'];
 
-		$tuple = $doc['tuple'] ?? null;
-		if ( ! is_array( $tuple ) ) {
-			$errors[] = 'tuple missing';
-		} else {
-			foreach ( self::TUPLE_KEYS as $key ) {
-				if ( ! isset( $tuple[ $key ] ) || ! is_string( $tuple[ $key ] ) || '' === $tuple[ $key ] ) {
-					$errors[] = "tuple.{$key} missing or empty";
-				}
-			}
-		}
-
-		$strata = $doc['strata'] ?? null;
-		if ( ! is_array( $strata ) ) {
-			$errors[] = 'strata missing';
-			return self::nogo( $errors, $metrics, $warnings, $tuple );
-		}
-
-		$legit = self::normalise_stratum( $strata['legitimate_negative'] ?? null, 'legitimate_negative', $errors );
-		$spam  = self::normalise_stratum( $strata['technical_spam'] ?? null, 'technical_spam', $errors );
-
-		if ( count( $errors ) > 0 ) {
-			return self::nogo( $errors, $metrics, $warnings, $tuple );
-		}
-
-		$legit_n = count( $legit['rows'] );
-		$spam_n  = count( $spam['rows'] );
+		$legit_n = count( $legit );
+		$spam_n  = count( $spam );
 		$metrics['legitimate_negative_n'] = $legit_n;
 		$metrics['technical_spam_n']      = $spam_n;
+		$metrics['mandatory_human_n']     = count( $mh );
+		$metrics['excluded_n']            = count( $excl );
 
 		if ( $legit_n < self::MIN_LEGIT_NEGATIVE ) {
 			$errors[] = sprintf(
@@ -102,8 +71,8 @@ final class EvidenceEvaluator {
 			);
 		}
 
-		$legit_holdout = self::filter_split( $legit['rows'], 'holdout' );
-		$spam_holdout  = self::filter_split( $spam['rows'], 'holdout' );
+		$legit_holdout = self::filter_split( $legit, 'holdout' );
+		$spam_holdout  = self::filter_split( $spam, 'holdout' );
 		$metrics['legitimate_negative_holdout_n'] = count( $legit_holdout );
 		$metrics['technical_spam_holdout_n']      = count( $spam_holdout );
 
@@ -114,24 +83,22 @@ final class EvidenceEvaluator {
 			$errors[] = 'technical_spam holdout fraction < 20%';
 		}
 
-		$all_rows = array_merge( $legit['rows'], $spam['rows'] );
-		$double_n = 0;
-		foreach ( $all_rows as $row ) {
+		$primary_rows = array_merge( $legit, $spam );
+		$double_n     = 0;
+		foreach ( $primary_rows as $row ) {
 			if ( ! empty( $row['double_labelled'] ) ) {
 				++$double_n;
 			}
 		}
 		$metrics['double_labelled_n'] = $double_n;
-		$total_n = count( $all_rows );
-		if ( $total_n > 0 && ( $double_n / $total_n ) < self::MIN_DOUBLE_LABEL_FRACTION ) {
-			$errors[] = 'blind double-label overlap < 20% of combined corpus';
+		$total_primary                = count( $primary_rows );
+		if ( $total_primary > 0 && ( $double_n / $total_primary ) < self::MIN_DOUBLE_LABEL_FRACTION ) {
+			$errors[] = 'blind double-label overlap < 20% of combined primary corpus';
+		}
+		if ( $total_primary > 0 && 0 === $double_n ) {
+			$errors[] = 'missing double-label evidence on primary corpus';
 		}
 
-		if ( empty( $doc['holdout_locked_before_tuning'] ) ) {
-			$errors[] = 'holdout_locked_before_tuning must be true';
-		}
-
-		// Holdout metrics only.
 		$false_spam = 0;
 		foreach ( $legit_holdout as $row ) {
 			if ( WouldActEvaluator::would_act( $row['assessment'] ) ) {
@@ -154,14 +121,14 @@ final class EvidenceEvaluator {
 			$errors[] = 'legitimate_negative holdout empty; cannot compute Wilson gate';
 		}
 
-		$would_act_holdout = 0;
+		$would_act_holdout   = 0;
 		$would_act_true_spam = 0;
 		$mandatory_would_act = 0;
-		$combined_holdout = array_merge( $legit_holdout, $spam_holdout );
+		$combined_holdout    = array_merge( $legit_holdout, $spam_holdout );
 		foreach ( $combined_holdout as $row ) {
-			$mh = WouldActEvaluator::mandatory_human_codes_present( $row['assessment'] );
-			$act = WouldActEvaluator::would_act( $row['assessment'] );
-			if ( $act && count( $mh ) > 0 ) {
+			$code_mh = WouldActEvaluator::mandatory_human_codes_present( $row['assessment'] );
+			$act     = WouldActEvaluator::would_act( $row['assessment'] );
+			if ( $act && count( $code_mh ) > 0 ) {
 				++$mandatory_would_act;
 			}
 			if ( $act ) {
@@ -171,12 +138,18 @@ final class EvidenceEvaluator {
 				}
 			}
 		}
+		foreach ( $mh as $row ) {
+			if ( WouldActEvaluator::would_act( $row['assessment'] ) ) {
+				++$mandatory_would_act;
+			}
+		}
+
 		$metrics['would_act_holdout_n']           = $would_act_holdout;
 		$metrics['would_act_true_spam_holdout_n'] = $would_act_true_spam;
 		$metrics['mandatory_human_would_act_n']  = $mandatory_would_act;
 
 		if ( $mandatory_would_act > 0 ) {
-			$errors[] = 'would-act rows with mandatory-human codes must be zero';
+			$errors[] = 'would-act rows with mandatory-human labels/codes must be zero';
 		}
 
 		if ( $would_act_holdout > 0 ) {
@@ -190,11 +163,15 @@ final class EvidenceEvaluator {
 				);
 			}
 		} else {
-			// No would-act on holdout: precision undefined; fail closed for Calibration GO
-			// (cannot demonstrate technical-spam precision floor).
 			$metrics['technical_spam_precision_holdout'] = null;
 			$errors[] = 'no would-act rows on holdout; technical-spam precision floor not demonstrable';
 		}
+
+		if ( ! $parsed['go_eligible_status'] ) {
+			$errors[] = 'evidence_status is not authorised_labelled; Calibration GO forbidden';
+		}
+
+		$errors = array_values( array_unique( $errors ) );
 
 		if ( count( $errors ) > 0 ) {
 			return self::nogo( $errors, $metrics, $warnings, $tuple );
@@ -208,47 +185,6 @@ final class EvidenceEvaluator {
 			'errors'   => array(),
 			'warnings' => $warnings,
 		);
-	}
-
-	/**
-	 * @param mixed               $raw    Stratum.
-	 * @param string              $name   Name.
-	 * @param list<string>        $errors Errors (by ref).
-	 * @return array{rows: list<array<string,mixed>>}
-	 */
-	private static function normalise_stratum( $raw, string $name, array &$errors ): array {
-		if ( ! is_array( $raw ) || ! isset( $raw['rows'] ) || ! is_array( $raw['rows'] ) ) {
-			$errors[] = "strata.{$name}.rows missing";
-			return array( 'rows' => array() );
-		}
-		$rows = array();
-		foreach ( $raw['rows'] as $i => $row ) {
-			if ( ! is_array( $row ) ) {
-				$errors[] = "strata.{$name}.rows[{$i}] not an object";
-				continue;
-			}
-			if ( isset( $row['review_body'] ) || isset( $row['body'] ) || isset( $row['comment_content'] ) ) {
-				$errors[] = "strata.{$name}.rows[{$i}] must not include review body / PII content fields";
-				continue;
-			}
-			$label = (string) ( $row['human_label'] ?? '' );
-			$expected = 'legitimate_negative' === $name ? 'not_spam' : 'technical_spam';
-			if ( $label !== $expected ) {
-				$errors[] = "strata.{$name}.rows[{$i}] human_label must be {$expected}";
-				continue;
-			}
-			$split = (string) ( $row['split'] ?? '' );
-			if ( ! in_array( $split, array( 'train', 'holdout' ), true ) ) {
-				$errors[] = "strata.{$name}.rows[{$i}] split must be train|holdout";
-				continue;
-			}
-			if ( ! isset( $row['assessment'] ) || ! is_array( $row['assessment'] ) ) {
-				$errors[] = "strata.{$name}.rows[{$i}] assessment missing";
-				continue;
-			}
-			$rows[] = $row;
-		}
-		return array( 'rows' => $rows );
 	}
 
 	/**

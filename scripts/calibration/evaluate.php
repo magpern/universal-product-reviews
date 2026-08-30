@@ -20,6 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/src/WilsonInterval.php';
 require_once __DIR__ . '/src/WouldActEvaluator.php';
+require_once __DIR__ . '/src/EvidenceDocumentParser.php';
 require_once __DIR__ . '/src/EvidenceEvaluator.php';
 
 use UniversalProductReviews\Calibration\EvidenceEvaluator;

@@ -1,0 +1,10 @@
+{
+  "dataset_id": "REPLACE_WITH_DATASET_ID",
+  "authorising_party": "REPLACE_WITH_AUTHORISING_PARTY",
+  "consent_or_authorisation_ref": "REPLACE_WITH_TICKET_OR_MEMO_ID",
+  "source_class": "synthetic_authorised",
+  "source_description": "Describe authorised source class without customer names, emails, order IDs, or review bodies.",
+  "labelled_at": "1970-01-01T00:00:00Z",
+  "reviewer_count": 2,
+  "notes": "source_class one of: synthetic_authorised | operator_authorised_historical | third_party_licensed"
+}
