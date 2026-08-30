@@ -91,7 +91,7 @@ Hosts enable via replay checklist (not hard-coded in M0):
 |------|-------|-----------|
 | Account PDP | Native WC + UPR moderation filters | `wc_customer_bought_product()` |
 | Guest invitation | UPR | Token → session → form → `wp_insert_comment` + meta |
-| Edit (M5) | UPR | `wp_update_comment` + audit; return to hold |
+| Customer edit (M14) | UPR | Token-free `/upr-review/edit/` + `wp_update_comment` under request-local arm; 7×86400s from `comment_date_gmt`; approve→hold via `ApproveToHoldCas`. Freeze: [`docs/roadmap/m14-customer-seven-day-review-edits.md`](docs/roadmap/m14-customer-seven-day-review-edits.md) |
 
 **Allowed public APIs:** `wp_insert_comment`, `wp_update_comment`, comment meta, `wc_customer_bought_product`, core `pre_comment_on_post` verification, standard WC/WP filters.
 
@@ -223,8 +223,9 @@ final class PurgeContext {
 | Store | Purpose |
 |-------|---------|
 | `{prefix}upr_invite_items` | Line-item invitation lifecycle |
-| `{prefix}upr_tokens` | Hashed tokens |
+| `{prefix}upr_tokens` | Hashed tokens (`invite`, `form_session`, M14 `edit_session`) |
 | `{prefix}upr_audit` | Append-only moderation/revision audit |
+| `{prefix}upr_review_edit_claims` | M14 in-flight edit claims (see M14 freeze) |
 | WP comments + `_upr_*` meta | Review body, rating, item linkage |
 
 ---
@@ -239,13 +240,15 @@ Authoritative freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/r
 - Verified staff-reply hold exemption + `review.reply_posted`
 - No parallel moderation queue; no UPR review-editing UX; no customer edits in M5
 
-### Customer review edits (later milestone — not M5)
+### Customer review edits (M14)
 
-- One review per order line item
-- Edits allowed **within 7 days** of approval → return to `hold`
-- After 7 days: edits disallowed except exceptional support handling
-- Authenticated and guest-token authorization paths
-- Audit row per revision; customer cannot edit another customer's review
+Authoritative freeze: [`docs/roadmap/m14-customer-seven-day-review-edits.md`](docs/roadmap/m14-customer-seven-day-review-edits.md).
+
+- Body + star rating only; **7 × 86400 seconds after `comment_date_gmt` (UTC)** — not first approval (`_upr_approved_at` is unimplemented and is not the clock)
+- Logged-in PDP: `comment.user_id` + `wc_customer_bought_product()`. Guests: original invite HMAC via **completed-invite lookup** (`redeemed_at` set, `revoked_at` NULL, matching item/comment/product); never M2 `find_active_by_raw`, never a second submit
+- Token-free `/upr-review/edit/`; approve→hold only via `ApproveToHoldCas` (operator spam/trash wins)
+- Audit event `review.customer_edited` (privacy-safe; **no** stored prior bodies)
+- Customer cannot edit another customer's review
 
 ---
 
@@ -302,7 +305,7 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 - Native Comments-admin context; deterministic moderation audit; staff-reply hold exemption
 - Freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/roadmap/m5-review-moderation-operations.md)
-- Customer 7-day edits are **not** M5 (later milestone)
+- Customer 7-day edits are **not** M5 (M14)
 
 ### M6 — Integration and Developer Experience
 
@@ -329,6 +332,12 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 - Freeze: [`docs/roadmap/m9-local-ai-shadow-mode.md`](docs/roadmap/m9-local-ai-shadow-mode.md)
 - Closure: [`docs/roadmap/m9-local-ai-shadow-mode-closure.md`](docs/roadmap/m9-local-ai-shadow-mode-closure.md)
 - Runtime on `main`; SemVer / Release separately authorised
+
+### M14 — Customer 7-day review edits
+
+- Body + rating self-edit for 7 days after `comment_date_gmt`; completed-invite guest proof; serialized `edit_session` reissue; `ApproveToHoldCas`
+- Freeze: [`docs/roadmap/m14-customer-seven-day-review-edits.md`](docs/roadmap/m14-customer-seven-day-review-edits.md)
+- Runtime remains `0.8.0` until a separately authorised SemVer
 
 ---
 

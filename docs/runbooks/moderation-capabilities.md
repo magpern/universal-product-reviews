@@ -49,7 +49,9 @@ Schema remains `upr-support-export/v1`. M5–M10 must not add assessment payload
 
 ## Editing
 
-Native WordPress Edit Comment is outside UPR-added UX. Customer review edits are a later milestone, not M5.
+Native WordPress Edit Comment (`moderate_comments`) is unchanged M5 operator UX.
+
+Customer 7-day self-edits are **M14**. Authoritative freeze: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). Implementation fills runtime behaviour. Until then: no customer edit route, no `edit_session`, no `upr_review_edit_claims`.
 
 ## Related
 
