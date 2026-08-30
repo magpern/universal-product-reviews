@@ -1,8 +1,8 @@
 <?php
 /**
- * Privacy-safe M12 calibration evidence document parser / structural validator.
+ * Privacy-safe M12 calibration / simulation evidence document parser.
  *
- * Offline only. Rejects incomplete, synthetic, and undocumented evidence for GO.
+ * Offline only. Distinguishes Simulation GO vs Calibration GO eligibility.
  *
  * @package UniversalProductReviews
  */
@@ -18,7 +18,7 @@ final class EvidenceDocumentParser {
 
 	public const SCHEMA_VERSION = 'm12-cal-v1';
 
-	/** Status values that can never produce Calibration GO. */
+	/** Status values that can never produce Simulation GO or Calibration GO. */
 	public const NON_GO_STATUSES = array(
 		'template',
 		'example',
@@ -27,8 +27,14 @@ final class EvidenceDocumentParser {
 		'draft',
 	);
 
-	/** Only this status may proceed past structural gates toward metric evaluation for GO. */
-	public const GO_ELIGIBLE_STATUS = 'authorised_labelled';
+	/** Real-world human-labelled evidence — Calibration GO only. */
+	public const CALIBRATION_ELIGIBLE_STATUS = 'authorised_labelled';
+
+	/** AI/synthetic privacy-safe fixtures — Simulation GO only (never Calibration GO). */
+	public const SIMULATION_ELIGIBLE_STATUS = 'synthetic_simulation';
+
+	/** @deprecated Use CALIBRATION_ELIGIBLE_STATUS. */
+	public const GO_ELIGIBLE_STATUS = self::CALIBRATION_ELIGIBLE_STATUS;
 
 	/** @var list<string> */
 	public const HUMAN_LABELS = array(
@@ -96,7 +102,10 @@ final class EvidenceDocumentParser {
 	 *   ok: bool,
 	 *   errors: list<string>,
 	 *   warnings: list<string>,
+	 *   calibration_eligible: bool,
+	 *   simulation_eligible: bool,
 	 *   go_eligible_status: bool,
+	 *   evidence_status: string,
 	 *   rows_by_stratum: array<string, list<array<string,mixed>>>,
 	 *   tuple: array<string,mixed>|null,
 	 *   provenance: array<string,mixed>|null,
@@ -116,12 +125,17 @@ final class EvidenceDocumentParser {
 		if ( '' === $status ) {
 			$errors[] = 'evidence_status missing';
 		} elseif ( in_array( $status, self::NON_GO_STATUSES, true ) ) {
-			$errors[] = "evidence_status '{$status}' cannot produce Calibration GO (template/example/synthetic/incomplete/draft)";
-		} elseif ( self::GO_ELIGIBLE_STATUS !== $status ) {
-			$errors[] = "evidence_status must be '" . self::GO_ELIGIBLE_STATUS . "' or an explicitly non-GO status; got '{$status}'";
+			$errors[] = "evidence_status '{$status}' cannot produce Simulation GO or Calibration GO (use synthetic_simulation or authorised_labelled)";
+		} elseif (
+			self::CALIBRATION_ELIGIBLE_STATUS !== $status
+			&& self::SIMULATION_ELIGIBLE_STATUS !== $status
+		) {
+			$errors[] = "evidence_status must be '" . self::CALIBRATION_ELIGIBLE_STATUS . "', '" . self::SIMULATION_ELIGIBLE_STATUS . "', or an explicitly non-GO status; got '{$status}'";
 		}
 
-		$go_eligible_status = self::GO_ELIGIBLE_STATUS === $status;
+		$calibration_eligible = self::CALIBRATION_ELIGIBLE_STATUS === $status;
+		$simulation_eligible  = self::SIMULATION_ELIGIBLE_STATUS === $status;
+		$go_eligible_status   = $calibration_eligible; // back-compat alias
 
 		if ( empty( $doc['holdout_locked_before_tuning'] ) ) {
 			$errors[] = 'holdout_locked_before_tuning must be true';
@@ -136,7 +150,7 @@ final class EvidenceDocumentParser {
 				if ( ! isset( $tuple[ $key ] ) || ! is_string( $tuple[ $key ] ) || '' === $tuple[ $key ] ) {
 					$errors[] = "tuple.{$key} missing or empty";
 				} elseif ( self::is_placeholder_value( (string) $tuple[ $key ] ) ) {
-					$errors[] = "tuple.{$key} is a placeholder/example value; not eligible for Calibration GO";
+					$errors[] = "tuple.{$key} is a placeholder/example value; not eligible for Simulation GO or Calibration GO";
 				}
 			}
 			if ( isset( $tuple['provider_kind'] ) && ! in_array( (string) $tuple['provider_kind'], array( 'local', 'openai' ), true ) ) {
@@ -159,8 +173,27 @@ final class EvidenceDocumentParser {
 			) {
 				$errors[] = 'provenance.source_class unrecognised';
 			}
+			if ( $simulation_eligible
+				&& isset( $provenance['source_class'] )
+				&& 'synthetic_authorised' !== (string) $provenance['source_class']
+			) {
+				$errors[] = "synthetic_simulation requires provenance.source_class 'synthetic_authorised'";
+			}
+			if ( $calibration_eligible
+				&& isset( $provenance['source_class'] )
+				&& 'synthetic_authorised' === (string) $provenance['source_class']
+			) {
+				$errors[] = "authorised_labelled Calibration GO forbids provenance.source_class 'synthetic_authorised' (use operator_authorised_historical or third_party_licensed)";
+			}
 			if ( isset( $provenance['reviewer_count'] ) && ( ! is_int( $provenance['reviewer_count'] ) || $provenance['reviewer_count'] < 1 ) ) {
 				$errors[] = 'provenance.reviewer_count must be a positive integer';
+			}
+			if ( $calibration_eligible
+				&& isset( $provenance['reviewer_count'] )
+				&& is_int( $provenance['reviewer_count'] )
+				&& $provenance['reviewer_count'] < 2
+			) {
+				$errors[] = 'Calibration GO requires provenance.reviewer_count >= 2';
 			}
 		}
 
@@ -351,15 +384,18 @@ final class EvidenceDocumentParser {
 		}
 
 		return array(
-			'ok'                 => 0 === count( $errors ),
-			'errors'             => $errors,
-			'warnings'           => $warnings,
-			'go_eligible_status' => $go_eligible_status,
-			'rows_by_stratum'    => $rows_by,
-			'tuple'              => $tuple,
-			'provenance'         => $provenance,
-			'holdout_lock'       => $holdout_lock,
-			'dataset_hashes'     => $dataset_hashes,
+			'ok'                   => 0 === count( $errors ),
+			'errors'               => $errors,
+			'warnings'             => $warnings,
+			'calibration_eligible' => $calibration_eligible,
+			'simulation_eligible'  => $simulation_eligible,
+			'go_eligible_status'   => $go_eligible_status,
+			'evidence_status'      => $status,
+			'rows_by_stratum'      => $rows_by,
+			'tuple'                => $tuple,
+			'provenance'           => $provenance,
+			'holdout_lock'         => $holdout_lock,
+			'dataset_hashes'       => $dataset_hashes,
 		);
 	}
 

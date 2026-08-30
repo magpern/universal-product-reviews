@@ -1,6 +1,6 @@
 <?php
 /**
- * Privacy-safe M12 calibration evidence evaluator (offline).
+ * Privacy-safe M12 calibration / simulation evidence evaluator (offline).
  *
  * @package UniversalProductReviews
  */
@@ -10,13 +10,25 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Calibration;
 
 /**
- * Evaluates a labelled evidence document against frozen M12 calibration gates.
+ * Evaluates an m12-cal-v1 document against frozen gates.
  *
- * Never fabricates labels. Incomplete / synthetic / undocumented → fail closed (NO-GO).
+ * Verdicts (exact strings):
+ * - SIMULATION GO — implementation and non-production testing only
+ * - CALIBRATION GO — production enablement decision may be considered
+ * - NO-GO — automatic action deferred
+ *
+ * No verdict authorises production automatic moderation by itself.
+ * Calibration GO only permits a separate production-enablement decision to be considered.
  */
 final class EvidenceEvaluator {
 
 	public const SCHEMA_VERSION = EvidenceDocumentParser::SCHEMA_VERSION;
+
+	public const VERDICT_SIMULATION = 'SIMULATION GO — implementation and non-production testing only';
+
+	public const VERDICT_CALIBRATION = 'CALIBRATION GO — production enablement decision may be considered';
+
+	public const VERDICT_NOGO = 'NO-GO — automatic action deferred';
 
 	public const MIN_LEGIT_NEGATIVE = 400;
 
@@ -35,13 +47,15 @@ final class EvidenceEvaluator {
 
 	/**
 	 * @param array<string,mixed> $doc Evidence document.
-	 * @return array<string,mixed> Result with verdict Calibration GO | NO-GO.
+	 * @return array<string,mixed>
 	 */
 	public static function evaluate( array $doc ): array {
 		$parsed   = EvidenceDocumentParser::parse( $doc );
 		$errors   = $parsed['errors'];
 		$warnings = $parsed['warnings'];
-		$metrics  = array();
+		$metrics  = array(
+			'gate_model' => 'm12-two-gate-v1',
+		);
 		$tuple    = $parsed['tuple'];
 
 		$legit = $parsed['rows_by_stratum']['legitimate_negative'];
@@ -167,23 +181,69 @@ final class EvidenceEvaluator {
 			$errors[] = 'no would-act rows on holdout; technical-spam precision floor not demonstrable';
 		}
 
-		if ( ! $parsed['go_eligible_status'] ) {
-			$errors[] = 'evidence_status is not authorised_labelled; Calibration GO forbidden';
-		}
-
 		$errors = array_values( array_unique( $errors ) );
+		$base   = array(
+			'contract'                          => WouldActEvaluator::CONTRACT_ID,
+			'tuple'                             => $tuple,
+			'metrics'                           => $metrics,
+			'production_enablement_authorised'  => false,
+			'warnings'                          => $warnings,
+		);
 
 		if ( count( $errors ) > 0 ) {
-			return self::nogo( $errors, $metrics, $warnings, $tuple );
+			return array_merge(
+				$base,
+				array(
+					'verdict' => self::VERDICT_NOGO,
+					'errors'  => $errors,
+				)
+			);
 		}
 
-		return array(
-			'verdict'  => 'Calibration GO',
-			'contract' => WouldActEvaluator::CONTRACT_ID,
-			'tuple'    => $tuple,
-			'metrics'  => $metrics,
-			'errors'   => array(),
-			'warnings' => $warnings,
+		if ( $parsed['simulation_eligible'] ) {
+			$warnings[] = 'Simulation GO does not claim real-world precision or false-positive performance.';
+			$warnings[] = 'Simulation GO does not authorise production enablement or production customer-review action.';
+			return array_merge(
+				$base,
+				array(
+					'verdict'  => self::VERDICT_SIMULATION,
+					'errors'   => array(),
+					'warnings' => $warnings,
+					'authorises' => array(
+						'implementation_masters_default_off' => true,
+						'dev_preprod_synthetic_testing'      => true,
+						'production_enablement'              => false,
+						'calibration_claim'                  => false,
+					),
+				)
+			);
+		}
+
+		if ( $parsed['calibration_eligible'] ) {
+			$warnings[] = 'Calibration GO does not by itself enable production automatic moderation; a separate production enablement GO is required.';
+			return array_merge(
+				$base,
+				array(
+					'verdict'  => self::VERDICT_CALIBRATION,
+					'errors'   => array(),
+					'warnings' => $warnings,
+					'authorises' => array(
+						'implementation_masters_default_off' => true,
+						'dev_preprod_synthetic_testing'      => true,
+						'production_enablement_may_be_considered' => true,
+						'production_enablement'              => false,
+						'calibration_claim'                  => true,
+					),
+				)
+			);
+		}
+
+		return array_merge(
+			$base,
+			array(
+				'verdict' => self::VERDICT_NOGO,
+				'errors'  => array( 'evidence_status is not eligible for Simulation GO or Calibration GO' ),
+			)
 		);
 	}
 
@@ -199,23 +259,5 @@ final class EvidenceEvaluator {
 			}
 		}
 		return $out;
-	}
-
-	/**
-	 * @param list<string>             $errors   Errors.
-	 * @param array<string,mixed>      $metrics  Metrics.
-	 * @param list<string>             $warnings Warnings.
-	 * @param array<string,mixed>|null $tuple    Tuple.
-	 * @return array<string,mixed>
-	 */
-	private static function nogo( array $errors, array $metrics, array $warnings, $tuple ): array {
-		return array(
-			'verdict'  => 'NO-GO',
-			'contract' => WouldActEvaluator::CONTRACT_ID,
-			'tuple'    => is_array( $tuple ) ? $tuple : null,
-			'metrics'  => $metrics,
-			'errors'   => $errors,
-			'warnings' => $warnings,
-		);
 	}
 }

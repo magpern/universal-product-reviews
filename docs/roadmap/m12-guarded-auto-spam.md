@@ -17,11 +17,14 @@ This freeze materialises the approved M12 plan. Documentation freeze **does not*
 | Gate | Authorises |
 |------|------------|
 | **Documentation freeze** (this document + ADR amendment + tag) | Design lock only |
-| **Calibration GO** | Tuple-scoped evidence that frozen metrics pass; required before any implementation of live mutators |
-| **Implementation GO** | Code with masters **default off** |
+| **Simulation GO** | Privacy-safe **synthetic / AI-generated** fixtures may validate taxonomy, CAS/ledger/hook-parity/reversibility/rate-limits/disable boundaries, and false-positive **scenarios**. Authorises **implementation with masters default-off** and **DEV/pre-production testing only** with controlled synthetic fixtures. **Never** production enablement, production customer-review action, or a claim of real-world precision/false-positive performance. Verdict: `SIMULATION GO — implementation and non-production testing only` |
+| **Calibration GO** | Authorised **real-world**, human-labelled, privacy-safe evidence meeting frozen metrics. Required before any **production** automatic-action enablement may be considered. Does **not** itself turn production on. Verdict: `CALIBRATION GO — production enablement decision may be considered` |
+| **Implementation GO** | Code with masters **default off** (may follow Simulation GO) |
 | **Dry-run GO** | Ledger `observed` only; no CAS |
-| **DEV enablement GO** | Master on in DEV; refreshes boundary; never production |
-| **Production enablement GO** | Out of M12 |
+| **DEV enablement GO** | Master on in DEV / pre-prod with synthetic or separately authorised fixtures; refreshes boundary; **never production** |
+| **Production enablement GO** | Requires prior **Calibration GO**; out of documentation freeze |
+
+Harness verdict `NO-GO — automatic action deferred` when evidence is empty, incomplete, template/example, or fails gates.
 
 If CAS/hook-parity requirements or atomic CAS+`cas_succeeded` cannot be proven on supported WordPress/MySQL/MariaDB APIs, **or** product requires automatic crash recovery with full third-party public-hook delivery, M12 closes as **deferred / NO-GO** for automatic action.
 
@@ -112,7 +115,7 @@ Any tuple drift **invalidates** approval and requires new dry-run / calibration 
 | Mandatory-human | **Zero** would-act / act rows with mandatory-human codes |
 | Evidence privacy | No review body, secret, or unnecessary PII committed to Git |
 
-If a compliant labelled corpus and holdout cannot be obtained without unauthorised data access or without meeting thresholds → **Calibration NO-GO**; automatic action remains unimplemented / deferred.
+If a compliant **Calibration** corpus cannot be obtained → **Calibration GO** is not issued; production automatic action remains prohibited. **Simulation GO** may still be pursued with privacy-safe synthetic fixtures to authorise implementation (masters off) and non-production testing only.
 
 ---
 
@@ -281,7 +284,9 @@ Dry-run: **`observed`** only (no CAS). Restore-to-hold: all terminal states incl
 
 ---
 
-## 9. Work packages (post-Calibration GO)
+## 9. Work packages (post-Simulation GO or post-Calibration GO)
+
+Implementation (masters default off) may proceed after **Simulation GO** or **Calibration GO**. Production enablement requires **Calibration GO** plus a separate production enablement GO.
 
 | WP | Deliverable |
 |----|-------------|
@@ -329,4 +334,4 @@ Dry-run: **`observed`** only (no CAS). Restore-to-hold: all terminal states incl
 
 ## 12. Closure pointer
 
-Closure: [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md) — **NO-GO — AUTOMATIC ACTION DEFERRED** (calibration corpus unavailable; see [`m12-calibration-nogo.md`](m12-calibration-nogo.md)).
+Closure: [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md). Current production posture: **NO-GO — automatic action deferred** until Calibration GO. Simulation GO (when issued) authorises implementation + non-production testing only — see [`m12-calibration-nogo.md`](m12-calibration-nogo.md).

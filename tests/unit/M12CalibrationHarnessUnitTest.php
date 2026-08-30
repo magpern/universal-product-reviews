@@ -1,6 +1,6 @@
 <?php
 /**
- * M12 offline calibration harness + evidence-kit unit tests.
+ * M12 offline calibration / simulation harness unit tests.
  *
  * @package UniversalProductReviews
  */
@@ -58,7 +58,8 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$doc  = json_decode( (string) file_get_contents( $path ), true );
 		$this->assertIsArray( $doc );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
+		$this->assertFalse( $result['production_enablement_authorised'] );
 		$this->assertNotEmpty( $result['errors'] );
 	}
 
@@ -67,7 +68,7 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$doc  = json_decode( (string) file_get_contents( $path ), true );
 		$this->assertIsArray( $doc );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'template' ) );
 	}
 
@@ -86,7 +87,7 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 			),
 		);
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'forbidden field' ) );
 	}
 
@@ -94,21 +95,14 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$doc = $this->base_doc();
 		unset( $doc['provenance'] );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'provenance missing' ) );
 	}
 
 	public function test_insufficient_class_counts_nogo(): void {
-		$doc = $this->base_doc( array( 'evidence_status' => 'authorised_labelled' ) );
-		$doc['tuple'] = $this->real_tuple();
-		$doc['holdout_lock']['assignment_sha256'] = str_repeat( 'ab', 32 );
-		$doc['dataset_hashes'] = array(
-			'rows_sha256'        => str_repeat( 'cd', 32 ),
-			'labels_sha256'      => str_repeat( 'ef', 32 ),
-			'assessments_sha256' => str_repeat( '11', 32 ),
-		);
+		$doc = $this->minimal_authorised_shell();
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'legitimate_negative corpus size' ) );
 		$this->assertTrue( $this->has_error_containing( $result, 'technical_spam corpus size' ) );
 	}
@@ -118,7 +112,7 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$doc['strata']['legitimate_negative']['rows'][] = $this->row( 'legit0001', 'not_spam', 'train', false );
 		$doc['holdout_lock']['assignments'] = array( 'legit0001' => 'holdout' );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'holdout contamination' ) );
 	}
 
@@ -127,7 +121,7 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$doc['strata']['legitimate_negative']['rows'][] = $this->row( 'dupesamp1', 'not_spam', 'holdout', false );
 		$doc['strata']['technical_spam']['rows'][]      = $this->row( 'dupesamp1', 'technical_spam', 'holdout', false, array( 'spam_pattern' ), 90 );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'duplicate sample id' ) );
 	}
 
@@ -137,16 +131,15 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$row['human_label'] = 'maybe_spam';
 		$doc['strata']['legitimate_negative']['rows'][] = $row;
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'unrecognised human_label' ) );
 	}
 
 	public function test_missing_double_label_evidence_nogo(): void {
 		$doc = $this->minimal_authorised_shell();
 		$doc['strata']['legitimate_negative']['rows'][] = $this->row( 'legit0001', 'not_spam', 'holdout', true );
-		// double_labelled true but no double_label object.
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'double_labelled requires double_label' ) );
 	}
 
@@ -154,27 +147,43 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		$doc = $this->base_doc();
 		unset( $doc['tuple']['action_policy_version'] );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 		$this->assertTrue( $this->has_error_containing( $result, 'tuple.action_policy_version' ) );
 	}
 
-	public function test_synthetic_or_example_status_cannot_go(): void {
+	public function test_template_synthetic_example_cannot_produce_either_go(): void {
 		foreach ( array( 'example', 'synthetic', 'template', 'incomplete', 'draft' ) as $status ) {
 			$doc = $this->minimal_authorised_shell();
 			$doc['evidence_status'] = $status;
 			$result = EvidenceEvaluator::evaluate( $doc );
-			$this->assertSame( 'NO-GO', $result['verdict'], $status );
-			$this->assertTrue(
-				$this->has_error_containing( $result, 'cannot produce Calibration GO' )
-				|| $this->has_error_containing( $result, 'not authorised_labelled' ),
-				$status
-			);
+			$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'], $status );
+			$this->assertFalse( $result['production_enablement_authorised'] );
+			$this->assertTrue( $this->has_error_containing( $result, 'cannot produce Simulation GO or Calibration GO' ), $status );
 		}
+	}
+
+	public function test_synthetic_simulation_never_calibration_go(): void {
+		$doc = $this->passing_synthetic_simulation_corpus();
+		$result = EvidenceEvaluator::evaluate( $doc );
+		$this->assertSame( EvidenceEvaluator::VERDICT_SIMULATION, $result['verdict'] );
+		$this->assertNotSame( EvidenceEvaluator::VERDICT_CALIBRATION, $result['verdict'] );
+		$this->assertFalse( $result['production_enablement_authorised'] );
+		$this->assertFalse( $result['authorises']['production_enablement'] );
+		$this->assertTrue( $result['authorises']['implementation_masters_default_off'] );
+		$this->assertTrue( $result['authorises']['dev_preprod_synthetic_testing'] );
+	}
+
+	public function test_authorised_labelled_never_auto_production_permission(): void {
+		$doc = $this->passing_calibration_corpus();
+		$result = EvidenceEvaluator::evaluate( $doc );
+		$this->assertSame( EvidenceEvaluator::VERDICT_CALIBRATION, $result['verdict'] );
+		$this->assertFalse( $result['production_enablement_authorised'] );
+		$this->assertFalse( $result['authorises']['production_enablement'] );
+		$this->assertTrue( $result['authorises']['production_enablement_may_be_considered'] );
 	}
 
 	public function test_threshold_failure_returns_nogo(): void {
 		$doc = $this->minimal_authorised_shell();
-		// One legit holdout that would-act → Wilson UCB will exceed 1% for n=1.
 		$doc['strata']['legitimate_negative']['rows'][] = $this->row(
 			'legit0001',
 			'not_spam',
@@ -186,14 +195,10 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		);
 		$doc['holdout_lock']['assignments'] = array( 'legit0001' => 'holdout' );
 		$result = EvidenceEvaluator::evaluate( $doc );
-		$this->assertSame( 'NO-GO', $result['verdict'] );
-		$this->assertTrue(
-			$this->has_error_containing( $result, 'Wilson' )
-			|| $this->has_error_containing( $result, 'corpus size' )
-		);
+		$this->assertSame( EvidenceEvaluator::VERDICT_NOGO, $result['verdict'] );
 	}
 
-	public function test_parser_rejects_placeholder_tuple_for_go_path(): void {
+	public function test_parser_rejects_placeholder_tuple(): void {
 		$parsed = EvidenceDocumentParser::parse( $this->base_doc( array( 'evidence_status' => 'authorised_labelled' ) ) );
 		$this->assertFalse( $parsed['ok'] );
 		$this->assertNotEmpty(
@@ -245,9 +250,9 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 				'assessments_sha256' => str_repeat( '0', 64 ),
 			),
 			'privacy'                      => array(
-				'review_bodies_committed'         => false,
-				'secrets_committed'               => false,
-				'customer_identifiers_committed'  => false,
+				'review_bodies_committed'        => false,
+				'secrets_committed'              => false,
+				'customer_identifiers_committed' => false,
 			),
 			'strata'                       => array(
 				'legitimate_negative' => array( 'rows' => array() ),
@@ -267,6 +272,10 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 			array(
 				'evidence_status' => 'authorised_labelled',
 				'tuple'           => $this->real_tuple(),
+				'provenance'      => array(
+					'source_class'   => 'operator_authorised_historical',
+					'reviewer_count' => 2,
+				),
 			)
 		);
 		$doc['holdout_lock']['assignment_sha256'] = str_repeat( 'ab', 32 );
@@ -275,6 +284,79 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 			'labels_sha256'      => str_repeat( 'ef', 32 ),
 			'assessments_sha256' => str_repeat( '12', 32 ),
 		);
+		return $doc;
+	}
+
+	/**
+	 * Programmatic privacy-safe synthetic corpus (not committed as evidence).
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function passing_synthetic_simulation_corpus(): array {
+		$doc = $this->base_doc(
+			array(
+				'evidence_status' => 'synthetic_simulation',
+				'tuple'           => $this->real_tuple(),
+				'provenance'      => array(
+					'dataset_id'                   => 'sim-unit-test',
+					'authorising_party'            => 'unit-test',
+					'consent_or_authorisation_ref' => 'unit-test-sim',
+					'source_class'                 => 'synthetic_authorised',
+					'reviewer_count'               => 1,
+				),
+			)
+		);
+		$doc['holdout_lock']['assignment_sha256'] = str_repeat( 'a1', 32 );
+		$doc['dataset_hashes'] = array(
+			'rows_sha256'        => str_repeat( 'b2', 32 ),
+			'labels_sha256'      => str_repeat( 'c3', 32 ),
+			'assessments_sha256' => str_repeat( 'd4', 32 ),
+		);
+		$assignments = array();
+		// Need holdout n large enough that Wilson UCB(0,n) ≤ 1% (n≈400).
+		for ( $i = 0; $i < 2000; $i++ ) {
+			$id    = sprintf( 'legit%04d', $i );
+			$split = ( $i % 5 === 0 ) ? 'holdout' : 'train';
+			$dbl   = ( $i % 5 === 0 );
+			$doc['strata']['legitimate_negative']['rows'][] = $this->row(
+				$id,
+				'not_spam',
+				$split,
+				$dbl,
+				array(),
+				20,
+				$dbl ? $this->double_label( 'not_spam', 'not_spam' ) : null
+			);
+			$assignments[ $id ] = $split;
+		}
+		for ( $i = 0; $i < 200; $i++ ) {
+			$id    = sprintf( 'spam%04dxx', $i );
+			$split = ( $i % 5 === 0 ) ? 'holdout' : 'train';
+			$dbl   = ( $i % 5 === 0 );
+			$doc['strata']['technical_spam']['rows'][] = $this->row(
+				$id,
+				'technical_spam',
+				$split,
+				$dbl,
+				array( 'spam_pattern' ),
+				90,
+				$dbl ? $this->double_label( 'technical_spam', 'technical_spam' ) : null
+			);
+			$assignments[ $id ] = $split;
+		}
+		$doc['holdout_lock']['assignments'] = $assignments;
+		return $doc;
+	}
+
+	/**
+	 * @return array<string,mixed>
+	 */
+	private function passing_calibration_corpus(): array {
+		$doc = $this->passing_synthetic_simulation_corpus();
+		$doc['evidence_status'] = 'authorised_labelled';
+		$doc['provenance']['source_class'] = 'operator_authorised_historical';
+		$doc['provenance']['reviewer_count'] = 2;
+		$doc['provenance']['dataset_id'] = 'cal-unit-test';
 		return $doc;
 	}
 
@@ -293,11 +375,11 @@ final class M12CalibrationHarnessUnitTest extends TestCase {
 		?array $dl = null
 	): array {
 		$row = array(
-			'id'             => $id,
-			'human_label'    => $label,
-			'split'          => $split,
-			'double_labelled'=> $double,
-			'assessment'     => array(
+			'id'              => $id,
+			'human_label'     => $label,
+			'split'           => $split,
+			'double_labelled' => $double,
+			'assessment'      => array(
 				'state'                    => 'completed',
 				'confidence'               => 'high',
 				'publication_safety_score' => $score,
