@@ -10,9 +10,10 @@ All admin UI and `admin-post` actions require **`manage_woocommerce`**.
 | Reconcile dry-run / apply | `manage_woocommerce` + nonce; apply needs `upr_confirm=1` | Uses `ReconciliationService::run` |
 | Controlled DB upgrade | `manage_woocommerce` + nonce + confirm | `Migrator::upgrade_now` + rewrite flush; never on page load |
 | Support export | `manage_woocommerce` + nonce | Local JSON download only |
-| Site Health tests | WP Site Health (read) | Schema, Woo, AS, pause, emails, local AI shadow, external AI — no secrets |
+| Site Health tests | WP Site Health (read) | Schema, Woo, AS, pause, emails, local AI shadow, recommendations, external AI, auto-spam posture — no secrets |
 | OpenAI test connection | `manage_woocommerce` + nonce + confirm | Synthetic payload; external quota only |
 | Enable external AI | `manage_woocommerce` + Settings API | Server-side confirm + privacy/retention/PII acks |
+| Would-act report (M13) | `manage_woocommerce` + nonce | Zero-write aggregates only; does not enable auto-spam |
 
 ## Control states
 
@@ -26,7 +27,7 @@ Enabling emails or unpausing refreshes the no-retro-send scheduling boundary. En
 
 Enabling emails or unpausing refreshes the no-retro-send scheduling boundary. Enabling emails, enabling pause, enabling local AI shadow, or enabling **external AI** requires **posted confirmation** verified server-side (browser `confirm()` alone is not sufficient). External enable also requires the three governance acknowledgement checkboxes.
 
-## Diagnostics (D1–D18)
+## Diagnostics (D1–D21)
 
 Open **Diagnostics** for bounded checks (cached ≤ 60s). Unavailable ≠ critical. AI-related:
 
@@ -37,10 +38,32 @@ Open **Diagnostics** for bounded checks (cached ≤ 60s). Unavailable ≠ critic
 | D16 | External AI enabled + provider enum |
 | D17 | Credential present bool + source (never value) |
 | D18 | External quota day/month aggregates |
+| D19 | Recommendations display posture |
+| D20 | Auto-spam ledger aggregates; **critical** when `unknown_after_crash` (manual reconciliation — never replay WP transition hooks) |
+| D21 | Assessment retention purge health (info / warning / critical by due_count and purge age) |
 
-M12 (when implemented, masters default off) adds **D20** ledger-state aggregates; **critical** when `unknown_after_crash` retains AI CAS evidence (manual reconciliation — never replay public WP transition hooks). See [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md).
+M13 freeze: [`../roadmap/m13-operator-ai-command-surface.md`](../roadmap/m13-operator-ai-command-surface.md). Overview shows AI posture; would-act is read-only. M12 masters remain default off.
 
 Safe recovery: Controls (enable/pause/AI), reconcile dry-run→apply, controlled DB upgrade. No mint/resend.
+
+## Internal Action Scheduler inventory (not a public contract)
+
+UPR schedules jobs in group `upr`. These names are **operator/internal** — not supported host integration surfaces (do not list in `public-contracts.md`):
+
+| Hook | Role |
+|------|------|
+| `upr_schedule_order_items` | Invitation scheduling |
+| `upr_send_initial_bundle` / `upr_send_reminder_item` | Invitation mail |
+| `upr_reconcile_invitations` | Nightly reconcile |
+| `upr_db_upgrade` | Controlled schema upgrade |
+| `upr_assess_review` | Advisory assessment worker |
+| `upr_auto_spam_action` | M12 auto-spam action attempt |
+| `upr_purge_moderation_assessments` | Assessment retention purge |
+| `upr_recover_auto_spam_crash` | Terminalise `cas_succeeded` → `unknown_after_crash` (no hook replay) |
+
+## CLI (M13)
+
+`wp upr ai-status`, `wp upr would-act`, `wp upr ledger-summary` require `--user=<id|login>` with `manage_woocommerce` after `wp_set_current_user`. Shell/root alone is not authorisation.
 
 ## Integration readiness (I1–I5)
 
