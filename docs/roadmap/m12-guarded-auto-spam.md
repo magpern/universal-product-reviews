@@ -334,4 +334,4 @@ Implementation (masters default off) may proceed after **Simulation GO** or **Ca
 
 ## 12. Closure pointer
 
-Closure: [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md). Current production posture: **NO-GO — automatic action deferred** until Calibration GO. Simulation GO (when issued) authorises implementation + non-production testing only — see [`m12-calibration-nogo.md`](m12-calibration-nogo.md).
+Closure (freeze-era): [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md). Simulation-GO implementation: [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md). Current production posture: blocked until Calibration GO — see [`m12-calibration-nogo.md`](m12-calibration-nogo.md).

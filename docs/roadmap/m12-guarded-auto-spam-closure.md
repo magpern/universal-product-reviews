@@ -1,14 +1,16 @@
 # M12 — Guarded auto-spam closure
 
-**Status:** Closed as **NO-GO — automatic action deferred** for production. Runtime auto-spam remains unimplemented. **Simulation GO** not yet issued on `main`. Two-gate model documented (Simulation vs Calibration).  
-**Date:** 2026-08-30  
+**Status:** Closed as **NO-GO — automatic action deferred** for **production** at freeze/harness time. Superseded for Simulation-GO **implementation** by [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md). Runtime `auto_spam_held_technical` is now on `main` (PR #67) with masters default off; **Calibration GO** still not issued.  
+**Date:** 2026-08-30 (freeze-era record; see implementation closure for post-#67 state)  
 **Runtime SemVer:** unchanged **`0.8.0`** (no bump, no Release, no ZIP, `v0.8.0` not moved).
 
 ## Verdict
 
-**NO-GO — automatic action deferred**
+**NO-GO — automatic action deferred** *(production; freeze-era)*
 
-Neither Simulation GO nor Calibration GO has been issued against committed evidence. Production automatic moderation remains prohibited without real-world **Calibration GO** plus a separate production enablement GO. Simulation GO, when issued, authorises implementation (masters off) and non-production testing only.
+At the time of this freeze-era closure, neither Simulation GO nor Calibration GO had been issued against committed evidence. Production automatic moderation remains prohibited without real-world **Calibration GO** plus a separate production enablement GO.
+
+**Later:** Simulation GO + implementation were recorded in [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md). That record does **not** lift the production prohibition.
 
 ## Exact artefacts
 
@@ -22,7 +24,8 @@ Neither Simulation GO nor Calibration GO has been issued against committed evide
 | Calibration harness + NO-GO PR | [#63](https://github.com/magpern/universal-product-reviews/pull/63) |
 | Calibration merge commit | `5a55e759bd04730af175ef29182c0f55c8a2150d` |
 | Calibration CI | PR #63 — lint, unit 8.1/8.4, integration DEV + floor: **pass** |
-| Evidence kit (preparation) | `scripts/calibration/evidence-kit/` — templates + procedure; **no** customer corpus; M12 remains NO-GO |
+| Evidence kit (preparation) | `scripts/calibration/evidence-kit/` — templates + procedure |
+| Simulation implementation closure | [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) |
 | Authoritative freeze | [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md) |
 | ADR | [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md) (amended M12) |
 | Calibration NO-GO | [`m12-calibration-nogo.md`](m12-calibration-nogo.md) |
@@ -37,11 +40,12 @@ Neither Simulation GO nor Calibration GO has been issued against committed evide
 | Holdout / Wilson / precision floors | **Not evaluable on real corpus** |
 | Empty example fixture | Evaluates **NO-GO** (as designed) |
 | Calibration GO | **Not issued** |
-| Simulation GO | **Not issued** (two-gate model; see kit / harness) |
+| Simulation GO | **Issued later** — see [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) |
 
 ## Implementation status
 
-**Not started.** May proceed after **Simulation GO** or **Calibration GO** with masters default-off. Production enablement still requires **Calibration GO**.
+**Freeze-era:** not started.  
+**Current:** Simulation-GO implementation merged — see [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md). Production enablement still requires **Calibration GO** plus a separate production enablement GO.
 
 ## Explicit non-actions
 
@@ -54,11 +58,12 @@ Neither Simulation GO nor Calibration GO has been issued against committed evide
 
 ## Next explicit gate
 
-1. Optional: privacy-safe `synthetic_simulation` corpus → **Simulation GO** → Implementation GO (masters off) → DEV/pre-prod synthetic testing.  
+1. Done later: synthetic corpus → Simulation GO → implementation (PR #67) — [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md).  
 2. Mandatory before production: authorised real-world `authorised_labelled` corpus → **Calibration GO** → separate production enablement GO.
 
 ## Related
 
 - [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md)
 - [`m12-calibration-nogo.md`](m12-calibration-nogo.md)
+- [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md)
 - [`post-m3-product-roadmap.md`](post-m3-product-roadmap.md)
