@@ -13,6 +13,8 @@ use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Invitations\EmergencyPause;
 use UniversalProductReviews\Invitations\InvitationEmailControls;
+use UniversalProductReviews\Ai\ActionControls;
+use UniversalProductReviews\Ai\ActionPolicy;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
 
@@ -33,6 +35,15 @@ final class SettingsPage {
 
 	/** Posted confirmation required to enable external AI. */
 	public const CONFIRM_ENABLE_AI_EXTERNAL = 'upr_confirm_enable_ai_external';
+
+	/** Posted confirmation required to enable M12 auto-spam master. */
+	public const CONFIRM_ENABLE_AUTO_SPAM = 'upr_confirm_enable_auto_spam';
+
+	/** Posted confirmation required to enable M12 auto-spam policy master. */
+	public const CONFIRM_ENABLE_AUTO_SPAM_POLICY = 'upr_confirm_enable_auto_spam_policy';
+
+	/** Posted confirmation required to enable M12 simulation-only guard. */
+	public const CONFIRM_ENABLE_AUTO_SPAM_SIM = 'upr_confirm_enable_auto_spam_sim';
 
 	/** Governance acknowledgements required with external enable. */
 	public const ACK_OPENAI_PRIVACY   = 'upr_ack_openai_privacy';
@@ -87,6 +98,57 @@ final class SettingsPage {
 				'type'              => 'string',
 				'sanitize_callback' => array( self::class, 'sanitize_ai_recommendations_display' ),
 				'default'           => 'yes',
+				'show_in_rest'      => false,
+			)
+		);
+
+		register_setting(
+			'upr_settings',
+			Options::AI_AUTO_SPAM_ENABLED,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_auto_spam_master' ),
+				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+		register_setting(
+			'upr_settings',
+			Options::AI_AUTO_SPAM_POLICY_ENABLED,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_auto_spam_policy' ),
+				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+		register_setting(
+			'upr_settings',
+			Options::AI_AUTO_SPAM_SIMULATION_GUARD,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_auto_spam_sim_guard' ),
+				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+		register_setting(
+			'upr_settings',
+			Options::AI_AUTO_SPAM_DRY_RUN,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_auto_spam_dry_run' ),
+				'default'           => 'no',
+				'show_in_rest'      => false,
+			)
+		);
+		register_setting(
+			'upr_settings',
+			Options::AI_AUTO_SPAM_KILL_SWITCH,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( self::class, 'sanitize_auto_spam_kill' ),
+				'default'           => 'no',
 				'show_in_rest'      => false,
 			)
 		);
@@ -259,6 +321,65 @@ final class SettingsPage {
 	 */
 	public static function sanitize_ai_recommendations_display( $value ): string {
 		return self::is_checked( $value ) ? 'yes' : 'no';
+	}
+
+	/**
+	 * M12 auto-spam master — confirm on enable; refreshes scheduling boundary via ActionControls.
+	 *
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_auto_spam_master( $value ): string {
+		$enabled = self::is_checked( $value );
+		$was     = Options::ai_auto_spam_enabled();
+		if ( $enabled && ! $was && ! self::posted_confirm( self::CONFIRM_ENABLE_AUTO_SPAM ) ) {
+			return 'no';
+		}
+		ActionControls::set_master_enabled( $enabled );
+		return $enabled ? 'yes' : 'no';
+	}
+
+	/**
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_auto_spam_policy( $value ): string {
+		$enabled = self::is_checked( $value );
+		$was     = Options::ai_auto_spam_policy_enabled();
+		if ( $enabled && ! $was && ! self::posted_confirm( self::CONFIRM_ENABLE_AUTO_SPAM_POLICY ) ) {
+			return 'no';
+		}
+		ActionControls::set_policy_enabled( $enabled );
+		return $enabled ? 'yes' : 'no';
+	}
+
+	/**
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_auto_spam_sim_guard( $value ): string {
+		$enabled = self::is_checked( $value );
+		$was     = Options::ai_auto_spam_simulation_guard_enabled();
+		if ( $enabled && ! $was && ! self::posted_confirm( self::CONFIRM_ENABLE_AUTO_SPAM_SIM ) ) {
+			return 'no';
+		}
+		ActionControls::set_simulation_guard( $enabled );
+		return $enabled ? 'yes' : 'no';
+	}
+
+	/**
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_auto_spam_dry_run( $value ): string {
+		$enabled = self::is_checked( $value );
+		ActionControls::set_dry_run( $enabled );
+		return $enabled ? 'yes' : 'no';
+	}
+
+	/**
+	 * @param mixed $value Raw POST.
+	 */
+	public static function sanitize_auto_spam_kill( $value ): string {
+		$enabled = self::is_checked( $value );
+		ActionControls::set_kill_switch( $enabled );
+		return $enabled ? 'yes' : 'no';
 	}
 
 	/**
@@ -545,7 +666,81 @@ final class SettingsPage {
 								<?php echo esc_html__( 'Show recommendation labels in Comments for held reviews that have assessments.', 'universal-product-reviews' ); ?>
 							</label>
 							<p class="description">
-								<?php echo esc_html__( 'Absent option defaults to on. Independent of local/external shadow masters. Risk score: higher means greater publication risk. Actionable labels only while Pending (hold). Does not auto-moderate. Auto-action requires M12 and is unavailable.', 'universal-product-reviews' ); ?>
+								<?php echo esc_html__( 'Absent option defaults to on. Independent of local/external shadow masters. Risk score: higher means greater publication risk. Actionable labels only while Pending (hold). Does not auto-moderate by itself. M12 auto-spam masters default off (Simulation GO — production needs Calibration GO).', 'universal-product-reviews' ); ?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'M12 auto-spam (Simulation GO)', 'universal-product-reviews' ); ?></th>
+						<td>
+							<?php
+							$auto_master = Options::ai_auto_spam_enabled();
+							$auto_policy = Options::ai_auto_spam_policy_enabled();
+							$auto_sim    = Options::ai_auto_spam_simulation_guard_enabled();
+							$auto_dry    = Options::ai_auto_spam_dry_run();
+							$auto_kill   = Options::ai_auto_spam_kill_switch();
+							$boundary    = Options::ai_auto_action_boundary_unix();
+							$tuple_fp    = ActionPolicy::active_tuple_fingerprint();
+							?>
+							<p class="description" style="color:#b32d2e;">
+								<strong><?php echo esc_html__( 'Production automatic moderation remains prohibited', 'universal-product-reviews' ); ?></strong>
+								<?php echo esc_html__( ' until Calibration GO and a separate production-enable approval. Simulation GO authorises implementation and non-production synthetic testing only.', 'universal-product-reviews' ); ?>
+							</p>
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_ENABLED ); ?>" value="no" />
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_ENABLED ); ?>" value="yes" <?php checked( $auto_master ); ?> data-upr-was="<?php echo $auto_master ? '1' : '0'; ?>" />
+								<?php echo esc_html__( 'Master: enable auto_spam_held_technical (default off). Off→on refreshes the strict scheduling boundary.', 'universal-product-reviews' ); ?>
+							</label>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_AUTO_SPAM ); ?>" value="1" />
+									<?php echo esc_html__( 'I confirm enabling the auto-spam master (required when turning this on).', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_POLICY_ENABLED ); ?>" value="no" />
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_POLICY_ENABLED ); ?>" value="yes" <?php checked( $auto_policy ); ?> />
+								<?php echo esc_html__( 'Policy master: allow auto_spam_held_technical conjunction (default off).', 'universal-product-reviews' ); ?>
+							</label>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_AUTO_SPAM_POLICY ); ?>" value="1" />
+									<?php echo esc_html__( 'I confirm enabling the policy master.', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_SIMULATION_GUARD ); ?>" value="no" />
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_SIMULATION_GUARD ); ?>" value="yes" <?php checked( $auto_sim ); ?> />
+								<?php echo esc_html__( 'Simulation-only non-production environment guard (default off). Required for any action under Simulation GO.', 'universal-product-reviews' ); ?>
+							</label>
+							<p>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::CONFIRM_ENABLE_AUTO_SPAM_SIM ); ?>" value="1" />
+									<?php echo esc_html__( 'I confirm this is a non-production Simulation environment.', 'universal-product-reviews' ); ?>
+								</label>
+							</p>
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_DRY_RUN ); ?>" value="no" />
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_DRY_RUN ); ?>" value="yes" <?php checked( $auto_dry ); ?> />
+								<?php echo esc_html__( 'Dry-run: ledger observed only — never CAS / status mutation.', 'universal-product-reviews' ); ?>
+							</label>
+							<br />
+							<input type="hidden" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_KILL_SWITCH ); ?>" value="no" />
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Options::AI_AUTO_SPAM_KILL_SWITCH ); ?>" value="yes" <?php checked( $auto_kill ); ?> />
+								<?php echo esc_html__( 'Kill switch: force abstain / clear active claims.', 'universal-product-reviews' ); ?>
+							</label>
+							<p class="description">
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: 1: unix boundary, 2: tuple fingerprint prefix */
+										__( 'Boundary (unix): %1$s. Active Simulation tuple fingerprint: %2$s… Equality with boundary abstains; missing boundary fails closed.', 'universal-product-reviews' ),
+										$boundary > 0 ? (string) $boundary : 'unset',
+										substr( $tuple_fp, 0, 12 )
+									)
+								);
+								?>
 							</p>
 						</td>
 					</tr>

@@ -30,6 +30,15 @@ final class Options {
 
 	public const AI_RECOMMENDATIONS_DISPLAY = 'upr_ai_recommendations_display';
 
+	/** M12 auto_spam_held_technical — all default off / fail-closed. */
+	public const AI_AUTO_SPAM_ENABLED           = 'upr_ai_auto_spam_enabled';
+	public const AI_AUTO_SPAM_POLICY_ENABLED    = 'upr_ai_auto_spam_policy_enabled';
+	public const AI_AUTO_SPAM_SIMULATION_GUARD  = 'upr_ai_auto_spam_simulation_guard';
+	public const AI_AUTO_SPAM_DRY_RUN           = 'upr_ai_auto_spam_dry_run';
+	public const AI_AUTO_SPAM_KILL_SWITCH       = 'upr_ai_auto_spam_kill_switch';
+	public const AI_AUTO_ACTION_BOUNDARY_AT     = 'upr_ai_auto_action_boundary_at';
+
+
 	public const AI_EXTERNAL_ENABLED           = 'upr_ai_external_enabled';
 	public const AI_PROVIDER                   = 'upr_ai_provider';
 	public const OPENAI_MODEL                  = 'upr_openai_model';
@@ -66,6 +75,51 @@ final class Options {
 	public static function local_ai_shadow_enabled(): bool {
 		return self::option_is_truthy( get_option( self::LOCAL_AI_SHADOW_ENABLED, 'no' ) );
 	}
+
+	/** M12 master — absent = off. */
+	public static function ai_auto_spam_enabled(): bool {
+		return self::option_is_truthy( get_option( self::AI_AUTO_SPAM_ENABLED, 'no' ) );
+	}
+
+	/** M12 policy master — absent = off. */
+	public static function ai_auto_spam_policy_enabled(): bool {
+		return self::option_is_truthy( get_option( self::AI_AUTO_SPAM_POLICY_ENABLED, 'no' ) );
+	}
+
+	/** Simulation-only non-production guard — absent = off. */
+	public static function ai_auto_spam_simulation_guard_enabled(): bool {
+		return self::option_is_truthy( get_option( self::AI_AUTO_SPAM_SIMULATION_GUARD, 'no' ) );
+	}
+
+	public static function ai_auto_spam_dry_run(): bool {
+		return self::option_is_truthy( get_option( self::AI_AUTO_SPAM_DRY_RUN, 'no' ) );
+	}
+
+	/** Kill switch — when on, force abstain. Absent = off. */
+	public static function ai_auto_spam_kill_switch(): bool {
+		return self::option_is_truthy( get_option( self::AI_AUTO_SPAM_KILL_SWITCH, 'no' ) );
+	}
+
+	public static function ai_auto_action_boundary_unix(): int {
+		return max( 0, (int) get_option( self::AI_AUTO_ACTION_BOUNDARY_AT, 0 ) );
+	}
+
+	public static function refresh_auto_action_boundary( ?int $unix = null ): void {
+		update_option( self::AI_AUTO_ACTION_BOUNDARY_AT, (string) ( $unix ?? time() ), false );
+	}
+
+	/**
+	 * Live action only if assessment completed_at is strictly greater than boundary.
+	 * Equality abstains; missing/0 boundary fails closed.
+	 */
+	public static function is_assessment_strictly_after_auto_action_boundary( int $completed_at_unix ): bool {
+		$boundary = self::ai_auto_action_boundary_unix();
+		if ( $boundary <= 0 || $completed_at_unix <= 0 ) {
+			return false;
+		}
+		return $completed_at_unix > $boundary;
+	}
+
 
 	/**
 	 * Show actionable AI recommendations in Comments. Absent / unset = enabled.

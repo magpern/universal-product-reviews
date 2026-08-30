@@ -80,7 +80,7 @@ if grep -nE 'Internal\\OrderReviews|Internal/OrderReviews|Automattic\\WooCommerc
 fi
 
 echo "==> Comment status APIs must go through SystemStatusOrigin"
-STATUS_API_RE='wp_set_comment_status|wp_spam_comment|wp_unspam_comment|wp_trash_comment|wp_untrash_comment'
+STATUS_API_RE='wp_set_comment_status\s*\(|wp_spam_comment\s*\(|wp_unspam_comment\s*\(|wp_trash_comment\s*\(|wp_untrash_comment\s*\('
 ALLOWLIST_FILE="$ROOT/scripts/ci/status-api-allowlist.txt"
 allowed_files=()
 if [[ -f "$ALLOWLIST_FILE" ]]; then
@@ -282,6 +282,28 @@ done
 filter_hits="$(grep -RnE "apply_filters\s*\(\s*['\"]upr_.*moderation.*provider" "$ROOT/src" 2>/dev/null || true)"
 if [[ -n "$filter_hits" ]]; then
   fail "replaceable AI provider filters forbidden"
+fi
+
+echo "==> M12 auto-spam contract guards (hold→spam only; no host leakage)"
+# HoldToSpamCas may UPDATE comment_approved only as hold('0') → spam.
+cas_file="$ROOT/src/Moderation/HoldToSpamCas.php"
+test -f "$cas_file" || fail "missing HoldToSpamCas"
+if grep -nE "comment_approved\s*=\s*'1'|comment_approved\s*=\s*'trash'|wp_trash_comment|wp_delete_comment|wp_mail\s*\(" "$cas_file" 2>/dev/null; then
+  fail "HoldToSpamCas must only CAS hold→spam"
+fi
+if ! grep -q "comment_approved = %s WHERE comment_ID = %d AND comment_approved = %s" "$cas_file"; then
+  fail "HoldToSpamCas must use conditional hold→spam UPDATE"
+fi
+# ActionWorker / ActionPolicy must not call status APIs or providers.
+for f in src/Ai/ActionWorker.php src/Ai/ActionPolicy.php src/Ai/ActionLedgerRepository.php src/Ai/ActionControls.php; do
+  test -f "$ROOT/$f" || fail "missing $f"
+  if grep -nE 'wp_set_comment_status\s*\(|wp_spam_comment|wp_trash_comment|wp_delete_comment|wp_mail\s*\(|wp_remote_|wp_safe_remote_' "$ROOT/$f" 2>/dev/null; then
+    fail "M12 action module forbidden API in $f"
+  fi
+done
+# No host-specific markers in M12 action sources (already covered by forbidden-patterns; double-check Action*).
+if grep -RInE 'biopentra|dev\.biopentra|169\.58\.|Internal\\\\' "$ROOT/src/Ai/ActionWorker.php" "$ROOT/src/Ai/ActionPolicy.php" "$ROOT/src/Moderation/HoldToSpamCas.php" 2>/dev/null; then
+  fail "host-specific or Internal leakage in M12 action sources"
 fi
 
 echo "==> Support export schema unchanged"

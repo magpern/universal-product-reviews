@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260829b';
+	public const DB_VERSION = '20260830a';
 
 	public const OPS_ROW_ID = 1;
 
@@ -31,6 +31,7 @@ final class Schema {
 		$claims       = $wpdb->prefix . 'upr_moderation_assessment_claims';
 		$ops          = $wpdb->prefix . 'upr_moderation_ops';
 		$external_ops = $wpdb->prefix . 'upr_moderation_external_ops';
+		$action_ledger = $wpdb->prefix . 'upr_moderation_action_ledger';
 
 		return array(
 			$invite => "CREATE TABLE {$invite} (
@@ -152,6 +153,23 @@ final class Schema {
 				month_count int unsigned NOT NULL DEFAULT 0,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id)
+			) {$charset};",
+			$action_ledger => "CREATE TABLE {$action_ledger} (
+				comment_id bigint(20) unsigned NOT NULL,
+				assessment_id bigint(20) unsigned NOT NULL,
+				action_policy_version varchar(32) NOT NULL,
+				state varchar(32) DEFAULT NULL,
+				lease_token varchar(64) DEFAULT NULL,
+				lease_expires_at datetime DEFAULT NULL,
+				lease_owner varchar(64) DEFAULT NULL,
+				ai_cas_committed_at datetime DEFAULT NULL,
+				abstain_reason varchar(64) DEFAULT NULL,
+				crash_reason varchar(64) DEFAULT NULL,
+				dry_run tinyint(1) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (comment_id, assessment_id, action_policy_version),
+				KEY state_updated (state, updated_at)
 			) {$charset};",
 		);
 	}

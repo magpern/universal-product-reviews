@@ -18,6 +18,7 @@ final class ModerationAudit {
 
 	public const EVENT_STATUS_CHANGED        = 'review.status_changed';
 	public const EVENT_SYSTEM_SPAM           = 'review.system_spam';
+	public const EVENT_AI_AUTO_SPAM          = 'review.ai_auto_spam';
 	public const EVENT_SYSTEM_STATUS_CHANGED = 'review.system_status_changed';
 	public const EVENT_REPLY_POSTED          = 'review.reply_posted';
 
@@ -128,6 +129,9 @@ final class ModerationAudit {
 	 * @param string $new_status Normalised new status.
 	 */
 	public static function classify_event( string $new_status ): string {
+		if ( AiActionOrigin::is_active() ) {
+			return 'spam' === $new_status ? self::EVENT_AI_AUTO_SPAM : self::EVENT_SYSTEM_STATUS_CHANGED;
+		}
 		if ( SystemStatusOrigin::is_active() ) {
 			return 'spam' === $new_status ? self::EVENT_SYSTEM_SPAM : self::EVENT_SYSTEM_STATUS_CHANGED;
 		}
@@ -142,6 +146,9 @@ final class ModerationAudit {
 	 */
 	public static function classify_origin( string $new_status ): string {
 		unset( $new_status );
+		if ( AiActionOrigin::is_active() ) {
+			return 'upr_ai_auto_action';
+		}
 		if ( SystemStatusOrigin::is_active() ) {
 			return 'upr_system';
 		}

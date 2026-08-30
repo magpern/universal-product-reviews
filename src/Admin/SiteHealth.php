@@ -10,6 +10,8 @@ declare( strict_types=1 );
 namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Admin\Diagnostics\IntegrationReadiness;
+use UniversalProductReviews\Ai\ActionLedgerRepository;
+use UniversalProductReviews\Ai\ActionPolicy;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\ModerationOpsRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
@@ -70,6 +72,10 @@ final class SiteHealth {
 		$tests['direct']['upr_external_ai'] = array(
 			'label' => __( 'Universal Product Reviews external AI', 'universal-product-reviews' ),
 			'test'  => array( self::class, 'test_external_ai' ),
+		);
+		$tests['direct']['upr_auto_spam'] = array(
+			'label' => __( 'Universal Product Reviews auto-spam (M12)', 'universal-product-reviews' ),
+			'test'  => array( self::class, 'test_auto_spam' ),
 		);
 
 		return $tests;
@@ -259,7 +265,7 @@ final class SiteHealth {
 		$codes   = array(
 			$display ? 'recommendations_display_on' : 'recommendations_display_off',
 			'policy_' . sanitize_key( RecommendationPolicy::RECOMMENDATION_POLICY_VERSION ),
-			'auto_action_unavailable',
+			'auto_action_gated_m12',
 		);
 
 		return array(
@@ -312,6 +318,55 @@ final class SiteHealth {
 			'description' => '<p>' . esc_html__( 'External advisory assessments (informational). Never auto-moderates. Secrets are never shown.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( implode( '; ', $codes ) ) . '</code></p>',
 			'actions'     => '',
 			'test'        => 'upr_external_ai',
+		);
+	}
+
+	/**
+	 * Privacy-safe M12 auto-spam posture (no review bodies / tokens / secrets).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function test_auto_spam(): array {
+		$master = Options::ai_auto_spam_enabled();
+		$policy = Options::ai_auto_spam_policy_enabled();
+		$sim    = Options::ai_auto_spam_simulation_guard_enabled();
+		$dry    = Options::ai_auto_spam_dry_run();
+		$kill   = Options::ai_auto_spam_kill_switch();
+		$codes  = array(
+			$master ? 'master_on' : 'master_off',
+			$policy ? 'policy_on' : 'policy_off',
+			$sim ? 'sim_guard_on' : 'sim_guard_off',
+			$dry ? 'dry_run_on' : 'dry_run_off',
+			$kill ? 'kill_on' : 'kill_off',
+			'boundary_' . ( Options::ai_auto_action_boundary_unix() > 0 ? 'set' : 'unset' ),
+			'tuple_' . substr( ActionPolicy::active_tuple_fingerprint(), 0, 12 ),
+		);
+
+		$unknown = 0;
+		try {
+			$counts  = ActionLedgerRepository::counts_by_state();
+			$unknown = (int) ( $counts['unknown_after_crash'] ?? 0 );
+			$codes[] = 'acted_' . (int) ( $counts['acted'] ?? 0 );
+			$codes[] = 'observed_' . (int) ( $counts['observed'] ?? 0 );
+			$codes[] = 'abstained_' . (int) ( $counts['abstained'] ?? 0 );
+			$codes[] = 'unknown_' . $unknown;
+		} catch ( \Throwable $e ) {
+			$codes[] = 'ledger_unavailable';
+		}
+
+		$status = $unknown > 0 ? 'critical' : 'good';
+		$color  = $unknown > 0 ? 'red' : 'blue';
+
+		return array(
+			'label'       => __( 'UPR auto-spam (M12)', 'universal-product-reviews' ),
+			'status'      => $status,
+			'badge'       => array(
+				'label' => __( 'Security', 'universal-product-reviews' ),
+				'color' => $color,
+			),
+			'description' => '<p>' . esc_html__( 'Guarded auto_spam_held_technical. Masters default off. Simulation GO does not authorise production. unknown_after_crash requires manual reconciliation — never replay WP transition hooks.', 'universal-product-reviews' ) . '</p><p><code>' . esc_html( implode( '; ', $codes ) ) . '</code></p>',
+			'actions'     => '',
+			'test'        => 'upr_auto_spam',
 		);
 	}
 }

@@ -13,6 +13,7 @@ use UniversalProductReviews\Admin\AdminCache;
 use UniversalProductReviews\Admin\OverviewRepository;
 use UniversalProductReviews\Ai\AssessmentClaimsRepository;
 use UniversalProductReviews\Ai\AssessmentRepository;
+use UniversalProductReviews\Ai\ActionLedgerRepository;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\ModerationOpsRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
@@ -60,6 +61,7 @@ final class DiagnosticsService {
 			self::check_d17(),
 			self::check_d18(),
 			self::check_d19(),
+			self::check_d20(),
 		);
 
 		AdminCache::set(
@@ -585,11 +587,80 @@ final class DiagnosticsService {
 			'information',
 			'Information',
 			sprintf(
-				'AI recommendations display %s; policy=%s; risk score: higher means greater publication risk; auto-action unavailable (M12).',
+				'AI recommendations display %s; policy=%s; risk score: higher means greater publication risk; auto-action gated (M12 Simulation GO — masters default off; production needs Calibration GO).',
 				$display ? 'enabled' : 'disabled',
 				sanitize_key( \UniversalProductReviews\Ai\RecommendationPolicy::RECOMMENDATION_POLICY_VERSION )
 			),
 			$display ? 'recommendations_display_on' : 'recommendations_display_off'
+		);
+	}
+
+	/**
+	 * M12 action ledger aggregates (privacy-safe).
+	 *
+	 * @return array{id:string,status:string,headline:string,message:string,evidence_code:string}
+	 */
+	public static function check_d20(): array {
+		$master = Options::ai_auto_spam_enabled();
+		$policy = Options::ai_auto_spam_policy_enabled();
+		$sim    = Options::ai_auto_spam_simulation_guard_enabled();
+		$kill   = Options::ai_auto_spam_kill_switch();
+		$dry    = Options::ai_auto_spam_dry_run();
+		$counts = array(
+			'processing'          => 0,
+			'cas_succeeded'       => 0,
+			'acted'               => 0,
+			'abstained'           => 0,
+			'observed'            => 0,
+			'unknown_after_crash' => 0,
+		);
+		try {
+			if ( class_exists( ActionLedgerRepository::class ) ) {
+				$counts = ActionLedgerRepository::counts_by_state();
+			}
+		} catch ( \Throwable $e ) {
+			return self::result( 'D20', 'unavailable', 'Unavailable', 'Action ledger unavailable.', 'ledger_unavailable' );
+		}
+
+		$unknown = (int) ( $counts['unknown_after_crash'] ?? 0 );
+		if ( $unknown > 0 ) {
+			return self::result(
+				'D20',
+				'critical',
+				'Critical',
+				sprintf(
+					'Auto-spam ledger unknown_after_crash=%d (manual reconciliation; never replay WP transition hooks). Masters master=%s policy=%s sim=%s kill=%s dry=%s; acted=%d observed=%d abstained=%d.',
+					$unknown,
+					$master ? 'on' : 'off',
+					$policy ? 'on' : 'off',
+					$sim ? 'on' : 'off',
+					$kill ? 'on' : 'off',
+					$dry ? 'on' : 'off',
+					(int) ( $counts['acted'] ?? 0 ),
+					(int) ( $counts['observed'] ?? 0 ),
+					(int) ( $counts['abstained'] ?? 0 )
+				),
+				'unknown_after_crash'
+			);
+		}
+
+		return self::result(
+			'D20',
+			'information',
+			'Information',
+			sprintf(
+				'Auto-spam masters default-off posture: master=%s policy=%s sim_guard=%s kill=%s dry=%s; ledger acted=%d observed=%d abstained=%d processing=%d. Production enablement requires Calibration GO.',
+				$master ? 'on' : 'off',
+				$policy ? 'on' : 'off',
+				$sim ? 'on' : 'off',
+				$kill ? 'on' : 'off',
+				$dry ? 'on' : 'off',
+				(int) ( $counts['acted'] ?? 0 ),
+				(int) ( $counts['observed'] ?? 0 ),
+				(int) ( $counts['abstained'] ?? 0 ),
+				(int) ( $counts['processing'] ?? 0 )
+			),
+			$master || $policy || $sim ? 'auto_spam_partially_enabled' : 'auto_spam_masters_off'
 		);
 	}
 
