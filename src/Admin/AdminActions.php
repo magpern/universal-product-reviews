@@ -12,6 +12,7 @@ namespace UniversalProductReviews\Admin;
 use UniversalProductReviews\Ai\AssessmentLifecycle;
 use UniversalProductReviews\Ai\OpenAi\ExternalAiTestConnection;
 use UniversalProductReviews\Ai\ProviderResolver;
+use UniversalProductReviews\Ai\WouldActReport;
 use UniversalProductReviews\Audit\AuditLogger;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
@@ -28,7 +29,9 @@ final class AdminActions {
 		add_action( 'admin_post_upr_support_export', array( self::class, 'handle_support_export' ) );
 		add_action( 'admin_post_upr_ai_reanalyze', array( self::class, 'handle_ai_reanalyze' ) );
 		add_action( 'admin_post_upr_ai_test_connection', array( self::class, 'handle_ai_test_connection' ) );
+		add_action( 'admin_post_upr_would_act_report', array( self::class, 'handle_would_act_report' ) );
 		add_action( 'admin_notices', array( self::class, 'render_edit_comments_notices' ) );
+		add_action( 'admin_notices', array( self::class, 'render_would_act_notice' ) );
 	}
 
 	public static function handle_reconcile_dry_run(): void {
@@ -218,6 +221,78 @@ final class AdminActions {
 			)
 		);
 		exit;
+	}
+
+	/**
+	 * Zero-write would-act aggregate (manage_woocommerce + nonce).
+	 */
+	public static function handle_would_act_report(): void {
+		self::assert_cap();
+		check_admin_referer( 'upr_would_act_report' );
+
+		$report = WouldActReport::build();
+
+		$args = array(
+			'page'                      => SettingsPage::MENU_SLUG,
+			'tab'                       => 'overview',
+			'upr_would_act'             => ! empty( $report['ok'] ) ? '1' : '0',
+			'upr_would_act_error'       => sanitize_key( (string) ( $report['error_code'] ?? '' ) ),
+			'upr_would_act_sampled'     => (int) ( $report['sampled_comments'] ?? 0 ),
+			'upr_would_act_total'       => (int) ( $report['would_act_total'] ?? 0 ),
+			'upr_pre_boundary_total'    => (int) ( $report['policy_match_pre_boundary_total'] ?? 0 ),
+			'upr_would_act_boundary'    => sanitize_key( (string) ( $report['control_state']['boundary'] ?? 'unset' ) ),
+		);
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public static function render_would_act_notice(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_GET['page'] ) || SettingsPage::MENU_SLUG !== (string) $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		if ( ! isset( $_GET['upr_would_act'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+
+		$ok = '1' === (string) wp_unslash( (string) $_GET['upr_would_act'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! $ok ) {
+			$code = isset( $_GET['upr_would_act_error'] ) ? sanitize_key( wp_unslash( (string) $_GET['upr_would_act_error'] ) ) : 'unexpected'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			printf(
+				'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
+				esc_html(
+					sprintf(
+						/* translators: %s: allowlisted error code */
+						__( 'Would-act report failed closed (%s). No candidates returned.', 'universal-product-reviews' ),
+						$code
+					)
+				)
+			);
+			return;
+		}
+
+		$sampled = isset( $_GET['upr_would_act_sampled'] ) ? (int) $_GET['upr_would_act_sampled'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$would   = isset( $_GET['upr_would_act_total'] ) ? (int) $_GET['upr_would_act_total'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$pre     = isset( $_GET['upr_pre_boundary_total'] ) ? (int) $_GET['upr_pre_boundary_total'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$bound   = isset( $_GET['upr_would_act_boundary'] ) ? sanitize_key( wp_unslash( (string) $_GET['upr_would_act_boundary'] ) ) : 'unset'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		printf(
+			'<div class="notice notice-info is-dismissible"><p>%s</p><p>%s</p></div>',
+			esc_html(
+				sprintf(
+					/* translators: 1: sampled comments 2: would-act total 3: pre-boundary total 4: boundary state */
+					__( 'Would-act (read-only): sampled=%1$d; would_act_if_masters_on=%2$d (boundary %4$s); policy_match_pre_boundary=%3$d (non-actionable, not would-act).', 'universal-product-reviews' ),
+					$sampled,
+					$would,
+					$pre,
+					$bound
+				)
+			),
+			esc_html__( 'Does not change status, write audit rows, or enable auto-spam.', 'universal-product-reviews' )
+		);
 	}
 
 	public static function render_edit_comments_notices(): void {

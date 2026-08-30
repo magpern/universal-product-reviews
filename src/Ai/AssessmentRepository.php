@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Ai;
 
+use UniversalProductReviews\Config\Options;
+
 defined( 'ABSPATH' ) || exit;
 
 final class AssessmentRepository {
@@ -163,6 +165,80 @@ final class AssessmentRepository {
 		return $out;
 	}
 
+	/**
+	 * Resolve the single assessment the M12 action path may consider for a comment.
+	 *
+	 * @return array{assessment:?array<string, mixed>, reason:string}
+	 */
+	public static function resolve_actionable_assessment( int $comment_id ): array {
+		if ( $comment_id <= 0 ) {
+			return array( 'assessment' => null, 'reason' => 'no_assessment' );
+		}
+		$map = self::latest_for_comments( array( $comment_id ) );
+		$row = $map[ $comment_id ] ?? null;
+		if ( ! is_array( $row ) ) {
+			return array( 'assessment' => null, 'reason' => 'no_assessment' );
+		}
+		$state = (string) ( $row['state'] ?? '' );
+		if ( in_array( $state, array( 'failed', 'skipped', 'indeterminate' ), true ) ) {
+			return array( 'assessment' => null, 'reason' => 'superseded_by_non_completed' );
+		}
+		if ( 'completed' !== $state ) {
+			return array( 'assessment' => null, 'reason' => 'superseded_by_non_completed' );
+		}
+		if ( (string) ( $row['policy_version'] ?? '' ) !== ActionPolicy::SIMULATION_TUPLE['assessment_policy_version'] ) {
+			return array( 'assessment' => null, 'reason' => 'superseded_by_policy_version' );
+		}
+		if ( ! ActionPolicy::tuple_matches( $row ) ) {
+			return array( 'assessment' => null, 'reason' => 'superseded_by_tuple_mismatch' );
+		}
+		return array( 'assessment' => $row, 'reason' => 'actionable' );
+	}
+
+	/**
+	 * Latest actionable assessment for auto-spam discovery (null if superseded).
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public static function latest_actionable_assessment_for_comment( int $comment_id ): ?array {
+		$resolved = self::resolve_actionable_assessment( $comment_id );
+		return is_array( $resolved['assessment'] ) ? $resolved['assessment'] : null;
+	}
+
+	/**
+	 * Distinct comment IDs ordered by latest assessment_id (any state) descending.
+	 *
+	 * @return list<int>
+	 */
+	public static function list_comment_ids_by_latest_assessment( int $limit = 500 ): array {
+		global $wpdb;
+		$limit = max( 1, min( 500, $limit ) );
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows  = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT comment_id FROM {$table} GROUP BY comment_id ORDER BY MAX(assessment_id) DESC LIMIT %d",
+				$limit
+			)
+		);
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $rows as $cid ) {
+			$out[] = (int) $cid;
+		}
+		return $out;
+	}
+
+	public static function count_retention_due(): int {
+		global $wpdb;
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE retention_due_at IS NOT NULL AND retention_due_at <= UTC_TIMESTAMP()" );
+		return max( 0, (int) $n );
+	}
+
 	public static function recompute_retention( int $comment_id, string $comment_status ): void {
 		global $wpdb;
 
@@ -193,7 +269,10 @@ final class AssessmentRepository {
 			)
 		);
 
-		return max( 0, (int) $n );
+		$deleted = max( 0, (int) $n );
+		// Stamp last successful purge execution (query completed), privacy-safe unix time only.
+		update_option( Options::ASSESSMENTS_LAST_PURGE_AT, (string) time(), false );
+		return $deleted;
 	}
 
 	public static function delete_for_comment( int $comment_id ): void {

@@ -9,6 +9,10 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\CLI;
 
+use UniversalProductReviews\Ai\ActionLedgerRepository;
+use UniversalProductReviews\Ai\ActionPolicy;
+use UniversalProductReviews\Ai\AssessmentRepository;
+use UniversalProductReviews\Ai\WouldActReport;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Invitations\EmergencyPause;
@@ -25,6 +29,9 @@ final class Commands {
 		\WP_CLI::add_command( 'upr reconcile-invitations', array( self::class, 'reconcile' ) );
 		\WP_CLI::add_command( 'upr db-upgrade', array( self::class, 'db_upgrade' ) );
 		\WP_CLI::add_command( 'upr invitation-controls', array( self::class, 'invitation_controls' ) );
+		\WP_CLI::add_command( 'upr ai-status', array( self::class, 'ai_status' ) );
+		\WP_CLI::add_command( 'upr would-act', array( self::class, 'would_act' ) );
+		\WP_CLI::add_command( 'upr ledger-summary', array( self::class, 'ledger_summary' ) );
 	}
 
 	/**
@@ -85,5 +92,118 @@ final class Commands {
 				JSON_PRETTY_PRINT
 			)
 		);
+	}
+
+	/**
+	 * Privacy-safe AI moderation posture (read-only).
+	 *
+	 * ## OPTIONS
+	 *
+	 * --user=<id|login>
+	 * : WordPress user that must have manage_woocommerce.
+	 *
+	 * @param array<int, string>    $args
+	 * @param array<string, string> $assoc
+	 */
+	public static function ai_status( array $args, array $assoc ): void {
+		unset( $args );
+		self::require_manage_woocommerce_user( $assoc );
+
+		$ledger = array();
+		try {
+			$ledger = ActionLedgerRepository::counts_by_state();
+		} catch ( \Throwable $e ) {
+			$ledger = array( 'error' => 'unavailable' );
+		}
+
+		$assess_24 = array();
+		try {
+			$assess_24 = AssessmentRepository::count_states_24h();
+		} catch ( \Throwable $e ) {
+			$assess_24 = array( 'error' => 'unavailable' );
+		}
+
+		\WP_CLI::log(
+			wp_json_encode(
+				array(
+					'master'           => Options::ai_auto_spam_enabled(),
+					'policy'           => Options::ai_auto_spam_policy_enabled(),
+					'simulation'       => Options::ai_auto_spam_simulation_guard_enabled(),
+					'kill'             => Options::ai_auto_spam_kill_switch(),
+					'dry_run'          => Options::ai_auto_spam_dry_run(),
+					'boundary'         => Options::ai_auto_action_boundary_unix() > 0 ? 'set' : 'unset',
+					'tuple_fingerprint'=> substr( ActionPolicy::active_tuple_fingerprint(), 0, 16 ),
+					'ledger'           => $ledger,
+					'assessments_24h'  => $assess_24,
+				),
+				JSON_PRETTY_PRINT
+			)
+		);
+	}
+
+	/**
+	 * Zero-write would-act aggregate report.
+	 *
+	 * ## OPTIONS
+	 *
+	 * --user=<id|login>
+	 * : WordPress user that must have manage_woocommerce.
+	 *
+	 * @param array<int, string>    $args
+	 * @param array<string, string> $assoc
+	 */
+	public static function would_act( array $args, array $assoc ): void {
+		unset( $args );
+		self::require_manage_woocommerce_user( $assoc );
+		$report = WouldActReport::build();
+		\WP_CLI::log( wp_json_encode( $report, JSON_PRETTY_PRINT ) );
+		if ( empty( $report['ok'] ) ) {
+			\WP_CLI::error( 'Would-act failed closed: ' . sanitize_key( (string) ( $report['error_code'] ?? 'unexpected' ) ) );
+		}
+	}
+
+	/**
+	 * Action ledger state counts (read-only).
+	 *
+	 * ## OPTIONS
+	 *
+	 * --user=<id|login>
+	 * : WordPress user that must have manage_woocommerce.
+	 *
+	 * @param array<int, string>    $args
+	 * @param array<string, string> $assoc
+	 */
+	public static function ledger_summary( array $args, array $assoc ): void {
+		unset( $args );
+		self::require_manage_woocommerce_user( $assoc );
+		try {
+			$counts = ActionLedgerRepository::counts_by_state();
+		} catch ( \Throwable $e ) {
+			\WP_CLI::error( 'Ledger summary unavailable.' );
+			return;
+		}
+		\WP_CLI::log( wp_json_encode( $counts, JSON_PRETTY_PRINT ) );
+	}
+
+	/**
+	 * Require --user= and manage_woocommerce. No shell/root trust bypass.
+	 *
+	 * @param array<string, string> $assoc Assoc args.
+	 */
+	private static function require_manage_woocommerce_user( array $assoc ): void {
+		if ( ! isset( $assoc['user'] ) || '' === (string) $assoc['user'] ) {
+			\WP_CLI::error( 'Missing required --user=<id|login> with manage_woocommerce.' );
+		}
+
+		$raw = (string) $assoc['user'];
+		$user = ctype_digit( $raw ) ? get_user_by( 'id', (int) $raw ) : get_user_by( 'login', $raw );
+		if ( ! $user || ! ( $user instanceof \WP_User ) ) {
+			\WP_CLI::error( 'Invalid --user; cannot resolve WordPress user.' );
+		}
+
+		wp_set_current_user( (int) $user->ID );
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			\WP_CLI::error( 'User lacks manage_woocommerce; refusing without partial output.' );
+		}
 	}
 }

@@ -60,6 +60,27 @@ if ( ! function_exists( 'get_userdata' ) ) {
 	}
 }
 
+if ( ! function_exists( 'get_user_by' ) ) {
+	function get_user_by( $field, $value ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		if ( 'id' === $field ) {
+			return get_userdata( (int) $value );
+		}
+		if ( 'login' === $field && isset( $GLOBALS['upr_test_users_by_login'][ (string) $value ] ) ) {
+			return get_userdata( (int) $GLOBALS['upr_test_users_by_login'][ (string) $value ] );
+		}
+		return false;
+	}
+}
+
+if ( ! function_exists( 'wp_set_current_user' ) ) {
+	function wp_set_current_user( $id, $name = '' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $name );
+		$GLOBALS['upr_test_user_id']  = (int) $id;
+		$GLOBALS['upr_test_logged_in'] = (int) $id > 0;
+		return get_userdata( (int) $id );
+	}
+}
+
 if ( ! function_exists( 'is_user_logged_in' ) ) {
 	function is_user_logged_in() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		return (bool) ( $GLOBALS['upr_test_logged_in'] ?? false );
@@ -203,6 +224,8 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 		public $options = 'wp_options';
 		/** @var string */
 		public $commentmeta = 'wp_commentmeta';
+		/** @var string */
+		public $comments = 'wp_comments';
 
 		public function get_charset_collate() {
 			return 'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
@@ -221,6 +244,14 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 			return $out;
 		}
 
+		public function get_col( $query = null ) {
+			unset( $query );
+			if ( isset( $GLOBALS['upr_test_assessment_comment_ids'] ) && is_array( $GLOBALS['upr_test_assessment_comment_ids'] ) ) {
+				return $GLOBALS['upr_test_assessment_comment_ids'];
+			}
+			return array();
+		}
+
 		public function get_var( $query = null ) {
 			if ( is_string( $query ) && false !== stripos( $query, 'SHOW TABLES LIKE' ) ) {
 				if ( ! empty( $GLOBALS['upr_test_missing_tables'] ) ) {
@@ -230,6 +261,9 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 					return trim( $m[1], "'\"`" );
 				}
 				return 'wp_upr_stub';
+			}
+			if ( is_string( $query ) && false !== stripos( $query, 'retention_due_at' ) && isset( $GLOBALS['upr_test_retention_due_count'] ) ) {
+				return (int) $GLOBALS['upr_test_retention_due_count'];
 			}
 			unset( $query );
 			return null;
