@@ -388,6 +388,7 @@ final class AssessmentWorker {
 
 		ModerationOpsRepository::record_success();
 		AssessmentAudit::completed( $comment_id, $assessment_id, $validated->state, $policy_version, $provider_kind );
+		ActionWorker::maybe_schedule( $comment_id, $assessment_id );
 	}
 
 	/**

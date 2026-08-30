@@ -13,6 +13,7 @@ use UniversalProductReviews\Database\Migrator;
 use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Ai\AssessmentRepository;
 use UniversalProductReviews\Ai\AssessmentWorker;
+use UniversalProductReviews\Ai\ActionWorker;
 use UniversalProductReviews\Invitations\BundleSender;
 use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\ReconciliationService;
@@ -31,10 +32,13 @@ final class Jobs {
 		add_action( 'upr_reconcile_invitations', array( self::class, 'handle_reconcile' ), 10, 0 );
 		add_action( 'upr_db_upgrade', array( self::class, 'handle_db_upgrade' ), 10, 0 );
 		add_action( 'upr_assess_review', array( self::class, 'handle_assess_review' ), 10, 2 );
+		add_action( 'upr_auto_spam_action', array( self::class, 'handle_auto_spam_action' ), 10, 2 );
 		add_action( 'upr_purge_moderation_assessments', array( self::class, 'handle_purge_assessments' ), 10, 0 );
+		add_action( 'upr_recover_auto_spam_crash', array( self::class, 'handle_recover_auto_spam' ), 10, 0 );
 
 		add_action( 'init', array( self::class, 'ensure_nightly_reconcile' ), 20 );
 		add_action( 'init', array( self::class, 'ensure_purge_recurring' ), 20 );
+		add_action( 'init', array( self::class, 'ensure_auto_spam_recovery' ), 20 );
 	}
 
 	public static function ensure_nightly_reconcile(): void {
@@ -166,6 +170,36 @@ final class Jobs {
 
 	public static function handle_assess_review( int $comment_id, string $policy_version ): void {
 		AssessmentWorker::handle( $comment_id, $policy_version );
+	}
+
+	public static function schedule_auto_spam_action( int $comment_id, int $assessment_id ): void {
+		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
+			ActionWorker::handle( $comment_id, $assessment_id );
+			return;
+		}
+		as_enqueue_async_action(
+			'upr_auto_spam_action',
+			array( $comment_id, $assessment_id ),
+			self::GROUP,
+			true
+		);
+	}
+
+	public static function handle_auto_spam_action( int $comment_id, int $assessment_id ): void {
+		ActionWorker::handle( $comment_id, $assessment_id );
+	}
+
+	public static function ensure_auto_spam_recovery(): void {
+		if ( ! function_exists( 'as_has_scheduled_action' ) || ! function_exists( 'as_schedule_recurring_action' ) ) {
+			return;
+		}
+		if ( ! as_has_scheduled_action( 'upr_recover_auto_spam_crash', array(), self::GROUP ) ) {
+			as_schedule_recurring_action( time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS, 'upr_recover_auto_spam_crash', array(), self::GROUP );
+		}
+	}
+
+	public static function handle_recover_auto_spam(): void {
+		ActionWorker::recover_unknown_after_crash();
 	}
 
 	public static function handle_purge_assessments(): void {

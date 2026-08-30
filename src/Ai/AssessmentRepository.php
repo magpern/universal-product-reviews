@@ -24,6 +24,23 @@ final class AssessmentRepository {
 	}
 
 	/**
+	 * @return array<string, mixed>|null
+	 */
+	public static function get_by_id( int $assessment_id ): ?array {
+		global $wpdb;
+		if ( $assessment_id <= 0 ) {
+			return null;
+		}
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE assessment_id = %d", $assessment_id ),
+			ARRAY_A
+		);
+		return is_array( $row ) ? $row : null;
+	}
+
+	/**
 	 * Test seam only — force the next insert_terminal() calls to return 0.
 	 */
 	public static function set_force_insert_fail_for_tests( bool $force ): void {

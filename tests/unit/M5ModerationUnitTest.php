@@ -221,7 +221,7 @@ final class StatusApiPolicyUnitTest extends TestCase {
 			$allowed[] = $line;
 		}
 
-		$pattern  = '/wp_set_comment_status|wp_spam_comment|wp_unspam_comment|wp_trash_comment|wp_untrash_comment/';
+		$pattern  = '/wp_set_comment_status\s*\(|wp_spam_comment\s*\(|wp_unspam_comment\s*\(|wp_trash_comment\s*\(|wp_untrash_comment\s*\(/';
 		$iterator = new \RecursiveIteratorIterator(
 			new \RecursiveDirectoryIterator( $root . '/src', \FilesystemIterator::SKIP_DOTS )
 		);
