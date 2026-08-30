@@ -22,6 +22,7 @@ Calibration GO was not objectively satisfied. Automatic action (`auto_spam_held_
 | Calibration harness + NO-GO PR | [#63](https://github.com/magpern/universal-product-reviews/pull/63) |
 | Calibration merge commit | `5a55e759bd04730af175ef29182c0f55c8a2150d` |
 | Calibration CI | PR #63 — lint, unit 8.1/8.4, integration DEV + floor: **pass** |
+| Evidence kit (preparation) | `scripts/calibration/evidence-kit/` — templates + procedure; **no** customer corpus; M12 remains NO-GO |
 | Authoritative freeze | [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md) |
 | ADR | [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md) (amended M12) |
 | Calibration NO-GO | [`m12-calibration-nogo.md`](m12-calibration-nogo.md) |

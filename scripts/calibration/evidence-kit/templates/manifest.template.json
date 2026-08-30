@@ -1,0 +1,47 @@
+{
+  "schema_version": "m12-cal-v1",
+  "evidence_status": "template",
+  "description": "Empty m12-cal-v1 manifest template. Not evidence. Evaluating this file MUST yield NO-GO.",
+  "holdout_locked_before_tuning": true,
+  "tuple": {
+    "provider_kind": "local",
+    "assessor_version": "REPLACE_WITH_ASSESSOR_VERSION",
+    "heuristic_or_model_fingerprint": "REPLACE_WITH_HEURISTIC_OR_MODEL_PROMPT_FINGERPRINT",
+    "validator_version": "REPLACE_WITH_VALIDATOR_VERSION",
+    "assessment_policy_version": "REPLACE_WITH_ASSESSMENT_POLICY_VERSION",
+    "recommendation_policy_version": "2026-08-rec-v1",
+    "action_policy_version": "REPLACE_WITH_ACTION_POLICY_VERSION"
+  },
+  "provenance": {
+    "dataset_id": "REPLACE_WITH_DATASET_ID",
+    "authorising_party": "REPLACE_WITH_AUTHORISING_PARTY",
+    "consent_or_authorisation_ref": "REPLACE_WITH_TICKET_OR_MEMO_ID",
+    "source_class": "synthetic_authorised",
+    "source_description": "Describe class of sources without customer identifiers.",
+    "labelled_at": "1970-01-01T00:00:00Z",
+    "reviewer_count": 2
+  },
+  "holdout_lock": {
+    "locked_before_labelling_complete": true,
+    "locked_before_tuning": true,
+    "assignment_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "assignments": {}
+  },
+  "dataset_hashes": {
+    "rows_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "labels_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "assessments_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "privacy": {
+    "review_bodies_committed": false,
+    "secrets_committed": false,
+    "customer_identifiers_committed": false,
+    "note": "Opaque ids and assessment field maps only."
+  },
+  "strata": {
+    "legitimate_negative": { "rows": [] },
+    "technical_spam": { "rows": [] },
+    "mandatory_human": { "rows": [] },
+    "excluded": { "rows": [] }
+  }
+}
