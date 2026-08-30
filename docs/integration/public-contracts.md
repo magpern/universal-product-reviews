@@ -142,6 +142,7 @@ Support export schema `upr-support-export/v1` is **unchanged** by M6 and is not 
 | C12 | `upr_item_is_reviewable` | |
 | C13 | `upr_include_zero_total_items` | |
 | C15 | `upr_review_min_length` | |
+| C20 | `CustomerEditAvailability::resolve` | M14 display helper (**P**). Signature `resolve( int $comment_id, int $user_id ): array{ can_edit: bool, reason_code: string }`. **No** filter that can force `can_edit=true`. Not a write grant. Absent from code until M14 implementation. Freeze: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). |
 
 ---
 
@@ -179,5 +180,5 @@ Every `upr_*` filter applied in `src/`, every `upr_order_delivery_*` action core
 
 - [`integrator-onboarding.md`](integrator-onboarding.md)
 - [`adapters.md`](adapters.md)
-- [`../decisions/ADR-0003-public-contract-compatibility.md`](../decisions/ADR-0003-public-contract-compatibility.md)
+- [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md)
 - [`wc-review-import-strategy.md`](wc-review-import-strategy.md) (docs-only; no M6 runtime importer)

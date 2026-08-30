@@ -10,6 +10,7 @@ Canonical matrix for how Universal Product Reviews coexists with WooCommerce sto
 |----|------|
 | **C9** | `upr_product_review_availability` — submit eligibility (authoritative) |
 | **C10** | `NativePdpForm::should_render()` — native PDP form display gate (display-only) |
+| **C20** | `CustomerEditAvailability::resolve()` — **provisional (P)** read-only display helper for “edit review” controls (M14). **Cannot grant write auth.** See [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). |
 | **Guards** | `GuestSubmissionGuard` @ `preprocess_comment` **5**; `NativeSubmissionGuard` @ **15** |
 
 **Deferred (not implemented):** **C16** unavailable-message filter; **C17** rating-summary filter. **C11** `upr_product_is_reviewable` remains **provisional (P)** — not promoted in M7.
@@ -26,6 +27,7 @@ UPR **never** registers `comments_open` as a submission or availability gate.
 | Unavailable copy | Host — map C9 `reason_code` |
 | Rating summary on PDP | Host — WC `WC_Product::get_average_rating()` / rating count |
 | Guest form UI | UPR — `/upr-review/form/` only |
+| Guest / logged-in **edit** UI | UPR — `/upr-review/edit/` only (M14). Hosts may show/hide a control via **C20**; server remains fail-closed. |
 | Schema / JSON-LD | Host SEO plugin — [`schema-acceptance.md`](schema-acceptance.md) |
 
 **Approved-review visibility is independent of submit eligibility.** Hosts must not hide approved lists by closing `comments_open` to gate submission.
@@ -40,6 +42,8 @@ UPR **never** registers `comments_open` as a submission or availability gate.
 | **Catalogue-hidden / non-reviewable** | No submit any identity | C9 `product_not_reviewable` | Hide form; list policy optional | POST → 403; invite path blocked when hidden |
 | **Guest — native PDP** | No native form or route | C10 always false; guard 5 | No guest native form | POST → 403 |
 | **Guest — invitation (`/upr-review/form/`)** | Submit via session + arm | M2 guards unchanged | Log redaction | Expired session → 403 |
+| **Guest — completed invite (`/upr-review/{token}/` after submit)** | M14: 303 `/upr-review/edit/` when E3 holds; **never** a second submit | Freeze [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md) | Log redaction | Generic denial if window/revoke/tuple fail |
+| **Catalogue-hidden — existing review edit** | In-window author may edit existing comment (E15); C9 `can_submit` stays false | M14 E15 | Do not treat as reopen-submit | New submit still 403 |
 | **Block / FSE single product** | Same **C9/C10/enforcement** as classic | Contract tests only | **Visual verification** — reviews section + C10 gating in block layout | UPR fail-closed on POST if display wrong |
 | **Custom PDP without reviews section** | UPR does not inject UI | Enforcement only | Provide invitation path for guests | N/A |
 | **`comments_open=false` anti-pattern** | Stock WC may hide review list | UPR does not set; guards enforce POST | **Do not** use for submit gate | Fix host adapter |
@@ -76,3 +80,4 @@ UPR **never** registers `comments_open` as a submission or availability gate.
 - [`adapters.md`](adapters.md)
 - [`integrator-onboarding.md`](integrator-onboarding.md)
 - [`../decisions/ADR-0002-productization-boundary.md`](../decisions/ADR-0002-productization-boundary.md)
+- [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md)

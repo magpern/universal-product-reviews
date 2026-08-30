@@ -2,7 +2,7 @@
 
 ## Scope
 
-Invitation tokens (`upr_tokens`, purpose `invite`) and form sessions (purpose `form_session`). Authoritative behaviour: [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md).
+Invitation tokens (`upr_tokens`, purpose `invite`), form sessions (purpose `form_session`), and M14 edit sessions (purpose `edit_session`). Authoritative M2 behaviour: [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md). M14 guest-edit proof: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md).
 
 ## Incidents
 
@@ -14,6 +14,8 @@ Invitation tokens (`upr_tokens`, purpose `invite`) and form sessions (purpose `f
 | Replay attack | Verify single-winner redeem and one `review_comment_id` |
 | Session abandoned | Customer may reopen invite link (open ≠ redeem) until invite expiry/revoke |
 | Token appears in access logs | Host must redact `/upr-review/{token}/`; treat as leak if logs retained |
+| Guest cannot edit after successful submit | Expected until M14: completion sets `redeemed_at` only; `find_active_by_raw` stays null. After M14: same secret may mint `edit_session` only when E3 tuple+window hold |
+| Suspected leak of a **redeemed** invite during the 7-day edit window | **Security revoke** that token id with `TokenRepository::revoke( $id )` (sets `revoked_at` even when `redeemed_at` is set). That **does** kill M14 edit. Do **not** use `revoke_for_item` / `revoke_all_outstanding` for this — those skip redeemed rows by design |
 
 ## Revocation triggers
 
@@ -22,8 +24,11 @@ Invitation tokens (`upr_tokens`, purpose `invite`) and form sessions (purpose `f
 - Reminder issued (prior active invite revoked + child sessions)
 - Compliance / adapter suppress / opt-out
 - Product discontinued / not reviewable
-- Successful redeem
+- Successful redeem (`redeemed_at` only — **does not** set `revoked_at`; **does not** kill M14 completed-invite edit)
+- Token-incident / explicit **security revoke** of a specific token id (`TokenRepository::revoke( $id )` — **does** kill M14 edit even if redeemed)
 - Manual operator revoke (admin UI is M4+)
+
+Mass `revoke_for_item` / `revoke_all_outstanding` remain **unredeemed-only**. Post-complete item suppress does **not** revoke the redeemed invite (M14 E15: existing-comment edit may continue).
 
 ## Diagnostics
 
@@ -37,10 +42,11 @@ Invitation tokens (`upr_tokens`, purpose `invite`) and form sessions (purpose `f
 - Token exchange returns `303` + `Referrer-Policy: no-referrer`; form URLs are token-free
 - Cookie: `__Host-upr_review_session` on HTTPS (`Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, no `Domain`)
 - **Host duty:** redact or exclude `/upr-review/{token}/` from web-server access logs
-- Auth-salt rotation invalidates **all** outstanding tokens and sessions
+- Auth-salt rotation invalidates **all** outstanding tokens and sessions (including M14 completed-invite HMAC match and in-flight claim HMACs)
 
 ## Related
 
 - [`invitation-failures.md`](invitation-failures.md)
 - [`reconciliation.md`](reconciliation.md)
 - [`../milestones/M2-invitations.md`](../milestones/M2-invitations.md)
+- [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md)
