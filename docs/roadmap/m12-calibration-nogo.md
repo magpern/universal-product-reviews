@@ -1,7 +1,7 @@
 # M12 calibration / simulation gates — current posture
 
-**Status:** **Calibration GO not issued.** Production automatic action remains prohibited. **Simulation GO not yet issued** in this repository (no committed synthetic_simulation corpus). Automatic action runtime remains **unimplemented**.  
-**Date:** 2026-08-30 (amended: two-gate Simulation / Calibration model)  
+**Status:** **Simulation GO issued** (synthetic corpus on `main`). **Simulation-GO implementation merged** (masters default off). **Calibration GO not issued.** Production automatic action remains prohibited.  
+**Date:** 2026-08-30 (amended: Simulation GO + implementation closure)  
 **Baseline freeze:** `m12-guarded-auto-spam-freeze` → `79d9a94a5c82489e988e6543050c3b6b5182ef0c` (PR [#62](https://github.com/magpern/universal-product-reviews/pull/62)).
 
 ## Two-gate model (exact verdicts)
@@ -16,7 +16,15 @@ No harness verdict sets `production_enablement_authorised`. Production automatic
 
 ## Finding (current)
 
-No Simulation GO corpus and no Calibration GO corpus are present in Git. Templates/examples evaluate to **NO-GO**.
+| Gate | Posture |
+|------|---------|
+| Simulation corpus | Committed: `scripts/calibration/fixtures/m12-sim-v1.synthetic.json` |
+| Simulation harness verdict | `SIMULATION GO — implementation and non-production testing only` |
+| Runtime `auto_spam_held_technical` | Implemented on `main` (PR [#67](https://github.com/magpern/universal-product-reviews/pull/67)); masters **default off** |
+| Calibration corpus | **Not available** |
+| Calibration GO | **Not issued** |
+
+Canonical implementation record: [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md).
 
 ## Evidence workflows
 
@@ -25,6 +33,7 @@ No Simulation GO corpus and no Calibration GO corpus are present in Git. Templat
 1. Use [`../../scripts/calibration/evidence-kit/`](../../scripts/calibration/evidence-kit/) with `evidence_status: synthetic_simulation` and `provenance.source_class: synthetic_authorised`.
 2. Privacy-safe opaque ids + labels + assessment maps only — no customer PII/bodies in Git.
 3. Evaluate: `php scripts/calibration/evaluate.php <file.json>` → exit **10** on Simulation GO.
+4. Current checked-in fixture: `scripts/calibration/fixtures/m12-sim-v1.synthetic.json`.
 
 ### Calibration (real-world)
 
@@ -38,14 +47,15 @@ Offline tooling under `scripts/calibration/` enforces both gates. Unit tests: `t
 
 ## Explicit non-actions (this document)
 
-- No runtime auto-spam implementation in this amendment alone
-- No SemVer / Release / ZIP / production enablement
+- No Calibration GO and no production enablement
+- No SemVer / Release / ZIP from this posture note
+- Synthetic metrics must not be treated as real-world precision/false-positive proof
 
 ## Next gates
 
-1. Optional: supply synthetic_simulation corpus → **Simulation GO** → Implementation GO (masters off) → DEV/pre-prod synthetic testing.  
+1. Optional: controlled DEV/pre-prod synthetic testing under Simulation GO (masters still default off until separately authorised).  
 2. Mandatory before production: authorised real-world corpus → **Calibration GO** → separate production enablement GO.
 
 ## Verdict (repository posture)
 
-**NO-GO — automatic action deferred** (neither Simulation GO nor Calibration GO issued on `main` evidence).
+**Simulation GO + implementation present; production automatic moderation still blocked** (Calibration GO not issued).
