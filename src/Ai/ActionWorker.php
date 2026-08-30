@@ -40,6 +40,29 @@ final class ActionWorker {
 			return;
 		}
 
+		$resolved      = AssessmentRepository::resolve_actionable_assessment( $comment_id );
+		$actionable_id = is_array( $resolved['assessment'] ?? null )
+			? (int) ( $resolved['assessment']['assessment_id'] ?? 0 )
+			: 0;
+		if ( $actionable_id !== $assessment_id ) {
+			$policy = ActionPolicy::ACTION_POLICY_VERSION;
+			$token  = ActionLedgerRepository::acquire_processing( $comment_id, $assessment_id, $policy, 'action-worker' );
+			if ( null === $token ) {
+				return;
+			}
+			$reason = $actionable_id > 0 ? 'superseded' : (string) ( $resolved['reason'] ?? 'superseded' );
+			ActionLedgerRepository::transition_token_matched(
+				$comment_id,
+				$assessment_id,
+				$policy,
+				$token,
+				ActionLedgerRepository::STATE_PROCESSING,
+				ActionLedgerRepository::STATE_ABSTAINED,
+				$reason
+			);
+			return;
+		}
+
 		$policy = ActionPolicy::ACTION_POLICY_VERSION;
 		$token  = ActionLedgerRepository::acquire_processing( $comment_id, $assessment_id, $policy, 'action-worker' );
 		if ( null === $token ) {

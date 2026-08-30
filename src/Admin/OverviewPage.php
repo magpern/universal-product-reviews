@@ -9,6 +9,9 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\Admin;
 
+use UniversalProductReviews\Ai\ActionLedgerRepository;
+use UniversalProductReviews\Ai\ActionPolicy;
+use UniversalProductReviews\Ai\AssessmentRepository;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Invitations\EmergencyPause;
 
@@ -100,6 +103,8 @@ final class OverviewPage {
 					?>
 				</li>
 			</ul>
+
+			<?php self::render_ai_moderation_posture(); ?>
 
 			<p>
 				<a class="button" href="<?php echo esc_url( $controls_url ); ?>"><?php echo esc_html__( 'Controls', 'universal-product-reviews' ); ?></a>
@@ -195,6 +200,94 @@ final class OverviewPage {
 				</table>
 			<?php endif; ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Privacy-safe AI moderation posture (counts/booleans only — no PII).
+	 */
+	private static function render_ai_moderation_posture(): void {
+		$master    = Options::ai_auto_spam_enabled();
+		$policy    = Options::ai_auto_spam_policy_enabled();
+		$sim       = Options::ai_auto_spam_simulation_guard_enabled();
+		$kill      = Options::ai_auto_spam_kill_switch();
+		$dry       = Options::ai_auto_spam_dry_run();
+		$boundary  = Options::ai_auto_action_boundary_unix() > 0;
+		$ledger    = array();
+		$unknown   = 0;
+		$assess_24 = array();
+
+		try {
+			$ledger  = ActionLedgerRepository::counts_by_state();
+			$unknown = (int) ( $ledger['unknown_after_crash'] ?? 0 );
+		} catch ( \Throwable $e ) {
+			$ledger = array();
+		}
+
+		try {
+			$assess_24 = AssessmentRepository::count_states_24h();
+		} catch ( \Throwable $e ) {
+			$assess_24 = array();
+		}
+
+		$would_act_url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=upr_would_act_report' ),
+			'upr_would_act_report'
+		);
+		?>
+		<h3><?php echo esc_html__( 'AI moderation posture', 'universal-product-reviews' ); ?></h3>
+		<p class="description">
+			<?php echo esc_html__( 'Operator surface only. Masters remain default-off. Does not enable auto-spam. Production automatic moderation remains prohibited pending Calibration GO.', 'universal-product-reviews' ); ?>
+		</p>
+		<ul>
+			<li><?php echo esc_html( sprintf( 'Auto-spam master: %s', $master ? 'on' : 'off' ) ); ?></li>
+			<li><?php echo esc_html( sprintf( 'Auto-spam policy: %s', $policy ? 'on' : 'off' ) ); ?></li>
+			<li><?php echo esc_html( sprintf( 'Simulation guard: %s', $sim ? 'on' : 'off' ) ); ?></li>
+			<li><?php echo esc_html( sprintf( 'Kill switch: %s', $kill ? 'on' : 'off' ) ); ?></li>
+			<li><?php echo esc_html( sprintf( 'Dry-run: %s', $dry ? 'on' : 'off' ) ); ?></li>
+			<li>
+				<?php
+				echo $boundary
+					? esc_html__( 'Auto-action enablement boundary: set', 'universal-product-reviews' )
+					: esc_html__( 'Auto-action enablement boundary: unset', 'universal-product-reviews' );
+				?>
+			</li>
+			<li><?php echo esc_html( sprintf( 'Tuple fingerprint: %s', substr( ActionPolicy::active_tuple_fingerprint(), 0, 12 ) ) ); ?></li>
+		</ul>
+
+		<h4><?php echo esc_html__( 'Action ledger (counts)', 'universal-product-reviews' ); ?></h4>
+		<?php if ( array() === $ledger ) : ?>
+			<p><?php echo esc_html__( 'Ledger counts unavailable.', 'universal-product-reviews' ); ?></p>
+		<?php else : ?>
+			<ul>
+				<?php foreach ( array( 'processing', 'cas_succeeded', 'acted', 'abstained', 'observed', 'unknown_after_crash' ) as $state ) : ?>
+					<li><?php echo esc_html( $state . ': ' . (int) ( $ledger[ $state ] ?? 0 ) ); ?></li>
+				<?php endforeach; ?>
+			</ul>
+			<?php if ( $unknown > 0 ) : ?>
+				<p><strong><?php echo esc_html__( 'unknown_after_crash requires manual reconciliation — never replay WP transition hooks.', 'universal-product-reviews' ); ?></strong></p>
+			<?php endif; ?>
+		<?php endif; ?>
+
+		<h4><?php echo esc_html__( 'Assessments (24h aggregates)', 'universal-product-reviews' ); ?></h4>
+		<?php if ( array() === $assess_24 ) : ?>
+			<p><?php echo esc_html__( 'No assessment aggregates in the last 24 hours (or unavailable).', 'universal-product-reviews' ); ?></p>
+		<?php else : ?>
+			<ul>
+				<?php foreach ( $assess_24 as $state => $count ) : ?>
+					<li><?php echo esc_html( (string) $state . ': ' . (int) $count ); ?></li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
+
+		<p>
+			<a class="button" href="<?php echo esc_url( $would_act_url ); ?>">
+				<?php echo esc_html__( 'Run would-act report (read-only)', 'universal-product-reviews' ); ?>
+			</a>
+		</p>
+		<p class="description">
+			<?php echo esc_html__( 'Would-act is zero-write: it does not change status, write audit rows, or enable auto-spam. Policy match (pre-boundary) is non-actionable and is never labelled would-act.', 'universal-product-reviews' ); ?>
+		</p>
 		<?php
 	}
 }

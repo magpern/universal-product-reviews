@@ -11,6 +11,7 @@ namespace UniversalProductReviews\Moderation;
 
 use UniversalProductReviews\Ai\Eligibility;
 use UniversalProductReviews\Ai\PolicyAllowlist;
+use UniversalProductReviews\Ai\Recommendation;
 use UniversalProductReviews\Ai\RecommendationPolicy;
 use UniversalProductReviews\Config\Options;
 
@@ -50,9 +51,11 @@ final class CommentListEnhancements {
 		add_filter( 'manage_edit-comments_columns', array( self::class, 'columns' ) );
 		add_action( 'manage_comments_custom_column', array( self::class, 'render_column' ), 10, 2 );
 		add_action( 'restrict_manage_comments', array( self::class, 'render_source_filter' ) );
+		add_action( 'restrict_manage_comments', array( self::class, 'render_recommendation_filter' ) );
 		add_filter( 'comment_status_links', array( self::class, 'view_links' ) );
 		add_action( 'pre_get_comments', array( self::class, 'constrain_query' ) );
 		add_filter( 'comments_clauses', array( self::class, 'invitation_linked_clauses' ), 10, 2 );
+		add_filter( 'comments_clauses', array( self::class, 'recommendation_filter_clauses' ), 10, 2 );
 		add_action( 'the_comments', array( self::class, 'prefetch_page' ), 10, 2 );
 	}
 
@@ -308,6 +311,29 @@ final class CommentListEnhancements {
 		echo '</select>';
 	}
 
+	public static function render_recommendation_filter(): void {
+		if ( ! current_user_can( 'moderate_comments' ) ) {
+			return;
+		}
+		$current = self::sanitised_recommendation();
+		echo '<label class="screen-reader-text" for="upr_recommendation">' . esc_html__( 'UPR AI recommendation', 'universal-product-reviews' ) . '</label>';
+		echo '<select name="upr_recommendation" id="upr_recommendation">';
+		printf(
+			'<option value="" %s>%s</option>',
+			selected( $current, '', false ),
+			esc_html__( 'All AI recommendations', 'universal-product-reviews' )
+		);
+		foreach ( Recommendation::ACTIONS as $action ) {
+			printf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( $action ),
+				selected( $current, $action, false ),
+				esc_html( RecommendationPolicy::action_label( $action ) )
+			);
+		}
+		echo '</select>';
+	}
+
 	/**
 	 * @param array<string, string> $status_links Status links.
 	 * @return array<string, string>
@@ -358,8 +384,9 @@ final class CommentListEnhancements {
 
 		$view   = self::sanitised_view();
 		$source = self::sanitised_source();
+		$rec    = self::sanitised_recommendation();
 
-		$needs_product_scope = '' !== $view || self::SOURCE_INVITATION === $source || self::SOURCE_ALL === $source;
+		$needs_product_scope = '' !== $view || self::SOURCE_INVITATION === $source || self::SOURCE_ALL === $source || '' !== $rec;
 		if ( ! $needs_product_scope ) {
 			return;
 		}
@@ -367,12 +394,19 @@ final class CommentListEnhancements {
 		$query->query_vars['type']      = 'review';
 		$query->query_vars['post_type'] = 'product';
 
-		if ( self::VIEW_PENDING === $view ) {
+		if ( self::VIEW_PENDING === $view || '' !== $rec ) {
 			$query->query_vars['status'] = 'hold';
 		}
 
 		if ( self::SOURCE_INVITATION === $source ) {
 			$query->query_vars['upr_invitation_linked'] = true;
+		}
+
+		if ( '' !== $rec ) {
+			$query->query_vars['upr_recommendation'] = $rec;
+			// cache_domain is a core query var included in comment-query cache keys.
+			// Custom upr_* vars are not — without this, switching filters returns stale IDs.
+			$query->query_vars['cache_domain'] = 'upr_recommendation_' . $rec;
 		}
 	}
 
@@ -413,6 +447,46 @@ final class CommentListEnhancements {
 	}
 
 	/**
+	 * Held-only recommendation filter via RecommendationPolicy SQL compiler (EXISTS).
+	 *
+	 * Uses latest assessment of any state (advisory). Distinct from M12 latest_actionable_*.
+	 *
+	 * @param array<string, string> $clauses Clauses.
+	 * @param \WP_Comment_Query     $query   Query.
+	 * @return array<string, string>
+	 */
+	public static function recommendation_filter_clauses( array $clauses, $query ): array {
+		if ( ! self::is_comments_list_query( $query ) ) {
+			return $clauses;
+		}
+
+		$action = isset( $query->query_vars['upr_recommendation'] )
+			? (string) $query->query_vars['upr_recommendation']
+			: '';
+		if ( '' === $action ) {
+			$action = self::sanitised_recommendation();
+		}
+		if ( '' === $action ) {
+			return $clauses;
+		}
+
+		$compiled = RecommendationPolicy::compile_held_filter_sql( $action );
+		if ( null === $compiled ) {
+			return $clauses;
+		}
+
+		global $wpdb;
+		$prepared = $wpdb->prepare( $compiled['fragment'], ...$compiled['args'] );
+		if ( ! is_string( $prepared ) || '' === $prepared ) {
+			return $clauses;
+		}
+
+		$clauses['where'] .= ' AND ' . $prepared . ' ';
+
+		return $clauses;
+	}
+
+	/**
 	 * @param list<\WP_Comment|object> $comments Comments for the page.
 	 * @param \WP_Comment_Query        $query    Query.
 	 * @return list<\WP_Comment|object>
@@ -446,6 +520,14 @@ final class CommentListEnhancements {
 	public static function sanitised_source(): string {
 		$raw = isset( $_REQUEST['upr_source'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['upr_source'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( in_array( $raw, array( self::SOURCE_INVITATION, self::SOURCE_ALL ), true ) ) {
+			return $raw;
+		}
+		return '';
+	}
+
+	public static function sanitised_recommendation(): string {
+		$raw = isset( $_REQUEST['upr_recommendation'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['upr_recommendation'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( in_array( $raw, Recommendation::ACTIONS, true ) ) {
 			return $raw;
 		}
 		return '';

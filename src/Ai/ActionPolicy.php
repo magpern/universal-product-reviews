@@ -35,6 +35,32 @@ final class ActionPolicy {
 	);
 
 	/**
+	 * Content eligibility for auto_spam (ignores master/policy/simulation/kill).
+	 *
+	 * Requires held/top-level/in-scope, completed, strict enablement boundary,
+	 * Simulation calibrated tuple, and likely_spam recommendation.
+	 *
+	 * @param array<string, mixed> $assessment Terminal assessment row.
+	 * @param mixed                $comment    Optional comment object; loaded from assessment when null.
+	 * @return array{ok:bool, reason:string}
+	 */
+	public static function content_eligible_for_auto_spam( array $assessment, $comment = null ): array {
+		return self::content_match( $assessment, $comment, true );
+	}
+
+	/**
+	 * Same as content_eligible_for_auto_spam but omits the enablement boundary.
+	 * Output is always non-actionable — never label as "would act".
+	 *
+	 * @param array<string, mixed> $assessment Terminal assessment row.
+	 * @param mixed                $comment    Optional comment object.
+	 * @return array{ok:bool, reason:string}
+	 */
+	public static function policy_match_pre_boundary( array $assessment, $comment = null ): array {
+		return self::content_match( $assessment, $comment, false );
+	}
+
+	/**
 	 * @param array<string, mixed> $assessment Terminal assessment row.
 	 * @param mixed                $comment    Optional comment object; loaded from assessment when null.
 	 * @param bool                 $for_dry_run When true, auto-spam master may be off (observe-only path).
@@ -54,6 +80,21 @@ final class ActionPolicy {
 			return array( 'ok' => false, 'reason' => 'simulation_guard_off' );
 		}
 
+		$content = self::content_eligible_for_auto_spam( $assessment, $comment );
+		if ( ! $content['ok'] ) {
+			return $content;
+		}
+
+		return array( 'ok' => true, 'reason' => 'eligible' );
+	}
+
+	/**
+	 * @param array<string, mixed> $assessment Assessment row.
+	 * @param mixed                $comment    Comment or null.
+	 * @param bool                 $require_boundary When false, skip enablement boundary (pre-boundary match).
+	 * @return array{ok:bool, reason:string}
+	 */
+	private static function content_match( array $assessment, $comment, bool $require_boundary ): array {
 		if ( null === $comment ) {
 			$cid     = isset( $assessment['comment_id'] ) ? (int) $assessment['comment_id'] : 0;
 			$comment = $cid > 0 ? get_comment( $cid ) : null;
@@ -67,10 +108,16 @@ final class ActionPolicy {
 			return array( 'ok' => false, 'reason' => 'not_completed' );
 		}
 
-		$completed_raw  = (string) ( $assessment['completed_at'] ?? '' );
-		$completed_unix = $completed_raw !== '' ? (int) strtotime( $completed_raw . ' UTC' ) : 0;
-		if ( ! Options::is_assessment_strictly_after_auto_action_boundary( $completed_unix ) ) {
-			return array( 'ok' => false, 'reason' => 'boundary' );
+		if ( $require_boundary ) {
+			$completed_raw  = (string) ( $assessment['completed_at'] ?? '' );
+			$completed_unix = $completed_raw !== '' ? (int) strtotime( $completed_raw . ' UTC' ) : 0;
+			if ( ! Options::is_assessment_strictly_after_auto_action_boundary( $completed_unix ) ) {
+				$boundary = Options::ai_auto_action_boundary_unix();
+				return array(
+					'ok'     => false,
+					'reason' => $boundary <= 0 ? 'boundary_unset' : 'boundary',
+				);
+			}
 		}
 
 		if ( ! self::tuple_matches( $assessment ) ) {

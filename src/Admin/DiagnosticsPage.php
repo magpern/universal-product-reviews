@@ -1,6 +1,6 @@
 <?php
 /**
- * Diagnostics tab renderer (D1–D11 cached ops + uncached I1–I5 readiness).
+ * Diagnostics tab renderer (D1–D21 cached ops + uncached I1–I5 readiness).
  *
  * @package UniversalProductReviews
  */
@@ -42,7 +42,7 @@ final class DiagnosticsPage {
 		<div class="upr-diagnostics">
 			<h2><?php echo esc_html__( 'Diagnostics', 'universal-product-reviews' ); ?></h2>
 			<p class="description">
-				<?php echo esc_html__( 'D1–D11 operator checks (cached ≤ 60s). Unavailable means evidence could not be loaded (not critical).', 'universal-product-reviews' ); ?>
+				<?php echo esc_html__( 'D1–D21 operator checks (cached ≤ 60s). Unavailable means evidence could not be loaded (not critical).', 'universal-product-reviews' ); ?>
 			</p>
 			<p>
 				<a class="button" href="<?php echo esc_url( $controls_url ); ?>"><?php echo esc_html__( 'Safe actions (Controls)', 'universal-product-reviews' ); ?></a>

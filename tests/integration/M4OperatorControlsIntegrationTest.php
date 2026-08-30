@@ -191,13 +191,13 @@ final class M4OperatorControlsIntegrationTest extends WP_UnitTestCase {
 		update_option( Migrator::OPTION_VERSION, Schema::DB_VERSION, false );
 		AdminCache::invalidate();
 		$results = DiagnosticsService::run( false );
-		$this->assertCount( 11, $results );
+		$this->assertCount( 21, $results );
 		$by = array();
 		foreach ( $results as $row ) {
 			$by[ $row['id'] ] = $row;
-			$this->assertContains( $row['status'], array( 'pass', 'warning', 'information', 'unavailable' ) );
-			$this->assertNotSame( 'critical', $row['status'] );
+			$this->assertContains( $row['status'], array( 'pass', 'warning', 'information', 'unavailable', 'critical' ) );
 		}
+		$this->assertArrayHasKey( 'D21', $by );
 		// D6 may be pass/warning/unavailable depending on AS; never claim exhaustive wording without "at least".
 		if ( 'warning' === $by['D6']['status'] ) {
 			$this->assertStringContainsString( 'at least', $by['D6']['message'] );

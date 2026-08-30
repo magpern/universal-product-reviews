@@ -1,6 +1,6 @@
 <?php
 /**
- * M4 diagnostics catalogue D1–D11 (no PII).
+ * M4 diagnostics catalogue D1–D21 (no PII).
  *
  * @package UniversalProductReviews
  */
@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
 final class DiagnosticsService {
 
 	/**
-	 * Run D1–D11. Results are cached ≤ 60s via AdminCache.
+	 * Run D1–D21. Results are cached ≤ 60s via AdminCache.
 	 *
 	 * @return list<array{id:string,status:string,severity:string,message:string,evidence_code:string}>
 	 */
@@ -62,6 +62,7 @@ final class DiagnosticsService {
 			self::check_d18(),
 			self::check_d19(),
 			self::check_d20(),
+			self::check_d21(),
 		);
 
 		AdminCache::set(
@@ -661,6 +662,71 @@ final class DiagnosticsService {
 				(int) ( $counts['processing'] ?? 0 )
 			),
 			$master || $policy || $sim ? 'auto_spam_partially_enabled' : 'auto_spam_masters_off'
+		);
+	}
+
+	/**
+	 * D21 assessment retention purge health (counts/ages only; no Internal\*).
+	 *
+	 * @return array{id:string,status:string,headline:string,message:string,evidence_code:string}
+	 */
+	public static function check_d21(): array {
+		try {
+			if ( ! self::moderation_assessment_tables_exist() ) {
+				return self::result( 'D21', 'unavailable', 'Unavailable', 'Assessment retention table unavailable.', 'purge_schema_unavailable' );
+			}
+			$due = AssessmentRepository::count_retention_due();
+		} catch ( \Throwable $e ) {
+			return self::result( 'D21', 'unavailable', 'Unavailable', 'Assessment retention query failed.', 'purge_query_failed' );
+		}
+
+		$last_unix = Options::assessments_last_purge_unix();
+		$age_h     = $last_unix > 0 ? ( time() - $last_unix ) / HOUR_IN_SECONDS : null;
+
+		$purge_missing = false;
+		if ( function_exists( 'as_has_scheduled_action' ) ) {
+			$purge_missing = ! as_has_scheduled_action( 'upr_purge_moderation_assessments', array(), \UniversalProductReviews\Scheduling\Jobs::GROUP );
+		}
+
+		if ( $due > 100 || ( null !== $age_h && $age_h > 72 ) || $purge_missing ) {
+			return self::result(
+				'D21',
+				'critical',
+				'Critical',
+				sprintf(
+					'Assessment retention purge health critical: due_count=%d; last_purge_age_h=%s; recurring_purge=%s.',
+					$due,
+					null === $age_h ? 'never' : (string) (int) round( $age_h ),
+					$purge_missing ? 'missing' : 'present'
+				),
+				$purge_missing ? 'purge_job_missing' : ( $due > 100 ? 'purge_due_high' : 'purge_stale' )
+			);
+		}
+
+		if ( ( $due > 0 && $due <= 100 ) || ( null !== $age_h && $age_h > 36 && $age_h <= 72 ) ) {
+			return self::result(
+				'D21',
+				'warning',
+				'Warning',
+				sprintf(
+					'Assessment retention purge warning: due_count=%d; last_purge_age_h=%s.',
+					$due,
+					null === $age_h ? 'never' : (string) (int) round( $age_h )
+				),
+				$due > 0 ? 'purge_due_pending' : 'purge_aging'
+			);
+		}
+
+		return self::result(
+			'D21',
+			'information',
+			'Information',
+			sprintf(
+				'Assessment retention purge healthy: due_count=%d; last_purge_age_h=%s.',
+				$due,
+				null === $age_h ? 'never' : (string) (int) round( $age_h )
+			),
+			'purge_healthy'
 		);
 	}
 

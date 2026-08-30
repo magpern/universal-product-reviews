@@ -37,6 +37,7 @@ final class Options {
 	public const AI_AUTO_SPAM_DRY_RUN           = 'upr_ai_auto_spam_dry_run';
 	public const AI_AUTO_SPAM_KILL_SWITCH       = 'upr_ai_auto_spam_kill_switch';
 	public const AI_AUTO_ACTION_BOUNDARY_AT     = 'upr_ai_auto_action_boundary_at';
+	public const ASSESSMENTS_LAST_PURGE_AT      = 'upr_assessments_last_purge_at';
 
 
 	public const AI_EXTERNAL_ENABLED           = 'upr_ai_external_enabled';
@@ -118,6 +119,10 @@ final class Options {
 			return false;
 		}
 		return $completed_at_unix > $boundary;
+	}
+
+	public static function assessments_last_purge_unix(): int {
+		return max( 0, (int) get_option( self::ASSESSMENTS_LAST_PURGE_AT, 0 ) );
 	}
 
 
