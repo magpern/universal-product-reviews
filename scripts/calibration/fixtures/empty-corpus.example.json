@@ -1,0 +1,27 @@
+{
+  "schema_version": "m12-cal-v1",
+  "description": "Example empty evidence document. Does not contain human labels or review bodies. Evaluating this file MUST yield NO-GO.",
+  "holdout_locked_before_tuning": true,
+  "tuple": {
+    "provider_kind": "local",
+    "assessor_version": "example-unset",
+    "heuristic_or_model_fingerprint": "example-unset",
+    "validator_version": "example-unset",
+    "assessment_policy_version": "example-unset",
+    "recommendation_policy_version": "2026-08-rec-v1",
+    "action_policy_version": "example-unset"
+  },
+  "strata": {
+    "legitimate_negative": {
+      "rows": []
+    },
+    "technical_spam": {
+      "rows": []
+    }
+  },
+  "privacy": {
+    "review_bodies_committed": false,
+    "secrets_committed": false,
+    "note": "Real evidence must use opaque row ids and assessment field maps only."
+  }
+}

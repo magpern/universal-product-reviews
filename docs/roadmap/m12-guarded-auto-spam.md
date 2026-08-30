@@ -329,4 +329,4 @@ Dry-run: **`observed`** only (no CAS). Restore-to-hold: all terminal states incl
 
 ## 12. Closure pointer
 
-Closure evidence (Calibration GO / NO-GO and/or implementation-with-enablement-blocked) will be recorded in a sibling closure document after later phases. Until then, automatic action remains **unimplemented and separately gated**.
+Closure: [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md) — **NO-GO — AUTOMATIC ACTION DEFERRED** (calibration corpus unavailable; see [`m12-calibration-nogo.md`](m12-calibration-nogo.md)).
