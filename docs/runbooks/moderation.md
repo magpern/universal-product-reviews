@@ -11,7 +11,7 @@ UPR product reviews are WordPress comments with `comment_type=review` on `produc
 3. WooCommerce’s review-type selector remains available and combines with UPR filters (AND).
 4. Columns show Product, Rating, Source (`Invitation-linked` | `Unlinked/unknown`), Order (order link only when object-level edit capability passes), and **AI advisory** (M9–M11).
 5. **Approve** genuine reviews — including negative reviews. Do not reject for rating or sentiment alone.
-6. Use native Approve / Unapprove / Spam / Trash. There is no UPR bulk-spam-reason UI in M5. **M11** may show allowlisted recommendation labels (risk score: higher = greater publication risk) **only while the review is Pending (`hold`)**. Recommendations are advisory — humans must approve. Leaving Pending hides actionable labels; assessments remain for audit. There is **no** M11 attention filter and **no** automatic status change from AI.
+6. Use native Approve / Unapprove / Spam / Trash. There is no UPR bulk-spam-reason UI in M5. **M11** may show allowlisted recommendation labels (risk score: higher = greater publication risk) **only while the review is Pending (`hold`)**. Recommendations are advisory — humans must approve. Leaving Pending hides actionable labels; assessments remain for audit. There is **no** M11 attention filter. **M12** may later offer a separately gated `auto_spam_held_technical` path (hold→spam only); auto-approve is permanently excluded; documentation freeze alone does **not** enable it.
 
 ## Hold policy
 
@@ -31,11 +31,14 @@ In-scope status transitions are audited:
 |--------|-------|
 | Operator (`moderate_comments` in admin) | `review.status_changed` |
 | UPR `SystemStatusOrigin` → spam | `review.system_spam` |
+| UPR `AiActionOrigin` → spam (M12, when enabled) | `review.ai_auto_spam` |
 | Other UPR / CLI / cron / plugin | `review.system_status_changed` |
 
 Validated staff replies also emit `review.reply_posted`.
 
-Payloads are allowlisted operational IDs only (no comment body, email, token, URL, or direct customer PII).
+Payloads are allowlisted operational IDs only (no comment body, email, token, URL, or direct customer PII). Claim / lease tokens must never appear in audit payloads.
+
+**M12 crash reconciliation:** If diagnostics show `unknown_after_crash` with AI CAS evidence, treat as **critical**: verify current comment status and third-party side effects manually; do **not** expect UPR to replay WordPress transition hooks. Prefer native Not spam / re-moderate as needed. See [`m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md) §7.
 
 **Retention:** M5 adds **no** audit TTL or purge behaviour.
 
@@ -48,6 +51,7 @@ Unchanged (`upr-support-export/v1`). No new M5 fields. Order IDs remain absent f
 - [`moderation-capabilities.md`](moderation-capabilities.md)
 - [`../roadmap/m5-review-moderation-operations.md`](../roadmap/m5-review-moderation-operations.md)
 - [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md)
+- [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md)
 - [`support-export.md`](support-export.md)
 - [`retention.md`](retention.md)
 - [`ai-outage.md`](ai-outage.md)

@@ -9,7 +9,7 @@ Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-
 - **M9** local shadow is **implemented** on `main` (disabled by default; built-in-only).
 - **M10** external OpenAI advisory is **implemented and closed** on `main` after corrective PRs **#55–#57** (external opt-in **off**; provider default **`local`**; host-only credentials). SemVer / Release / ZIP / DEV-prod enablement remain **deferred** pending a separate privacy/governance/provider-limit GO. See [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md).
 - **M11** recommendation-only guidance: freeze [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md). **Never** auto-approves / auto-spams / mutates comment status. Actionable labels only while status is `hold`.
-- **M12** (auto-action) remains unimplemented and separately gated.
+- **M12** guarded auto-spam: freeze [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md). Sole contract **`auto_spam_held_technical`** (hold→spam). **Auto-approve permanently excluded.** Documentation freeze does **not** authorise runtime action. Automatic action requires separate Calibration GO, Implementation GO, Dry-run GO, DEV enablement GO, and later production enablement GO. If CAS/hook-parity cannot be proven → deferred / NO-GO.
 
 ## Privacy gate
 
@@ -80,9 +80,9 @@ Once a review is approved, spammed, or trashed: no new assessment jobs and no re
 - Provider enum exactly **`local` \| `openai`** — no provider filter / class override
 - OpenAI: Responses API only, `store: false`, no tools / conversation chaining
 - AI outputs stored as terminal assessment rows only (when enabled paths complete)
-- **Zero** automated approve / spam / delete from AI (M11 recommendations never mutate status)
+- **Zero** automated approve / spam / delete from AI unless a later **DEV/production enablement GO** turns on M12 `auto_spam_held_technical` (masters default off; dry-run `observed` never mutates status)
 - Operators compare advisory output / M11 recommendations to human decisions for calibration
-- Sentiment fairness is **not** proven by unit tests — requires a governed calibration set before **M12** auto-action
+- Sentiment fairness is **not** proven by unit tests — requires the governed M12 calibration programme (Wilson false-spam bound) before any live auto-spam enablement
 
 ## Escalation
 
@@ -97,5 +97,6 @@ PII or health-related content in reviews → human moderation regardless of AI s
 - [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md)
 - [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md)
 - [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md)
-- [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) (M12 appendix)
+- [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md)
+- [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) (demoted M12 appendix)
 - `ARCHITECTURE.md` §9
