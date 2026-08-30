@@ -19,6 +19,7 @@ Calibration GO was not objectively satisfied. Automatic action (`auto_spam_held_
 | Freeze merge commit | `79d9a94a5c82489e988e6543050c3b6b5182ef0c` |
 | Freeze tag | `m12-guarded-auto-spam-freeze` (annotated; peels to `79d9a94…`) |
 | Freeze CI | PR #62 — lint, unit 8.1/8.4, integration DEV + floor: **pass** |
+| Calibration harness + NO-GO PR | [#63](https://github.com/magpern/universal-product-reviews/pull/63) (this closure) |
 | Authoritative freeze | [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md) |
 | ADR | [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md) (amended M12) |
 | Calibration NO-GO | [`m12-calibration-nogo.md`](m12-calibration-nogo.md) |
