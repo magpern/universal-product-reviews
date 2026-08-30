@@ -38,6 +38,8 @@ Open **Diagnostics** for bounded checks (cached ≤ 60s). Unavailable ≠ critic
 | D17 | Credential present bool + source (never value) |
 | D18 | External quota day/month aggregates |
 
+M12 (when implemented, masters default off) adds **D20** ledger-state aggregates; **critical** when `unknown_after_crash` retains AI CAS evidence (manual reconciliation — never replay public WP transition hooks). See [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md).
+
 Safe recovery: Controls (enable/pause/AI), reconcile dry-run→apply, controlled DB upgrade. No mint/resend.
 
 ## Integration readiness (I1–I5)

@@ -6,7 +6,7 @@
 
 Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** separately authorised SemVer/enablement GO for M10 external AI, or **M12** only after a new ADR amendment and product GO. M11 recommendation-only is **closed**: [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md). M10 implementation is **closed** and accepted only after corrective PRs **#55–#57** (SemVer deferred; external AI still off by default): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed.
+**Recommended next implementation milestone:** separately authorised SemVer/enablement GO for M10 external AI, or **M12** calibration/implementation only after Calibration GO under the M12 freeze. M11 recommendation-only is **closed**: [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md). M10 implementation is **closed** and accepted only after corrective PRs **#55–#57** (SemVer deferred; external AI still off by default): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed. M12 design is frozen at [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md) (runtime action still gated).
 
 ---
 
@@ -71,7 +71,7 @@ Each milestone below requires its own **plan → documentation freeze → implem
 
 - **M10** — External AI advisory assessments (OpenAI); freeze [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md). **Closed and accepted after #55–#57** (implementation; SemVer deferred; no enablement): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md).  
 - **M11** — AI moderation **recommendations** only (no auto-action). Freeze: [`m11-ai-moderation-recommendations.md`](m11-ai-moderation-recommendations.md). **Closed** (SemVer deferred; no auto-action / no enablement): [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md).  
-- **M12** — Guarded automatic action (ADR amendment + governed calibration + dry-run + separate master enable). See [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md). **Not started.**  
+- **M12** — Sole contract **`auto_spam_held_technical`** (hold→spam CAS + parity + leased ledger + calibrated tuple + strict boundary). Freeze: [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md). ADR: [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md). **Auto-approve permanently excluded.** Documentation freeze does not authorise runtime action; Calibration / Implementation / Dry-run / enablement GOs remain separate. Demoted appendix: [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md).
 
 ---
 
