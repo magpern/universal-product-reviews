@@ -7,7 +7,7 @@ Optional AI-assisted moderation triage. Authoritative planning: [`../roadmap/m8-
 **Runtime status:**
 
 - **M9** local shadow is **implemented** on `main` (disabled by default; built-in-only).
-- **M10** external OpenAI advisory is **implemented and closed** on `main` after corrective PRs **#55–#57** (external opt-in **off**; provider default **`local`**; host-only credentials). SemVer / Release / ZIP / DEV-prod enablement remain **deferred** pending a separate privacy/governance/provider-limit GO. See [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md).
+- **M10** external OpenAI advisory is **implemented and closed** on `main` after corrective PRs **#55–#57** (external opt-in **off**; provider default **`local`**). Credential storage amended by O9′ ([`../roadmap/m10-o9-encrypted-openai-credential-amendment.md`](../roadmap/m10-o9-encrypted-openai-credential-amendment.md)): constant → environment → encrypted Controls option. SemVer / Release / ZIP / DEV-prod enablement remain **deferred** pending a separate privacy/governance/provider-limit GO. See [`../roadmap/m10-external-ai-advisory-assessments-closure.md`](../roadmap/m10-external-ai-advisory-assessments-closure.md).
 - **M11** recommendation-only guidance: freeze [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md). **Never** auto-approves / auto-spams / mutates comment status. Actionable labels only while status is `hold`.
 - **M12** guarded auto-spam: freeze [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md). Sole contract **`auto_spam_held_technical`**. **Two-gate model:** Simulation GO (synthetic fixtures → implementation + DEV/pre-prod only) vs Calibration GO (real-world labels → production enablement may be considered). Simulation-GO implementation: [`../roadmap/m12-simulation-implementation-closure.md`](../roadmap/m12-simulation-implementation-closure.md) (masters default off). Production automatic moderation remains prohibited without Calibration GO ([`../roadmap/m12-calibration-nogo.md`](../roadmap/m12-calibration-nogo.md)). Offline harness + evidence kit under `scripts/calibration/`.
 
@@ -27,7 +27,7 @@ UPR does **not** treat a “DPIA done” checkbox as machine-enforced proof of c
 
 ### Secrets
 
-Provider API keys must live in the `UPR_OPENAI_API_KEY` PHP constant or environment variable (constant wins). **Never** store keys in UPR options, audit, diagnostics, support export, logs, or exceptions. Controls / Site Health / Diagnostics show **present/absent** and source (`constant` \| `environment` \| `missing`) only.
+Provider API keys resolve in order: nonempty `UPR_OPENAI_API_KEY` PHP constant, nonempty environment variable `UPR_OPENAI_API_KEY`, then encrypted Controls-stored option `upr_openai_api_key_ciphertext` (M10 O9′). **Never** return keys (or ciphertext) in UPR UI, audit, diagnostics, support export, logs, or exceptions. Controls / Site Health / Diagnostics show **present/absent** and source (`constant` \| `environment` \| `stored` \| `missing`) only. Host override always wins over a stored credential.
 
 Until external AI is enabled: deterministic rules and human moderation only; M9 keeps review text inside UPR core (no outbound HTTP outside the allowlisted OpenAI client path).
 

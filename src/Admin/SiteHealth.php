@@ -295,6 +295,9 @@ final class SiteHealth {
 			'provider_' . sanitize_key( $provider ),
 			$cred['present'] ? 'credential_present_' . sanitize_key( $cred['source'] ) : 'credential_missing',
 		);
+		if ( empty( $cred['present'] ) && ! empty( $cred['stored_undecryptable'] ) ) {
+			$codes[] = 'credential_undecryptable';
+		}
 
 		try {
 			$q = ExternalQuotaRepository::summarize();

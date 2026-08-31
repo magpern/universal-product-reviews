@@ -20,6 +20,7 @@ Staff-reply hold exemption additionally requires `moderate_comments` and `edit_p
 | Request **OpenAI** re-analysis of a **currently held** top-level product review | `manage_woocommerce` + nonce (provider=`openai`; `moderate_comments` alone **denied**) |
 | Enable/disable local AI shadow | `manage_woocommerce` + confirmation (default **off**) |
 | Enable/disable external AI + provider/model/caps | `manage_woocommerce` + confirms/acks (external default **off**) |
+| Save / replace / clear encrypted OpenAI API key | `manage_woocommerce` + nonce + confirm (O9′) |
 | OpenAI test connection | `manage_woocommerce` + nonce + confirm |
 
 Approved, spam, trash, deleted, replies, and out-of-scope comments must not be newly assessed or re-analysed. Historical advisory may remain visible without a re-analysis control. Shadow **disabled** stops all new assessment output and AI audit events; historical rows stay visible.
@@ -40,7 +41,7 @@ Provider enum is exactly **`local` \| `openai`** — **no** host-replaceable pro
 | Allowed | Forbidden |
 |---------|-----------|
 | Bounded score / allowlisted reason codes / provider_kind labels in Comments admin | Raw prompts, provider JSON, review body copies in audit/export |
-| Aggregate AI failure / quota counters; credential present + source | Provider API keys, raw review text, request/response bodies, provider request IDs that identify content |
+| Aggregate AI failure / quota counters; credential present + source (`constant`\|`environment`\|`stored`\|`missing`) | Provider API keys, ciphertext, raw review text, request/response bodies, provider request IDs that identify content |
 | | Rating as assessor input; sentiment reason codes; exception messages/traces with secrets |
 
 ## Support export

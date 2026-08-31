@@ -11,6 +11,7 @@ namespace UniversalProductReviews\Admin;
 
 use UniversalProductReviews\Ai\AssessmentLifecycle;
 use UniversalProductReviews\Ai\OpenAi\ExternalAiTestConnection;
+use UniversalProductReviews\Ai\OpenAi\OpenAiCredentialAdmin;
 use UniversalProductReviews\Ai\ProviderResolver;
 use UniversalProductReviews\Ai\WouldActReport;
 use UniversalProductReviews\Audit\AuditLogger;
@@ -29,9 +30,11 @@ final class AdminActions {
 		add_action( 'admin_post_upr_support_export', array( self::class, 'handle_support_export' ) );
 		add_action( 'admin_post_upr_ai_reanalyze', array( self::class, 'handle_ai_reanalyze' ) );
 		add_action( 'admin_post_upr_ai_test_connection', array( self::class, 'handle_ai_test_connection' ) );
+		add_action( 'admin_post_upr_openai_credential', array( OpenAiCredentialAdmin::class, 'handle' ) );
 		add_action( 'admin_post_upr_would_act_report', array( self::class, 'handle_would_act_report' ) );
 		add_action( 'admin_notices', array( self::class, 'render_edit_comments_notices' ) );
 		add_action( 'admin_notices', array( self::class, 'render_would_act_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'render_credential_notice' ) );
 	}
 
 	public static function handle_reconcile_dry_run(): void {
@@ -317,6 +320,34 @@ final class AdminActions {
 			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
 			esc_attr( $map[ $notice ][0] ),
 			esc_html( $map[ $notice ][1] )
+		);
+	}
+
+	public static function render_credential_notice(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_GET['page'] ) || SettingsPage::MENU_SLUG !== (string) $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		if ( empty( $_GET['upr_cred'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$code = sanitize_key( wp_unslash( (string) $_GET['upr_cred'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$map  = array(
+			'saved'     => array( 'success', __( 'OpenAI credential saved (encrypted). The value is never shown.', 'universal-product-reviews' ) ),
+			'replaced'  => array( 'success', __( 'OpenAI credential replaced (encrypted). The value is never shown.', 'universal-product-reviews' ) ),
+			'cleared'   => array( 'success', __( 'Stored OpenAI credential cleared.', 'universal-product-reviews' ) ),
+			'rejected'  => array( 'error', __( 'OpenAI credential change rejected (confirmation, capability, or input).', 'universal-product-reviews' ) ),
+			'forbidden' => array( 'error', __( 'OpenAI credential change forbidden.', 'universal-product-reviews' ) ),
+		);
+		if ( ! isset( $map[ $code ] ) ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( $map[ $code ][0] ),
+			esc_html( $map[ $code ][1] )
 		);
 	}
 

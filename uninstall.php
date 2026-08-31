@@ -9,3 +9,6 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 // Intentionally retain {prefix}upr_invite_items, upr_tokens, upr_audit and WP comments.
 // Hosts may delete manually if required by policy.
+
+// O9′: encrypted OpenAI credential must not survive uninstall.
+delete_option( 'upr_openai_api_key_ciphertext' );
