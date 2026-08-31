@@ -1,8 +1,8 @@
 # M14 — Customer 7-day review edits (authoritative freeze)
 
-**Status:** Frozen M14 **product and implementation** specification. Authorises **documentation freeze** and **subsequent implementation on this freeze**. Does **not** authorise Calibration GO, production enablement, DEV/production WordPress access, credentials, provider configuration, external-AI enablement, email, auto-spam master enablement, host-specific code, GitHub Release, ZIP, plugin SemVer / version tag, or movement of `v0.8.0`.  
+**Status:** Frozen M14 **product and implementation** specification. **Implementation closed:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (PR [#73](https://github.com/magpern/universal-product-reviews/pull/73) → `b9f4a9596f41a5236e5488adf0461d7f4bea8ea2`). Authorises **documentation freeze** and **implementation on this freeze**. Does **not** authorise Calibration GO, production enablement, DEV/production WordPress access, credentials, provider configuration, external-AI enablement, email, auto-spam master enablement, host-specific code, GitHub Release, ZIP, plugin SemVer / version tag, or movement of `v0.8.0`.  
 **Baseline:** Universal Product Reviews `main` @ **`2f81225a835fc9706353c811bbbba465991493b0`** (PR [#71](https://github.com/magpern/universal-product-reviews/pull/71) — M13 operator command-surface closure). Runtime remains **`0.8.0`**.  
-**Freeze tag:** `m14-customer-seven-day-review-edits-freeze` (annotated; peels to the merge commit of this freeze).
+**Freeze tag:** `m14-customer-seven-day-review-edits-freeze` (annotated; peels to **`c3f8b5d3cbf6810a6631ed2c55ae4580c1feec21`** — merge of this freeze).
 
 **Related:** [`m13-operator-ai-command-surface.md`](m13-operator-ai-command-surface.md), [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md), [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) §12.
 
@@ -336,4 +336,4 @@ Edit-notification / reminder email; a second customer-visible edit secret or com
 
 ## 10. Freeze statement
 
-This document is the sole M14 product/implementation specification. Implementation may proceed only after the annotated tag `m14-customer-seven-day-review-edits-freeze` peels to the merge of this freeze on `main`. Runtime remains **`0.8.0`** until a separately authorised SemVer.
+This document is the sole M14 product/implementation specification. Implementation closed: [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md). Runtime remains **`0.8.0`** until a separately authorised SemVer.

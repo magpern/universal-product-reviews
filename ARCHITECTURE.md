@@ -337,6 +337,7 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 - Body + rating self-edit for 7 days after `comment_date_gmt`; completed-invite guest proof; serialized `edit_session` reissue; `ApproveToHoldCas`
 - Freeze: [`docs/roadmap/m14-customer-seven-day-review-edits.md`](docs/roadmap/m14-customer-seven-day-review-edits.md)
+- Closure: [`docs/roadmap/m14-customer-seven-day-review-edits-closure.md`](docs/roadmap/m14-customer-seven-day-review-edits-closure.md)
 - Runtime remains `0.8.0` until a separately authorised SemVer
 
 ---
