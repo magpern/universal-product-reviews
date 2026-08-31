@@ -538,6 +538,10 @@ final class DiagnosticsService {
 		$status  = CredentialResolver::status();
 		$present = ! empty( $status['present'] );
 		$source  = sanitize_key( (string) ( $status['source'] ?? 'missing' ) );
+		$code    = $present ? 'credential_present_' . $source : 'credential_missing';
+		if ( ! $present && ! empty( $status['stored_undecryptable'] ) ) {
+			$code = 'credential_undecryptable';
+		}
 		return self::result(
 			'D17',
 			$present ? 'information' : 'pass',
@@ -547,7 +551,7 @@ final class DiagnosticsService {
 				$present ? 'present' : 'missing',
 				$source
 			),
-			$present ? 'credential_present_' . $source : 'credential_missing'
+			$code
 		);
 	}
 

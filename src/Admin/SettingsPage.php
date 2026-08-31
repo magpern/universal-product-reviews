@@ -17,6 +17,8 @@ use UniversalProductReviews\Ai\ActionControls;
 use UniversalProductReviews\Ai\ActionPolicy;
 use UniversalProductReviews\Ai\ExternalQuotaRepository;
 use UniversalProductReviews\Ai\OpenAi\CredentialResolver;
+use UniversalProductReviews\Ai\OpenAi\OpenAiCredentialAdmin;
+use UniversalProductReviews\Ai\OpenAi\OpenAiCredentialStore;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -557,7 +559,7 @@ final class SettingsPage {
 					<strong><?php echo esc_html__( 'OpenAI credential', 'universal-product-reviews' ); ?>:</strong>
 					<?php
 					echo $cred['present']
-						? esc_html( sprintf( /* translators: %s: constant|environment */ __( 'present (%s)', 'universal-product-reviews' ), $cred['source'] ) )
+						? esc_html( sprintf( /* translators: %s: constant|environment|stored */ __( 'configured (%s)', 'universal-product-reviews' ), $cred['source'] ) )
 						: esc_html__( 'missing', 'universal-product-reviews' );
 					?>
 				</li>
@@ -762,7 +764,7 @@ final class SettingsPage {
 							<input type="hidden" name="<?php echo esc_attr( Options::AI_EXTERNAL_ENABLED ); ?>" value="no" />
 							<label>
 								<input type="checkbox" id="upr_ai_external_enabled" name="<?php echo esc_attr( Options::AI_EXTERNAL_ENABLED ); ?>" value="yes" <?php checked( $external ); ?> data-upr-was="<?php echo $external ? '1' : '0'; ?>" />
-								<?php echo esc_html__( 'Allow OpenAI advisory assessments when provider is openai. Requires host credential UPR_OPENAI_API_KEY.', 'universal-product-reviews' ); ?>
+								<?php echo esc_html__( 'Allow OpenAI advisory assessments when provider is openai. Requires a credential: UPR_OPENAI_API_KEY constant, environment variable, or encrypted key stored below.', 'universal-product-reviews' ); ?>
 							</label>
 							<p class="description" style="color:#b32d2e;">
 								<strong><?php echo esc_html__( 'Warning:', 'universal-product-reviews' ); ?></strong>
@@ -903,6 +905,58 @@ final class SettingsPage {
 				});
 			})();
 			</script>
+
+			<hr />
+			<h3><?php echo esc_html__( 'OpenAI API key', 'universal-product-reviews' ); ?></h3>
+			<?php
+			$host_override = $cred['present'] && in_array( $cred['source'], array( CredentialResolver::SOURCE_CONSTANT, CredentialResolver::SOURCE_ENVIRONMENT ), true );
+			$undecryptable = ! empty( $cred['stored_undecryptable'] );
+			?>
+			<p>
+				<strong><?php echo esc_html__( 'Status', 'universal-product-reviews' ); ?>:</strong>
+				<?php
+				echo $cred['present']
+					? esc_html( sprintf( /* translators: %s: constant|environment|stored */ __( 'configured (%s)', 'universal-product-reviews' ), $cred['source'] ) )
+					: esc_html__( 'missing', 'universal-product-reviews' );
+				?>
+			</p>
+			<?php if ( $host_override ) : ?>
+				<p class="description">
+					<?php echo esc_html__( 'A host constant or environment credential is active and overrides any stored credential. Neither value is shown.', 'universal-product-reviews' ); ?>
+				</p>
+			<?php endif; ?>
+			<?php if ( $undecryptable && ! $cred['present'] ) : ?>
+				<p class="description">
+					<?php echo esc_html__( 'A stored credential cannot be decrypted (for example after salt rotation). You may save a new key to overwrite it, or clear it. The stored value is never shown.', 'universal-product-reviews' ); ?>
+				</p>
+			<?php endif; ?>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>" style="margin-bottom:1em;">
+				<input type="hidden" name="action" value="<?php echo esc_attr( OpenAiCredentialAdmin::ACTION ); ?>" />
+				<?php wp_nonce_field( OpenAiCredentialAdmin::ACTION ); ?>
+				<p>
+					<label for="upr_openai_api_key"><?php echo esc_html__( 'New OpenAI API key', 'universal-product-reviews' ); ?></label><br />
+					<input type="password" class="regular-text" id="upr_openai_api_key" name="<?php echo esc_attr( OpenAiCredentialStore::FIELD ); ?>" value="" autocomplete="new-password" maxlength="512" />
+				</p>
+				<p>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( OpenAiCredentialAdmin::CONFIRM_SAVE ); ?>" value="1" />
+						<?php echo esc_html__( 'I confirm saving or replacing the stored OpenAI API key (encrypted at rest).', 'universal-product-reviews' ); ?>
+					</label>
+				</p>
+				<?php submit_button( __( 'Save OpenAI API key', 'universal-product-reviews' ), 'secondary', 'submit', false ); ?>
+			</form>
+			<form method="post" action="<?php echo esc_url( $admin_post ); ?>">
+				<input type="hidden" name="action" value="<?php echo esc_attr( OpenAiCredentialAdmin::ACTION ); ?>" />
+				<input type="hidden" name="<?php echo esc_attr( OpenAiCredentialAdmin::INTENT_CLEAR ); ?>" value="1" />
+				<?php wp_nonce_field( OpenAiCredentialAdmin::ACTION ); ?>
+				<p>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( OpenAiCredentialAdmin::CONFIRM_CLEAR ); ?>" value="1" />
+						<?php echo esc_html__( 'I confirm clearing the stored OpenAI API key.', 'universal-product-reviews' ); ?>
+					</label>
+				</p>
+				<?php submit_button( __( 'Clear stored OpenAI API key', 'universal-product-reviews' ), 'delete', 'submit', false ); ?>
+			</form>
 
 			<hr />
 			<h3><?php echo esc_html__( 'OpenAI test connection', 'universal-product-reviews' ); ?></h3>

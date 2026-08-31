@@ -1,8 +1,8 @@
 <?php
 /**
- * Host-only OpenAI credential resolution (constant then environment).
+ * OpenAI credential resolution: constant → environment → encrypted store (O9′).
  *
- * Never logs, returns, or serialises the secret outside resolve_secret().
+ * Never logs, returns, or serialises the secret outside require_secret().
  *
  * @package UniversalProductReviews
  */
@@ -17,6 +17,7 @@ final class CredentialResolver {
 
 	public const SOURCE_CONSTANT    = 'constant';
 	public const SOURCE_ENVIRONMENT = 'environment';
+	public const SOURCE_STORED      = 'stored';
 	public const SOURCE_MISSING     = 'missing';
 
 	/** @var string|null Test seam: non-null string = secret; empty string = force missing. */
@@ -36,13 +37,14 @@ final class CredentialResolver {
 	}
 
 	/**
-	 * @return array{present: bool, source: string}
+	 * @return array{present: bool, source: string, stored_undecryptable: bool}
 	 */
 	public static function status(): array {
 		$resolved = self::resolve_internal();
 		return array(
-			'present' => '' !== $resolved['secret'],
-			'source'  => $resolved['source'],
+			'present'              => '' !== $resolved['secret'],
+			'source'               => $resolved['source'],
+			'stored_undecryptable' => $resolved['stored_undecryptable'],
 		);
 	}
 
@@ -60,14 +62,15 @@ final class CredentialResolver {
 	}
 
 	/**
-	 * @return array{secret: string, source: string}
+	 * @return array{secret: string, source: string, stored_undecryptable: bool}
 	 */
 	private static function resolve_internal(): array {
 		if ( null !== self::$test_secret ) {
 			$source = self::$test_source ?? ( '' === self::$test_secret ? self::SOURCE_MISSING : self::SOURCE_CONSTANT );
 			return array(
-				'secret' => self::$test_secret,
-				'source' => '' === self::$test_secret ? self::SOURCE_MISSING : $source,
+				'secret'               => self::$test_secret,
+				'source'               => '' === self::$test_secret ? self::SOURCE_MISSING : $source,
+				'stored_undecryptable' => false,
 			);
 		}
 
@@ -75,8 +78,9 @@ final class CredentialResolver {
 			$constant = trim( (string) constant( 'UPR_OPENAI_API_KEY' ) );
 			if ( '' !== $constant ) {
 				return array(
-					'secret' => $constant,
-					'source' => self::SOURCE_CONSTANT,
+					'secret'               => $constant,
+					'source'               => self::SOURCE_CONSTANT,
+					'stored_undecryptable' => OpenAiCredentialStore::is_undecryptable(),
 				);
 			}
 		}
@@ -86,15 +90,28 @@ final class CredentialResolver {
 			$env = trim( (string) $env );
 			if ( '' !== $env ) {
 				return array(
-					'secret' => $env,
-					'source' => self::SOURCE_ENVIRONMENT,
+					'secret'               => $env,
+					'source'               => self::SOURCE_ENVIRONMENT,
+					'stored_undecryptable' => OpenAiCredentialStore::is_undecryptable(),
 				);
 			}
 		}
 
+		$result = OpenAiCredentialStore::decrypt();
+		if ( OpenAiCredentialState::AVAILABLE === $result->state() && null !== $result->plaintext() && '' !== $result->plaintext() ) {
+			return array(
+				'secret'               => $result->plaintext(),
+				'source'               => self::SOURCE_STORED,
+				'stored_undecryptable' => false,
+			);
+		}
+
+		$undecryptable = OpenAiCredentialState::ABSENT !== $result->state();
+
 		return array(
-			'secret' => '',
-			'source' => self::SOURCE_MISSING,
+			'secret'               => '',
+			'source'               => self::SOURCE_MISSING,
+			'stored_undecryptable' => $undecryptable,
 		);
 	}
 }

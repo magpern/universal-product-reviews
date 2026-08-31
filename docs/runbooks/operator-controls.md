@@ -12,6 +12,7 @@ All admin UI and `admin-post` actions require **`manage_woocommerce`**.
 | Support export | `manage_woocommerce` + nonce | Local JSON download only |
 | Site Health tests | WP Site Health (read) | Schema, Woo, AS, pause, emails, local AI shadow, recommendations, external AI, auto-spam posture — no secrets |
 | OpenAI test connection | `manage_woocommerce` + nonce + confirm | Synthetic payload; external quota only |
+| Save / replace / clear OpenAI API key (O9′) | `manage_woocommerce` + nonce + confirm | Dedicated admin-post; encrypted option only; host override still first |
 | Enable external AI | `manage_woocommerce` + Settings API | Server-side confirm + privacy/retention/PII acks |
 | Would-act report (M13) | `manage_woocommerce` + nonce | Zero-write aggregates only; does not enable auto-spam |
 
@@ -36,7 +37,7 @@ Open **Diagnostics** for bounded checks (cached ≤ 60s). Unavailable ≠ critic
 | D12 | Local AI shadow enabled/disabled |
 | D13–D15 | Assessment schema / ops / 24h counts |
 | D16 | External AI enabled + provider enum |
-| D17 | Credential present bool + source (never value) |
+| D17 | Credential present bool + source `constant`\|`environment`\|`stored`\|`missing` (never value); may evidence `credential_undecryptable` |
 | D18 | External quota day/month aggregates |
 | D19 | Recommendations display posture |
 | D20 | Auto-spam ledger aggregates; **critical** when `unknown_after_crash` (manual reconciliation — never replay WP transition hooks) |
