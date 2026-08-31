@@ -1,7 +1,7 @@
 # M15 — Operator AI Moderation Queue (authoritative freeze)
 
-**Status:** Frozen M15 **product and implementation** specification. Authorises **documentation freeze** and **implementation on this freeze**. Does **not** authorise Calibration GO, production enablement, DEV/production WordPress access, credentials, provider configuration, external-AI enablement, email, auto-spam master enablement, host-specific code, GitHub Release, ZIP, plugin SemVer / version tag, or movement of `v0.8.0`.  
-**Baseline:** Universal Product Reviews `main` @ **`daa065ff27e85db7fd27ac133af49c5675d15157`** (PR [#77](https://github.com/magpern/universal-product-reviews/pull/77) — M14 acceptance / C20 promotion). Runtime remains **`0.8.0`**.  
+**Status:** Frozen M15 **product and implementation** specification. **Implementation closed:** [`m15-operator-ai-moderation-queue-closure.md`](m15-operator-ai-moderation-queue-closure.md) (PR [#79](https://github.com/magpern/universal-product-reviews/pull/79) → `6a09ce4bf24d96f9bb8b773db6f5205d9a2b538d`). Authorises **documentation freeze** and **implementation on this freeze**. Does **not** authorise Calibration GO, production enablement, DEV/production WordPress access, credentials, provider configuration, external-AI enablement, email, auto-spam master enablement, host-specific code, GitHub Release, ZIP, plugin SemVer / version tag, or movement of `v0.8.0`.  
+**Baseline:** Universal Product Reviews `main` @ **`daa065ff27e85db7fd27ac133af49c5675d15157`** (PR [#77](https://github.com/magpern/universal-product-reviews/pull/77) — M14 acceptance / C20 promotion). Runtime remains **`0.8.0`** at freeze/implementation.  
 **Freeze tag:** `m15-operator-ai-moderation-queue-freeze` (annotated; peels to the merge commit of this document).
 
 **Related:** [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md), [`m11-ai-moderation-recommendations.md`](m11-ai-moderation-recommendations.md), [`m13-operator-ai-command-surface.md`](m13-operator-ai-command-surface.md), [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md), [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md), [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) §12.
@@ -228,12 +228,13 @@ Parallel moderation dashboard; React/SPA; custom comment datastore; changing sto
 
 ## 10. Amendment boundary
 
-This document is the sole M15 product/implementation specification until an explicit freeze amendment. Host-specific moderation UI remains out of scope.
+This document is the sole M15 product/implementation specification until an explicit freeze amendment. Implementation closed: [`m15-operator-ai-moderation-queue-closure.md`](m15-operator-ai-moderation-queue-closure.md). Host-specific moderation UI remains out of scope.
 
 ---
 
 ## Related
 
+- [`m15-operator-ai-moderation-queue-closure.md`](m15-operator-ai-moderation-queue-closure.md)
 - [`post-m3-product-roadmap.md`](post-m3-product-roadmap.md)
 - [`m5-review-moderation-operations.md`](m5-review-moderation-operations.md)
 - [`m11-ai-moderation-recommendations.md`](m11-ai-moderation-recommendations.md)

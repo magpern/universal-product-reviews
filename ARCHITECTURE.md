@@ -242,7 +242,8 @@ Authoritative freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/r
 
 ### Operator AI moderation queue (M15)
 
-Authoritative freeze: [`docs/roadmap/m15-operator-ai-moderation-queue.md`](docs/roadmap/m15-operator-ai-moderation-queue.md).
+Authoritative freeze: [`docs/roadmap/m15-operator-ai-moderation-queue.md`](docs/roadmap/m15-operator-ai-moderation-queue.md).  
+Closure: [`docs/roadmap/m15-operator-ai-moderation-queue-closure.md`](docs/roadmap/m15-operator-ai-moderation-queue-closure.md).
 
 - Enhanced native Comments held queue (`upr_view=pending`) only — **not** a parallel dashboard, SPA, or datastore
 - Privacy-safe `QueueAssessmentPresenter` `<dl>` inside the existing `upr_ai` cell on held pending view; presenter-only “Likely acceptable” label (`RecommendationPolicy::action_label()` unchanged)
@@ -354,7 +355,8 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 
 - Enhanced native Comments pending queue; AI assessment presenter; Keep on hold; no AI status mutation
 - Freeze: [`docs/roadmap/m15-operator-ai-moderation-queue.md`](docs/roadmap/m15-operator-ai-moderation-queue.md)
-- Runtime remains `0.8.0`; SupportExport `upr-support-export/v1` unchanged
+- Closure: [`docs/roadmap/m15-operator-ai-moderation-queue-closure.md`](docs/roadmap/m15-operator-ai-moderation-queue-closure.md)
+- Runtime at closure `0.8.0`; SupportExport `upr-support-export/v1` unchanged
 
 ---
 
