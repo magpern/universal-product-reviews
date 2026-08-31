@@ -13,9 +13,10 @@ Generic checklist for wiring a **host adapter** to Universal Product Reviews. Ad
 7. **C7 mail** — Prefer custom `MailTransport` over email rewrite filters. Treat as **sensitive-data-bearing**: never log/persist/forward message fields.
 8. **C8a base URL** — Token-free `upr_review_form_base_url` if needed. Avoid C8b unless you must replace the builder (restricted; token-aware).
 9. **C9 / C10 storefront** — Consume availability + `NativePdpForm::should_render` for PDP display; see [`storefront-compatibility.md`](storefront-compatibility.md). Do not implement deferred hooks as if they exist.
-10. **Readiness** — Check Diagnostics **I1–I5** (advisory wiring only). Not in support export.
-11. **Storefront** — For block/FSE themes, run **host visual verification** that reviews render and C10 gates the native form ([`storefront-compatibility.md`](storefront-compatibility.md)).
-12. **Pin** — Record plugin SemVer + registry doc id `upr-public-contracts/v1`.
+10. **C20 edit control (optional)** — Hosts may show/hide a logged-in “edit review” control via `CustomerEditAvailability::resolve()`. Display-only; never a write grant. Guest edit is `/upr-review/edit/` after completed-invite exchange, not C20.
+11. **Readiness** — Check Diagnostics **I1–I5** (advisory wiring only). Not in support export.
+12. **Storefront** — For block/FSE themes, run **host visual verification** that reviews render and C10 gates the native form ([`storefront-compatibility.md`](storefront-compatibility.md)).
+13. **Pin** — Record plugin SemVer + registry doc id `upr-public-contracts/v1`.
 
 ## Privacy
 

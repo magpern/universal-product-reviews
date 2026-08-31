@@ -1,12 +1,41 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.8.0`**.  
+**Baseline:** Universal Product Reviews annotated **`v0.8.0`**. Runtime remains **`0.8.0`**; **no release** until operational rollout is separately authorised.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
-Each milestone below requires its own **plan → documentation freeze → implementation** cycle before work starts. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
+Each numbered milestone below required its own **plan → documentation freeze → implementation** cycle. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
 
-**Recommended next implementation milestone:** none frozen. Forward candidates (each needs its own **plan → documentation freeze → implementation**): C11/C16–C17 promotion; WC importer; deferred SemVer/Release. Separately governed: M10 SemVer/enablement GO; **M12 Calibration GO** before any production auto-spam enablement. **M14** customer 7-day edits are **closed**: [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (PR #73; runtime `0.8.0`; SupportExport `upr-support-export/v1` unchanged; C20 remains Provisional). **M13** operator command surface is **closed**: [`m13-operator-ai-command-surface-closure.md`](m13-operator-ai-command-surface-closure.md) (PR #70; masters default-off). M11 recommendation-only is **closed**: [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md). M10 implementation is **closed** after #55–#57 (SemVer deferred; external AI still off by default): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed. M12 Simulation-GO implementation: [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) (production still blocked).
+---
+
+## Development complete / closed
+
+These items are closed as **product development**. None of them is a SemVer release, an enablement GO, or a production install.
+
+| Item | Record |
+|------|--------|
+| **M14** customer 7-day review edits | **Accepted:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (implementation PR [#73](https://github.com/magpern/universal-product-reviews/pull/73) → `b9f4a9596f41a5236e5488adf0461d7f4bea8ea2`; runtime `0.8.0`; SupportExport `upr-support-export/v1` unchanged). **No release was made.** |
+| **C20** `CustomerEditAvailability::resolve` | **Promoted P → S:** [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md). Independent of SemVer. |
+| **Guest-edit credential alternative** | **Deferred** (completed-invite re-entry is sufficient): [`m14-guest-edit-reentry-decision.md`](m14-guest-edit-reentry-decision.md). Not implemented. |
+
+**M13** operator command surface is **closed**: [`m13-operator-ai-command-surface-closure.md`](m13-operator-ai-command-surface-closure.md) (PR #70; masters default-off). M11 recommendation-only is **closed**: [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md). M10 implementation is **closed** after #55–#57 plus O9′ [#76](https://github.com/magpern/universal-product-reviews/pull/76) (SemVer deferred; external AI still off by default): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed. M12 Simulation-GO implementation: [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) (production still blocked).
+
+**No next numbered product-development freeze is open.** Optional unfrozen candidates (each still needs **plan → documentation freeze → implementation**): C11/C16–C17; WC importer. They are **not** operational gates and are **not** in progress.
+
+---
+
+## Operational — still deferred (none complete)
+
+Do **not** treat any of the following as done. They are **not** product-development milestones on this roadmap.
+
+| Gate | Required before | Current posture |
+|------|-----------------|-----------------|
+| **External OpenAI enablement** | Real review text leaves the site to OpenAI | Privacy/processor terms; provider-side spend and rate limits; operator privacy acks; **explicit maintainer GO**. External master remains **default-off**. No credentials were added and no OpenAI calls were made in development closures. See [`m10-external-ai-advisory-assessments.md`](m10-external-ai-advisory-assessments.md) §11. |
+| **Automatic-spam production gate** | Considering production auto-spam | Real-review **Calibration GO** (`authorised_labelled` corpus). Simulation GO is **not** a substitute. [`m12-calibration-nogo.md`](m12-calibration-nogo.md). |
+| **Automatic-spam activation** | Masters on in production | **Separate production approval** after Calibration GO. Masters remain **default-off**. Dry-run `observed` never promotes. |
+| **Production rollout** | Live site running UPR | A **released** UPR (SemVer / installable ZIP — **not** created yet) **plus** host adapter, installation, and operational validation. Host adapters stay **outside** this repository. |
+
+**Recommended next implementation milestone:** none frozen.
 
 ---
 
@@ -73,12 +102,12 @@ Each milestone below requires its own **plan → documentation freeze → implem
 - **M11** — AI moderation **recommendations** only (no auto-action). Freeze: [`m11-ai-moderation-recommendations.md`](m11-ai-moderation-recommendations.md). **Closed** (SemVer deferred; no auto-action / no enablement): [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md).  
 - **M12** — Sole contract **`auto_spam_held_technical`**. Freeze: [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md). Two-gate evidence: **Simulation GO** / **Calibration GO**. Posture: [`m12-calibration-nogo.md`](m12-calibration-nogo.md). Freeze-era closure: [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md). **Simulation-GO implementation closure:** [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) (PR #67; masters default off; production still blocked). Kit: `scripts/calibration/evidence-kit/`. Auto-approve permanently excluded.  
 - **M13** — Operator AI Moderation Command Surface. Freeze: [`m13-operator-ai-command-surface.md`](m13-operator-ai-command-surface.md). **Closed:** [`m13-operator-ai-command-surface-closure.md`](m13-operator-ai-command-surface-closure.md) (PR #70; masters default-off; no Calibration GO / no production enablement).  
-- **M14** — Customer 7-day review edits. Freeze: [`m14-customer-seven-day-review-edits.md`](m14-customer-seven-day-review-edits.md). **Closed:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (PR #73; runtime `0.8.0`; C20 remains Provisional; SupportExport `upr-support-export/v1` unchanged).
+- **M14** — Customer 7-day review edits. Freeze: [`m14-customer-seven-day-review-edits.md`](m14-customer-seven-day-review-edits.md). **Accepted:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (PR #73; runtime `0.8.0`; SupportExport `upr-support-export/v1` unchanged). **C20 promoted to S:** [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md). Guest-edit alternative **deferred:** [`m14-guest-edit-reentry-decision.md`](m14-guest-edit-reentry-decision.md).
 
 ---
 
 ## Standing notes
 
-- Production rollout and its operational gates are **not** product-development milestones and are not scheduled by this roadmap.
+- Production rollout and its operational gates are **not** product-development milestones and are not scheduled by this roadmap. See **Operational — still deferred** above. None of those gates is complete.
 - Closing a prior freeze (for example M3 invitation controls) does not authorise the next milestone without a new plan freeze.
 - Related historical roadmap material remains under [`docs/roadmap/`](.).

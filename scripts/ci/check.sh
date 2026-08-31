@@ -189,6 +189,9 @@ required_docs=(
   docs/integration/wc-review-import-strategy.md
   docs/decisions/ADR-0003-public-contract-compatibility.md
   docs/decisions/ADR-0004-ai-moderation-boundary.md
+  docs/roadmap/m14-customer-seven-day-review-edits-closure.md
+  docs/roadmap/c20-customer-edit-availability-promotion.md
+  docs/roadmap/m14-guest-edit-reentry-decision.md
 )
 for f in "${required_docs[@]}"; do
   test -f "$f" || fail "missing $f"

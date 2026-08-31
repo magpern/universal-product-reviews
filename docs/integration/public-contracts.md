@@ -131,6 +131,16 @@ Support export schema `upr-support-export/v1` is **unchanged** by M6 and is not 
 | **Notes** | Returns `'local'` or `'openai'` from sanitised settings (default `'local'`). Discoverability only — never secrets, review text, or raw provider output. Implemented in M10. |
 | **Code** | `Ai\AiProvider` |
 
+### C20 — `CustomerEditAvailability::resolve` (**S**, none)
+
+| | |
+|--|--|
+| **Type** | PHP helper (display-only) |
+| **Signature** | `CustomerEditAvailability::resolve( int $comment_id, int $user_id ): array{ can_edit: bool, reason_code: string }` |
+| **Notes** | Logged-in “edit review” control helper. **Cannot grant write auth.** **No** `apply_filters` (no host force of `can_edit=true`). `reason_code` is exactly `ok` or `not_eligible` (generic; no existence oracle). `user_id <= 0` is always `not_eligible` — guest edit remains the completed-invite route `/upr-review/edit/` only. Promotion: [`../roadmap/c20-customer-edit-availability-promotion.md`](../roadmap/c20-customer-edit-availability-promotion.md). Freeze E27: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). |
+| **Tests** | Unit: no filter force / no arm / reason-code vocabulary. Integration: eligible `ok` does not arm writes; guest/spam/expired → `not_eligible`. |
+| **Code** | `CustomerEdit\CustomerEditAvailability` |
+
 ---
 
 ## Provisional (P)
@@ -142,7 +152,6 @@ Support export schema `upr-support-export/v1` is **unchanged** by M6 and is not 
 | C12 | `upr_item_is_reviewable` | |
 | C13 | `upr_include_zero_total_items` | |
 | C15 | `upr_review_min_length` | |
-| C20 | `CustomerEditAvailability::resolve` | M14 display helper (**P**). Signature `resolve( int $comment_id, int $user_id ): array{ can_edit: bool, reason_code: string }`. **No** filter that can force `can_edit=true`. Not a write grant. Code: `src/CustomerEdit/CustomerEditAvailability.php`. Freeze: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). |
 
 ---
 
@@ -181,4 +190,5 @@ Every `upr_*` filter applied in `src/`, every `upr_order_delivery_*` action core
 - [`integrator-onboarding.md`](integrator-onboarding.md)
 - [`adapters.md`](adapters.md)
 - [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md)
+- [`../roadmap/c20-customer-edit-availability-promotion.md`](../roadmap/c20-customer-edit-availability-promotion.md)
 - [`wc-review-import-strategy.md`](wc-review-import-strategy.md) (docs-only; no M6 runtime importer)

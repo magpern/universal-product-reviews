@@ -10,7 +10,7 @@ Canonical matrix for how Universal Product Reviews coexists with WooCommerce sto
 |----|------|
 | **C9** | `upr_product_review_availability` — submit eligibility (authoritative) |
 | **C10** | `NativePdpForm::should_render()` — native PDP form display gate (display-only) |
-| **C20** | `CustomerEditAvailability::resolve()` — **provisional (P)** read-only display helper for “edit review” controls (M14). **Cannot grant write auth.** See [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). |
+| **C20** | `CustomerEditAvailability::resolve()` — **stable (S)** read-only display helper for “edit review” controls (M14). **Cannot grant write auth.** Promotion: [`../roadmap/c20-customer-edit-availability-promotion.md`](../roadmap/c20-customer-edit-availability-promotion.md). |
 | **Guards** | `GuestSubmissionGuard` @ `preprocess_comment` **5**; `NativeSubmissionGuard` @ **15** |
 
 **Deferred (not implemented):** **C16** unavailable-message filter; **C17** rating-summary filter. **C11** `upr_product_is_reviewable` remains **provisional (P)** — not promoted in M7.
