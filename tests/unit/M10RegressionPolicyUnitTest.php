@@ -18,7 +18,7 @@ final class M10RegressionPolicyUnitTest extends TestCase {
 	public function test_plugin_version_unchanged_at_0_8_0(): void {
 		$boot = file_get_contents( dirname( __DIR__, 2 ) . '/universal-product-reviews.php' );
 		$this->assertIsString( $boot );
-		$this->assertMatchesRegularExpression( '/^\s*\*\s*Version:\s*0\.8\.0\s*$/m', $boot );
+		$this->assertMatchesRegularExpression( '/^\s*\*\s*Version:\s*0\.9\.0-rc\.1\s*$/m', $boot );
 	}
 
 	public function test_support_export_schema_unchanged(): void {
