@@ -21,7 +21,7 @@ UPR product reviews are WordPress comments with `comment_type=review` on `produc
 
 ## Editing
 
-UPR adds **no** review-editing UX. Native WordPress **Edit Comment** remains available outside UPR.
+Native WordPress **Edit Comment** remains the operator path (`moderate_comments`). Customers may self-edit in-window via `/upr-review/edit/` (M14). Successful approve edits return to **Pending**. Operator spam/trash during finalisation is not overwritten. See [`moderation-capabilities.md`](moderation-capabilities.md) and [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md).
 
 ## Audit
 

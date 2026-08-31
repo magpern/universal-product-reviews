@@ -39,4 +39,44 @@ final class AuditLogger {
 			array( '%s', '%s', '%s', '%d', '%d', '%s' )
 		);
 	}
+
+	/**
+	 * Insert-or-detect-duplicate audit row keyed by event_type + correlation_id (E33).
+	 *
+	 * @param array<string, mixed> $payload Non-secret payload only.
+	 */
+	public static function log_once(
+		string $event_type,
+		string $correlation_id,
+		string $actor_type = 'system',
+		?int $order_id = null,
+		?int $order_item_id = null,
+		array $payload = array()
+	): bool {
+		global $wpdb;
+
+		if ( '' === $correlation_id ) {
+			self::log( $event_type, $actor_type, $order_id, $order_item_id, $payload );
+			return true;
+		}
+
+		$table = $wpdb->prefix . 'upr_audit';
+		$prev  = $wpdb->suppress_errors( true );
+		$inserted = $wpdb->insert(
+			$table,
+			array(
+				'occurred_at'    => current_time( 'mysql', true ),
+				'actor_type'     => substr( $actor_type, 0, 16 ),
+				'event_type'     => substr( $event_type, 0, 64 ),
+				'order_id'       => $order_id,
+				'order_item_id'  => $order_item_id,
+				'payload_json'   => $payload ? wp_json_encode( $payload ) : null,
+				'correlation_id' => $correlation_id,
+			),
+			array( '%s', '%s', '%s', '%d', '%d', '%s', '%s' )
+		);
+		$wpdb->suppress_errors( $prev );
+
+		return false !== $inserted;
+	}
 }

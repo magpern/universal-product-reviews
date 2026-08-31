@@ -121,6 +121,27 @@ final class AssessmentClaimsRepository {
 		);
 	}
 
+	public static function clear_all_active_for_comment( int $comment_id ): void {
+		global $wpdb;
+
+		if ( $comment_id <= 0 ) {
+			return;
+		}
+
+		$table = self::table();
+		$now   = current_time( 'mysql', true );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is internal.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET claim_token = NULL, claim_expires_at = NULL, claim_provider_kind = NULL, updated_at = %s
+				WHERE comment_id = %d AND claim_token IS NOT NULL",
+				$now,
+				$comment_id
+			)
+		);
+	}
+
 	/**
 	 * Clear active claims acquired for a specific provider kind only.
 	 * Does not insert terminal rows or emit AI audit.

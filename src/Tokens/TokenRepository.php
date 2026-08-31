@@ -91,6 +91,27 @@ final class TokenRepository {
 	}
 
 	/**
+	 * Lookup by HMAC without redeemed/revoked/expiry predicates (M14 dispatcher).
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public static function find_by_raw( string $raw, string $purpose ): ?array {
+		global $wpdb;
+
+		$hash = TokenHasher::hash( $raw );
+		$row  = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT * FROM ' . self::table() . ' WHERE token_hash = %s AND purpose = %s LIMIT 1',
+				$hash,
+				$purpose
+			),
+			ARRAY_A
+		);
+
+		return is_array( $row ) ? $row : null;
+	}
+
+	/**
 	 * @return array<string, mixed>|null
 	 */
 	public static function find_by_id( int $id ): ?array {
@@ -134,6 +155,33 @@ final class TokenRepository {
 				$parent_token_id
 			)
 		);
+	}
+
+	/**
+	 * Revoke unrevoked edit_session children only (E30). Does not touch the parent invite.
+	 */
+	public static function revoke_edit_session_children( int $parent_token_id ): void {
+		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::table() . " SET revoked_at = %s WHERE parent_token_id = %d AND purpose = %s AND revoked_at IS NULL",
+				current_time( 'mysql', true ),
+				$parent_token_id,
+				'edit_session'
+			)
+		);
+	}
+
+	public static function count_edit_sessions_in_rolling_hour( int $parent_token_id ): int {
+		global $wpdb;
+		$n = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM ' . self::table() . " WHERE parent_token_id = %d AND purpose = %s AND created_at >= UTC_TIMESTAMP() - INTERVAL 1 HOUR",
+				$parent_token_id,
+				'edit_session'
+			)
+		);
+		return (int) $n;
 	}
 
 	public static function revoke_for_item( int $order_item_id ): void {

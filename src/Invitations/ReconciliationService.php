@@ -115,6 +115,7 @@ final class ReconciliationService {
 		$submit_recovery               = SubmitClaimService::recover_expired_claims();
 		$summary['submit_claims_released'] = $submit_recovery['released'];
 		$summary['orphans_repaired']       = self::repair_orphaned_reviews() + $submit_recovery['repaired'];
+		\UniversalProductReviews\CustomerEdit\EditClaimReconciler::run();
 
 		AuditLogger::log(
 			'reconcile.completed',

@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 final class RewriteRules {
 
 	public const VERSION_OPTION = 'upr_rewrite_version';
-	public const VERSION        = '2';
+	public const VERSION        = '3';
 
 	public static function register(): void {
 		add_action( 'init', array( self::class, 'add_rules' ) );
@@ -25,6 +25,7 @@ final class RewriteRules {
 
 	public static function add_rules(): void {
 		add_rewrite_rule( '^upr-review/form/?$', 'index.php?upr_review_form=1', 'top' );
+		add_rewrite_rule( '^upr-review/edit/?$', 'index.php?upr_review_edit=1', 'top' );
 		add_rewrite_rule( '^upr-review/([^/]+)/?$', 'index.php?upr_review_token=$matches[1]', 'top' );
 	}
 
@@ -35,6 +36,7 @@ final class RewriteRules {
 	public static function query_vars( array $vars ): array {
 		$vars[] = 'upr_review_token';
 		$vars[] = 'upr_review_form';
+		$vars[] = 'upr_review_edit';
 		return $vars;
 	}
 
@@ -49,6 +51,14 @@ final class RewriteRules {
 				ReviewSubmitHandler::handle();
 			} else {
 				ReviewFormEndpoint::handle_get();
+			}
+			exit;
+		}
+		if ( get_query_var( 'upr_review_edit' ) ) {
+			if ( 'POST' === strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) ) {
+				ReviewEditHandler::handle_post();
+			} else {
+				ReviewEditHandler::handle_get();
 			}
 			exit;
 		}

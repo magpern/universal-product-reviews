@@ -121,6 +121,9 @@ final class ReviewSubmitHandler {
 		try {
 			GuestSubmitAuthorization::arm( $product_id, $order_item_id, $session_id, $claim_token );
 			$comment_id = wp_new_comment( $commentdata, true );
+			if ( ! is_wp_error( $comment_id ) && $comment_id ) {
+				update_comment_meta( (int) $comment_id, 'rating', $rating );
+			}
 		} finally {
 			GuestSubmitAuthorization::clear();
 		}
@@ -132,7 +135,6 @@ final class ReviewSubmitHandler {
 		}
 
 		$comment_id = (int) $comment_id;
-		update_comment_meta( $comment_id, 'rating', $rating );
 		update_comment_meta( $comment_id, '_upr_order_item_id', $order_item_id );
 		if ( ! empty( $invite['variation_id'] ) ) {
 			update_comment_meta( $comment_id, '_upr_variation_id', (int) $invite['variation_id'] );
