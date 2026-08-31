@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.9.0-rc.2] - 2026-08-31
+
+DEV **test candidate** (release candidate). Annotated tag `v0.9.0-rc.2` only — **no** GitHub Release, installable ZIP, or final `v0.9.0` in this step. Supersedes `v0.9.0-rc.1` for DEV bind-mount validation reproducibility (includes M13 CLI fix from PR #82).
+
+### Fixed
+
+- M13 CLI: honor WP-CLI global `--user` bootstrap for `wp upr ai-status`, `wp upr would-act`, and `wp upr ledger-summary` when the flag is consumed globally instead of subcommand `$assoc`.
+
 ## [0.9.0-rc.1] - 2026-08-31
 
 DEV **test candidate** (release candidate). Annotated tag `v0.9.0-rc.1` only — **no** GitHub Release, installable ZIP, or final `v0.9.0` in this step. M12 masters and external AI remain **default-off**. SupportExport remains **`upr-support-export/v1`**.
