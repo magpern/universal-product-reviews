@@ -14,6 +14,7 @@ use UniversalProductReviews\Ai\ActionPolicy;
 use UniversalProductReviews\Ai\AssessmentRepository;
 use UniversalProductReviews\Config\Options;
 use UniversalProductReviews\Invitations\EmergencyPause;
+use UniversalProductReviews\Moderation\CommentListEnhancements;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -288,6 +289,53 @@ final class OverviewPage {
 		<p class="description">
 			<?php echo esc_html__( 'Would-act is zero-write: it does not change status, write audit rows, or enable auto-spam. Policy match (pre-boundary) is non-actionable and is never labelled would-act.', 'universal-product-reviews' ); ?>
 		</p>
+
+		<?php self::render_held_review_count(); ?>
+		<?php
+	}
+
+	/**
+	 * Held product-review count: visible with manage_woocommerce; link only if also moderate_comments.
+	 */
+	private static function render_held_review_count(): void {
+		$held = array( 'ok' => false, 'count' => 0 );
+		try {
+			$held = OverviewRepository::held_product_review_count();
+		} catch ( \Throwable $e ) {
+			$held = array( 'ok' => false, 'count' => 0 );
+		}
+
+		$queue_url = add_query_arg(
+			array(
+				'upr_view' => CommentListEnhancements::VIEW_PENDING,
+			),
+			admin_url( 'edit-comments.php' )
+		);
+		$can_link = current_user_can( 'moderate_comments' );
+		?>
+		<h4><?php echo esc_html__( 'Held product reviews', 'universal-product-reviews' ); ?></h4>
+		<?php if ( empty( $held['ok'] ) ) : ?>
+			<p><?php echo esc_html__( 'Held review count unavailable', 'universal-product-reviews' ); ?></p>
+		<?php else : ?>
+			<p>
+				<?php
+				$label = sprintf(
+					/* translators: %d: held product review count */
+					__( 'Held reviews awaiting moderation: %d', 'universal-product-reviews' ),
+					(int) $held['count']
+				);
+				if ( $can_link ) {
+					printf(
+						'<a href="%s">%s</a>',
+						esc_url( $queue_url ),
+						esc_html( $label )
+					);
+				} else {
+					echo esc_html( $label );
+				}
+				?>
+			</p>
+		<?php endif; ?>
 		<?php
 	}
 }

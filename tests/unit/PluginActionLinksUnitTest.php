@@ -43,7 +43,7 @@ final class PluginActionLinksUnitTest extends TestCase {
 		$this->assertStringContainsString( 'admin.php', $out['upr_settings'] );
 
 		$this->assertStringContainsString( 'edit-comments.php', $out['upr_product_reviews'] );
-		$this->assertStringContainsString( 'upr_view=' . CommentListEnhancements::VIEW_PRODUCT_REVIEWS, $out['upr_product_reviews'] );
+		$this->assertStringContainsString( 'upr_view=' . CommentListEnhancements::VIEW_PENDING, $out['upr_product_reviews'] );
 
 		$this->assertArrayHasKey( 'deactivate', $out );
 		$keys = array_keys( $out );
@@ -97,7 +97,7 @@ final class PluginActionLinksUnitTest extends TestCase {
 		);
 		$this->assertSame(
 			\add_query_arg(
-				array( 'upr_view' => CommentListEnhancements::VIEW_PRODUCT_REVIEWS ),
+				array( 'upr_view' => CommentListEnhancements::VIEW_PENDING ),
 				\admin_url( 'edit-comments.php' )
 			),
 			$reviews_href

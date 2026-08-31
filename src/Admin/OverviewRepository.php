@@ -230,4 +230,38 @@ final class OverviewRepository {
 	public static function schema_is_current(): bool {
 		return ! Migrator::needs_upgrade();
 	}
+
+	/**
+	 * Bounded COUNT of held in-scope product reviews (no ID/body fetch).
+	 *
+	 * @return array{ok:bool,count:int,error:?string}
+	 */
+	public static function held_product_review_count(): array {
+		$cached = get_transient( 'upr_held_review_count_v1' );
+		if ( is_array( $cached ) && array_key_exists( 'ok', $cached ) ) {
+			return array(
+				'ok'    => (bool) $cached['ok'],
+				'count' => (int) ( $cached['count'] ?? 0 ),
+				'error' => isset( $cached['error'] ) ? (string) $cached['error'] : null,
+			);
+		}
+
+		global $wpdb;
+		$n = $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->comments} c
+			INNER JOIN {$wpdb->posts} p ON p.ID = c.comment_post_ID
+			WHERE c.comment_type = 'review'
+			AND c.comment_approved = '0'
+			AND p.post_type = 'product'"
+		);
+		if ( null === $n && ! empty( $wpdb->last_error ) ) {
+			$result = array( 'ok' => false, 'count' => 0, 'error' => 'query_failed' );
+			set_transient( 'upr_held_review_count_v1', $result, 60 );
+			return $result;
+		}
+
+		$result = array( 'ok' => true, 'count' => (int) $n, 'error' => null );
+		set_transient( 'upr_held_review_count_v1', $result, 60 );
+		return $result;
+	}
 }

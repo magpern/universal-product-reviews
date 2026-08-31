@@ -4,7 +4,7 @@
 
 UPR product reviews are WordPress comments with `comment_type=review` on `product` posts. Moderators work in the **native WordPress Comments** screen (`edit-comments.php`). M5 enhances that screen with context columns and filters — it does **not** add a parallel UPR moderation queue.
 
-**M15 (frozen; not implemented until WP1–WP4):** the held operator queue is the enhanced native Comments pending view (`upr_view=pending`) with a privacy-safe AI assessment panel inside the `upr_ai` column, relabeled native Publish / Mark as spam / Move to trash, and a non-mutating Keep on hold action. See [`m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md).
+**M15:** the held operator queue is the enhanced native Comments pending view (`upr_view=pending`) with a privacy-safe AI assessment panel inside the `upr_ai` column, relabeled native Publish / Mark as spam / Move to trash, and a non-mutating Keep on hold action. See [`m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md).
 
 ## Operator workflow
 
@@ -13,7 +13,7 @@ UPR product reviews are WordPress comments with `comment_type=review` on `produc
 3. WooCommerce’s review-type selector remains available and combines with UPR filters (AND).
 4. Columns show Product, Rating, Source (`Invitation-linked` | `Unlinked/unknown`), Order (order link only when object-level edit capability passes), and **AI advisory** (M9–M11).
 5. **Approve** genuine reviews — including negative reviews. Do not reject for rating or sentiment alone.
-6. Use native Approve / Unapprove / Spam / Trash. There is no UPR bulk-spam-reason UI in M5. **M11** may show allowlisted recommendation labels (risk score: higher = greater publication risk) **only while the review is Pending (`hold`)**. Recommendations are advisory — humans must approve. Leaving Pending hides actionable labels; assessments remain for audit. **M13** adds held-only recommendation **filters** for triage (still advisory). **M12** `auto_spam_held_technical` exists on `main` with masters **default off**; auto-approve is permanently excluded; production enablement requires Calibration GO + separate approval. See [`m13-operator-ai-command-surface.md`](../roadmap/m13-operator-ai-command-surface.md) and [`m12-simulation-implementation-closure.md`](../roadmap/m12-simulation-implementation-closure.md).
+6. On **UPR pending**, use **Publish** / **Mark as spam** / **Move to trash** (native WordPress actions, relabeled) or **Keep on hold** (UPR audit-only; no status change). There is no UPR bulk-spam-reason UI. **M11** may show allowlisted recommendation labels (risk score: higher = greater publication risk) **only while the review is Pending (`hold`)**. On the pending queue, M15 shows a structured assessment panel; “Likely acceptable” is presenter-only wording — humans must publish. Leaving Pending hides actionable labels; assessments remain for audit. **M13** adds held-only recommendation **filters** for triage (still advisory). **M12** `auto_spam_held_technical` exists on `main` with masters **default off**; auto-approve is permanently excluded; production enablement requires Calibration GO + separate approval. See [`m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md), [`m13-operator-ai-command-surface.md`](../roadmap/m13-operator-ai-command-surface.md) and [`m12-simulation-implementation-closure.md`](../roadmap/m12-simulation-implementation-closure.md).
 
 ## Hold policy
 
@@ -32,6 +32,7 @@ In-scope status transitions are audited:
 | Origin | Event |
 |--------|-------|
 | Operator (`moderate_comments` in admin) | `review.status_changed` |
+| Operator Keep on hold (no status change) | `review.operator_deferred` |
 | UPR `SystemStatusOrigin` → spam | `review.system_spam` |
 | UPR `AiActionOrigin` → spam (M12, when enabled) | `review.ai_auto_spam` |
 | Other UPR / CLI / cron / plugin | `review.system_status_changed` |

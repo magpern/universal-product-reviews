@@ -18,6 +18,7 @@ use UniversalProductReviews\Invitations\InvitationScheduler;
 use UniversalProductReviews\Invitations\SuppressionService;
 use UniversalProductReviews\Moderation\CommentListEnhancements;
 use UniversalProductReviews\Moderation\ModerationAudit;
+use UniversalProductReviews\Moderation\OperatorQueueKeepHold;
 use UniversalProductReviews\Moderation\ReviewModeration;
 use UniversalProductReviews\Scheduling\Jobs;
 use UniversalProductReviews\Submission\GuestSubmissionGuard;
@@ -41,6 +42,7 @@ final class Plugin {
 		ReviewModeration::register();
 		ModerationAudit::register();
 		CommentListEnhancements::register();
+		OperatorQueueKeepHold::register();
 		GuestSubmissionGuard::register();
 		NativeSubmissionGuard::register();
 		ReviewAvailability::register();

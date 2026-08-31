@@ -27,7 +27,7 @@ Approved, spam, trash, deleted, replies, and out-of-scope comments must not be n
 
 Provider enum is exactly **`local` \| `openai`** — **no** host-replaceable provider filter.
 
-### Operator AI moderation queue (M15 — frozen; not implemented until WP1–WP4)
+### Operator AI moderation queue (M15)
 
 | Surface | Capability |
 |---------|------------|
