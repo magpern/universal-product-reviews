@@ -27,6 +27,18 @@ Approved, spam, trash, deleted, replies, and out-of-scope comments must not be n
 
 Provider enum is exactly **`local` \| `openai`** — **no** host-replaceable provider filter.
 
+### Operator AI moderation queue (M15 — frozen; not implemented until WP1–WP4)
+
+| Surface | Capability |
+|---------|------------|
+| Plugin-row “Product reviews” → `edit-comments.php?upr_view=pending` | `moderate_comments` |
+| Overview held-review **count** | `manage_woocommerce` (Settings/Overview) |
+| Overview held-review **deep link** | `manage_woocommerce` **and** `moderate_comments` (count without link if only the former) |
+| Keep on hold (`admin-post`, no status write) | `moderate_comments` + nonce + in-scope held product review |
+| Native Publish / Mark as spam / Move to trash | WordPress core only (relabel on held queue; UPR does not harden) |
+
+Authoritative freeze: [`../roadmap/m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md).
+
 ## Privacy boundaries (M5)
 
 | Allowed | Forbidden |
@@ -74,4 +86,5 @@ Do not enable AI masters for edit reassessment; shadow remains default-off. No r
 - [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md)
 - [`../roadmap/m9-local-ai-shadow-mode.md`](../roadmap/m9-local-ai-shadow-mode.md)
 - [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md)
+- [`../roadmap/m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md)
 - [`../decisions/ADR-0004-ai-moderation-boundary.md`](../decisions/ADR-0004-ai-moderation-boundary.md)
