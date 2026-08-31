@@ -240,6 +240,16 @@ Authoritative freeze: [`docs/roadmap/m5-review-moderation-operations.md`](docs/r
 - Verified staff-reply hold exemption + `review.reply_posted`
 - No parallel moderation queue; no UPR review-editing UX; no customer edits in M5
 
+### Operator AI moderation queue (M15)
+
+Authoritative freeze: [`docs/roadmap/m15-operator-ai-moderation-queue.md`](docs/roadmap/m15-operator-ai-moderation-queue.md).
+
+- Enhanced native Comments held queue (`upr_view=pending`) only — **not** a parallel dashboard, SPA, or datastore
+- Privacy-safe `QueueAssessmentPresenter` `<dl>` inside the existing `upr_ai` cell on held pending view; presenter-only “Likely acceptable” label (`RecommendationPolicy::action_label()` unchanged)
+- Native Publish / Mark as spam / Move to trash are **relabel-only**; Keep on hold is the sole UPR `admin-post` and never writes status
+- Audit: `review.operator_deferred` for Keep on hold only; native transitions remain `review.status_changed`
+- **Not implemented until M15 WP1–WP4** after freeze merge/tag
+
 ### Customer review edits (M14)
 
 Authoritative freeze: [`docs/roadmap/m14-customer-seven-day-review-edits.md`](docs/roadmap/m14-customer-seven-day-review-edits.md).
@@ -340,6 +350,12 @@ UPR does not emit Product JSON-LD. Host tests assert one canonical Product entit
 - Closure: [`docs/roadmap/m14-customer-seven-day-review-edits-closure.md`](docs/roadmap/m14-customer-seven-day-review-edits-closure.md)
 - C20: [`docs/roadmap/c20-customer-edit-availability-promotion.md`](docs/roadmap/c20-customer-edit-availability-promotion.md)
 - Runtime remains `0.8.0` until a separately authorised SemVer
+
+### M15 — Operator AI Moderation Queue
+
+- Enhanced native Comments pending queue; AI assessment presenter; Keep on hold; no AI status mutation
+- Freeze: [`docs/roadmap/m15-operator-ai-moderation-queue.md`](docs/roadmap/m15-operator-ai-moderation-queue.md)
+- Runtime remains `0.8.0`; SupportExport `upr-support-export/v1` unchanged
 
 ---
 

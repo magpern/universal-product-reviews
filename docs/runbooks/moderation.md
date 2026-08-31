@@ -4,6 +4,8 @@
 
 UPR product reviews are WordPress comments with `comment_type=review` on `product` posts. Moderators work in the **native WordPress Comments** screen (`edit-comments.php`). M5 enhances that screen with context columns and filters — it does **not** add a parallel UPR moderation queue.
 
+**M15 (frozen; not implemented until WP1–WP4):** the held operator queue is the enhanced native Comments pending view (`upr_view=pending`) with a privacy-safe AI assessment panel inside the `upr_ai` column, relabeled native Publish / Mark as spam / Move to trash, and a non-mutating Keep on hold action. See [`m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md).
+
 ## Operator workflow
 
 1. Open **Comments** in wp-admin.
@@ -52,6 +54,7 @@ Unchanged (`upr-support-export/v1`). No new M5 fields. Order IDs remain absent f
 - [`../roadmap/m5-review-moderation-operations.md`](../roadmap/m5-review-moderation-operations.md)
 - [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md)
 - [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md)
+- [`../roadmap/m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md)
 - [`support-export.md`](support-export.md)
 - [`retention.md`](retention.md)
 - [`ai-outage.md`](ai-outage.md)
