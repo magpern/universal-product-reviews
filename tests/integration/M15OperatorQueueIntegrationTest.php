@@ -172,7 +172,73 @@ final class M15OperatorQueueIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Move to trash', $out['trash'] );
 		$this->assertArrayHasKey( 'upr_keep_hold', $out );
 		$this->assertStringContainsString( 'Keep on hold', $out['upr_keep_hold'] );
+		$this->assertStringNotContainsString( '<form', $out['upr_keep_hold'] );
+		$this->assertStringContainsString( 'type="submit"', $out['upr_keep_hold'] );
+		$this->assertStringContainsString( 'form="' . OperatorQueueKeepHold::form_dom_id( $comment_id ) . '"', $out['upr_keep_hold'] );
 		$this->assertStringNotContainsString( 'Deny', $out['approve'] . $out['spam'] . $out['trash'] . $out['upr_keep_hold'] );
+	}
+
+	public function test_keep_hold_native_row_actions_lifecycle(): void {
+		$product_id = $this->upr_create_product();
+		$comment_id = $this->insert_held_review( $product_id );
+		$_GET['upr_view']   = CommentListEnhancements::VIEW_PENDING;
+		$GLOBALS['pagenow'] = 'edit-comments.php';
+		set_current_screen( 'edit-comments' );
+		CommentListEnhancements::on_current_screen( get_current_screen() );
+
+		$filtered = CommentListEnhancements::row_actions(
+			array(
+				'approve' => '<a href="https://example.test/approve">Approve</a>',
+			),
+			get_comment( $comment_id )
+		);
+		$this->assertArrayHasKey( 'upr_keep_hold', $filtered );
+
+		// Core wraps each action in <span class="{action}">…</span>.
+		$wrapped = OperatorQueueKeepHold::wrap_row_actions_like_core( $filtered );
+		$this->assertStringContainsString( '<span class="upr_keep_hold">', $wrapped );
+		$this->assertDoesNotMatchRegularExpression( '/<span[^>]*>\s*<form\b/i', $wrapped );
+		$this->assertMatchesRegularExpression(
+			'/<span class="upr_keep_hold">\s*<button type="submit" form="' . preg_quote( OperatorQueueKeepHold::form_dom_id( $comment_id ), '/' ) . '"/i',
+			$wrapped
+		);
+		$this->assertStringContainsString( '>Keep on hold<', $wrapped );
+		$this->assertStringContainsString( 'screen-reader-text', $wrapped );
+
+		// Also exercise WP_Comments_List_Table::row_actions when available.
+		if ( ! class_exists( 'WP_Comments_List_Table', false ) ) {
+			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-comments-list-table.php';
+		}
+		$table = new \WP_Comments_List_Table( array( 'screen' => get_current_screen() ) );
+		$ref   = new \ReflectionMethod( $table, 'row_actions' );
+		$ref->setAccessible( true );
+		$core_html = (string) $ref->invoke( $table, $filtered, true );
+		$this->assertDoesNotMatchRegularExpression( '/<span[^>]*>\s*<form\b/i', $core_html );
+		$this->assertStringContainsString( 'form="' . OperatorQueueKeepHold::form_dom_id( $comment_id ) . '"', $core_html );
+
+		ob_start();
+		OperatorQueueKeepHold::render_pending_forms();
+		$form_html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'method="post"', $form_html );
+		$this->assertStringNotContainsString( 'method="get"', $form_html );
+		$this->assertStringContainsString( 'id="' . OperatorQueueKeepHold::form_dom_id( $comment_id ) . '"', $form_html );
+		$this->assertStringContainsString( 'name="comment_id" value="' . $comment_id . '"', $form_html );
+		$this->assertStringContainsString( 'name="action" value="' . OperatorQueueKeepHold::ACTION . '"', $form_html );
+		$this->assertMatchesRegularExpression(
+			'/<input[^>]+name="_wpnonce"[^>]+value="([a-f0-9]+)"/i',
+			$form_html,
+			$form_html
+		);
+		preg_match( '/name="_wpnonce"[^>]+value="([a-f0-9]+)"/i', $form_html, $nonce_m );
+		$this->assertNotEmpty( $nonce_m[1] ?? '' );
+		$this->assertSame( 1, wp_verify_nonce( $nonce_m[1], 'upr_queue_keep_hold_' . $comment_id ) );
+
+		$before_status = (string) get_comment( $comment_id )->comment_approved;
+		$before_audit  = $this->count_events( 'review.operator_deferred' );
+		OperatorQueueKeepHold::emit_deferred_audit( get_comment( $comment_id ) );
+		$this->assertSame( $before_status, (string) get_comment( $comment_id )->comment_approved );
+		$this->assertSame( $before_audit + 1, $this->count_events( 'review.operator_deferred' ) );
 	}
 
 	public function test_support_export_unchanged_schema(): void {

@@ -2,6 +2,10 @@
 /**
  * Keep-on-hold admin-post for the M15 operator queue (no status write).
  *
+ * Row actions run inside WP_List_Table span wrappers, so this control must not
+ * return a nested <form>. The row action is a submit button associated via the
+ * HTML form= attribute; the POST form is rendered in a valid out-of-span place.
+ *
  * @package UniversalProductReviews
  */
 
@@ -24,16 +28,29 @@ final class OperatorQueueKeepHold {
 	/** @var string|null Request-local dedupe key. */
 	private static ?string $last_key = null;
 
+	/**
+	 * Comment IDs queued for out-of-span POST forms (request-local).
+	 *
+	 * @var array<int, string> comment_id => product title for screen-reader copy
+	 */
+	private static array $pending_forms = array();
+
 	public static function register(): void {
 		add_action( 'admin_post_' . self::ACTION, array( self::class, 'handle' ) );
 		add_action( 'admin_notices', array( self::class, 'render_notices' ) );
+		add_action( 'admin_footer', array( self::class, 'render_pending_forms' ) );
 	}
 
 	/**
 	 * Test seam.
 	 */
 	public static function reset_for_tests(): void {
-		self::$last_key = null;
+		self::$last_key      = null;
+		self::$pending_forms = array();
+	}
+
+	public static function form_dom_id( int $comment_id ): string {
+		return 'upr-queue-keep-hold-' . $comment_id;
 	}
 
 	public static function handle(): void {
@@ -75,7 +92,7 @@ final class OperatorQueueKeepHold {
 		}
 		self::$last_key = $dedupe_key;
 
-		$ctx = self::association_context( $comment );
+		$ctx                  = self::association_context( $comment );
 		$assessment_available = false;
 		$assessment_state     = 'none';
 
@@ -86,15 +103,15 @@ final class OperatorQueueKeepHold {
 		}
 
 		$payload = array(
-			'comment_id'            => $comment_id,
-			'product_id'            => (int) $ctx['product_id'],
-			'old_status'            => 'hold',
-			'new_status'            => 'hold',
-			'queue_action'          => 'keep_hold',
-			'assessment_available'  => $assessment_available,
-			'assessment_state'      => $assessment_state,
-			'actor_id'              => get_current_user_id(),
-			'origin'                => 'operator',
+			'comment_id'           => $comment_id,
+			'product_id'           => (int) $ctx['product_id'],
+			'old_status'           => 'hold',
+			'new_status'           => 'hold',
+			'queue_action'         => 'keep_hold',
+			'assessment_available' => $assessment_available,
+			'assessment_state'     => $assessment_state,
+			'actor_id'             => get_current_user_id(),
+			'origin'               => 'operator',
 		);
 
 		$order_id = ! empty( $ctx['order_id'] ) ? (int) $ctx['order_id'] : null;
@@ -129,26 +146,76 @@ final class OperatorQueueKeepHold {
 	}
 
 	/**
-	 * Keep-on-hold row-action form HTML (escaped).
+	 * Phrasing-content row-action control for inside WP_List_Table <span> wrappers.
+	 * Does not include a <form> — associates with render_pending_forms() via form=.
 	 */
 	public static function row_action_html( int $comment_id, string $product_title ): string {
-		$url = admin_url( 'admin-post.php' );
-		$sr  = sprintf(
+		self::$pending_forms[ $comment_id ] = $product_title;
+
+		$form_id = self::form_dom_id( $comment_id );
+		$sr      = sprintf(
 			/* translators: 1: comment ID 2: product title */
 			__( 'Keep comment %1$d for %2$s on hold', 'universal-product-reviews' ),
 			$comment_id,
 			$product_title
 		);
 
-		ob_start();
-		echo '<form method="post" action="' . esc_url( $url ) . '" style="display:inline;">';
-		wp_nonce_field( 'upr_queue_keep_hold_' . $comment_id );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '" />';
-		echo '<input type="hidden" name="comment_id" value="' . esc_attr( (string) $comment_id ) . '" />';
-		echo '<button type="submit" class="button-link">' . esc_html__( 'Keep on hold', 'universal-product-reviews' );
-		echo ' <span class="screen-reader-text">' . esc_html( $sr ) . '</span></button>';
-		echo '</form>';
-		return (string) ob_get_clean();
+		return sprintf(
+			'<button type="submit" form="%1$s" class="button-link">%2$s<span class="screen-reader-text"> %3$s</span></button>',
+			esc_attr( $form_id ),
+			esc_html__( 'Keep on hold', 'universal-product-reviews' ),
+			esc_html( $sr )
+		);
+	}
+
+	/**
+	 * POST forms for queued Keep-on-hold buttons (valid flow content outside row-action spans).
+	 */
+	public static function render_pending_forms(): void {
+		global $pagenow;
+		if ( 'edit-comments.php' !== $pagenow ) {
+			return;
+		}
+		if ( array() === self::$pending_forms ) {
+			return;
+		}
+
+		$url = admin_url( 'admin-post.php' );
+		foreach ( self::$pending_forms as $comment_id => $product_title ) {
+			$comment_id = (int) $comment_id;
+			if ( $comment_id <= 0 ) {
+				continue;
+			}
+			unset( $product_title );
+			$form_id = self::form_dom_id( $comment_id );
+			echo '<form method="post" action="' . esc_url( $url ) . '" id="' . esc_attr( $form_id ) . '" class="upr-queue-keep-hold-form">';
+			wp_nonce_field( 'upr_queue_keep_hold_' . $comment_id );
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '" />';
+			echo '<input type="hidden" name="comment_id" value="' . esc_attr( (string) $comment_id ) . '" />';
+			echo '</form>';
+		}
+		self::$pending_forms = array();
+	}
+
+	/**
+	 * Mirror core WP_List_Table::row_actions span wrapping for tests.
+	 *
+	 * @param array<string, string> $actions Action HTML keyed by action name.
+	 */
+	public static function wrap_row_actions_like_core( array $actions ): string {
+		$count = count( $actions );
+		if ( 0 === $count ) {
+			return '';
+		}
+		$output = '<div class="row-actions visible">';
+		$i      = 0;
+		foreach ( $actions as $action => $link ) {
+			++$i;
+			$separator = ( $i < $count ) ? ' | ' : '';
+			$output   .= '<span class="' . esc_attr( (string) $action ) . '">' . $link . $separator . '</span>';
+		}
+		$output .= '</div>';
+		return $output;
 	}
 
 	private static function redirect( string $notice ): void {

@@ -69,6 +69,26 @@ final class M15OperatorQueueUnitTest extends TestCase {
 		$this->assertSame( 'upr_queue_keep_hold', OperatorQueueKeepHold::ACTION );
 	}
 
+	public function test_row_action_html_is_phrasing_submit_not_form(): void {
+		$src = file_get_contents( dirname( __DIR__, 2 ) . '/src/Moderation/OperatorQueueKeepHold.php' );
+		$this->assertIsString( $src );
+		$this->assertStringContainsString( 'function row_action_html', $src );
+		$this->assertStringContainsString( 'type="submit"', $src );
+		$this->assertStringContainsString( 'form="%1$s"', $src );
+		$this->assertStringContainsString( 'function render_pending_forms', $src );
+		$this->assertStringContainsString( 'method="post"', $src );
+		$this->assertStringContainsString( 'function wrap_row_actions_like_core', $src );
+		// Row action template must not open a form; forms live in render_pending_forms only.
+		$this->assertDoesNotMatchRegularExpression(
+			'/function row_action_html[\s\S]*?return sprintf\(\s*\'[^\']*<form\b/',
+			$src
+		);
+		$this->assertMatchesRegularExpression(
+			'/function row_action_html[\s\S]*?return sprintf\(\s*\'<button type="submit"/',
+			$src
+		);
+	}
+
 	public function test_presenter_never_outputs_approve_wording_for_actions(): void {
 		foreach ( array( 'needs_human', 'likely_publishable', 'likely_spam', 'likely_abuse', 'mandatory_human' ) as $action ) {
 			$label = \UniversalProductReviews\Moderation\QueueAssessmentPresenter::overall_label( $action );
