@@ -40,7 +40,7 @@ Generic core only: no host-, brand-, theme-, or infrastructure-specific runtime 
 | **O6** | Claims / completion | M9 claim-before-work; one claim per `(comment_id, policy_version)`; one-txn finalize (lock, recheck token+held+enabled, insert, clear claim rowcount 1) |
 | **O7** | Disable-silent | M9 precedence: disable clears in-flight claims without terminal AI row/audit where locked |
 | **O8** | API | `POST https://api.openai.com/v1/responses` only; structured outputs `json_schema` `strict: true`; **`store: false`**; forbid `conversation`, `previous_response_id`, tools/function calling/browsing/MCP/code execution |
-| **O9** | Credentials | **Host-only:** (1) `UPR_OPENAI_API_KEY` constant, (2) `getenv('UPR_OPENAI_API_KEY')`. **No** option/DB key storage (ADR-0004 reinforced; no encryption theatre) |
+| **O9** | Credentials | **Host-only:** (1) `UPR_OPENAI_API_KEY` constant, (2) `getenv('UPR_OPENAI_API_KEY')`. **No** option/DB key storage (ADR-0004 reinforced; no encryption theatre). **Superseded by** [`m10-o9-encrypted-openai-credential-amendment.md`](m10-o9-encrypted-openai-credential-amendment.md) (**O9′**) — encrypted Controls-stored credential allowed as third source under that freeze. |
 | **O10** | Models | Dropdown: `gpt-4o-mini` (**default**), `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-5.6` (advanced/costly). Manual ID: advanced; `^[a-zA-Z0-9._:-]{1,64}$`; not a security control |
 | **O11** | Numeric limits | See §8 |
 | **O12** | Quotas | Atomic **daily + monthly** request consume in one locked update; monthly deny must not increment daily; exhaustion → `skipped` / `budget_exceeded` + clear claim |

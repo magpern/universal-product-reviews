@@ -193,12 +193,12 @@ Authoritative planning: [`docs/roadmap/m8-ai-assisted-moderation-planning.md`](d
 
 - **M8** — documentation only; no runtime AI
 - **M9** — local-only **built-in** shadow assessment; advisory only; disabled by default; no automated status changes; **no** replaceable provider filter
-- **M10** — optional OpenAI advisory via fixed enum `local` \| `openai`; Responses API with `store: false`; host-only credentials; path-scoped `wp_remote_post` under `src/Ai/OpenAi/` only; fail-closed (no silent local fallback); C19 `AiProvider::selected()`
+- **M10** — optional OpenAI advisory via fixed enum `local` \| `openai`; Responses API with `store: false`; credential resolution constant → environment → encrypted Controls-stored option (O9′); path-scoped `wp_remote_post` under `src/Ai/OpenAi/` only; fail-closed (no silent local fallback); C19 `AiProvider::selected()`
 - **M11** — automatic approval requires ADR amendment + governed calibration
 - Never suppress based on sentiment, rating, or criticism; rating excluded from assessor inputs
 - Human moderation remains authoritative; AI never mutates comment body, author, rating, linkage, or status
 - AI off → no new assessment row and no AI audit (including in-flight and disable-then-non-held-transition)
-- Provider secrets are host-owned (`UPR_OPENAI_API_KEY` constant then environment); UPR never stores API keys in options/DB
+- Provider secrets: `UPR_OPENAI_API_KEY` constant then environment then encrypted option `upr_openai_api_key_ciphertext` per [`docs/roadmap/m10-o9-encrypted-openai-credential-amendment.md`](docs/roadmap/m10-o9-encrypted-openai-credential-amendment.md); never returned to UI/REST/CLI/diagnostics/export/logs (status/source only)
 - Live external enablement requires separate privacy/ops GO (see M10 freeze §11) — not authorised by implementation merges alone
 
 ---

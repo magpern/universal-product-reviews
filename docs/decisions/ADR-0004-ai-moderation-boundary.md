@@ -1,8 +1,8 @@
 # ADR-0004: AI moderation boundary
 
-**Status:** Accepted (M8); **amended M11** (recommendation-only); **amended M12** (named auto-spam contract; two-gate Simulation / Calibration model)  
+**Status:** Accepted (M8); **amended M11** (recommendation-only); **amended M12** (named auto-spam contract; two-gate Simulation / Calibration model); **amended M10 O9′** (encrypted OpenAI credential in Controls)  
 **Date:** 2026-08-28  
-**Amended:** 2026-08-30 (M11 freeze); 2026-08-30 (M12 freeze); 2026-08-30 (M12 Simulation GO)  
+**Amended:** 2026-08-30 (M11 freeze); 2026-08-30 (M12 freeze); 2026-08-30 (M12 Simulation GO); 2026-08-31 (M10 O9′ encrypted OpenAI credential)  
 **Context:** UPR may later offer optional AI-assisted review moderation. Human moderation via native Comments admin must remain authoritative. Prior forward notes (`docs/future/ai-review-scoring.md`, `ARCHITECTURE.md` §9) were non-binding. M8 freezes the product boundary before any runtime AI work. M11 freezes recommendation-only operator guidance. M12 freezes the sole named automatic-action contract `auto_spam_held_technical` as design; runtime action remains gated. **Simulation GO** may authorise implementation (masters default-off) and DEV/pre-prod synthetic testing; **Calibration GO** remains mandatory before production automatic-action enablement may be considered.
 
 ## Decision
@@ -18,7 +18,7 @@
 
 3. **Held-only assessment and actionable recommendations.** Auto-enqueue and re-analysis apply only to **currently held**, top-level, in-scope product reviews. Approved, spam, trash, deleted, replies, and out-of-scope comments must not receive new assessments or re-analysis. **Actionable** recommendation labels and reason badges show **only** while current status is `hold`. On transition away from `hold`, hide those labels/badges; retain assessment rows for audit/retention; do not offer re-analysis. Restore to hold re-enables eligibility based on current status (M9/M10 rules). M12 action eligibility is likewise held-only and assessment-bound.
 
-4. **Privacy and secrets.** Star rating is excluded from provider inputs. M11/M12 add **no** additional account, order, email, token, or URL fields to provider payloads. Review text is untrusted user content and **may contain personal data**; M10 enablement acknowledgements remain the controlling boundary for external transmission. Provider secrets are host-owned via `UPR_OPENAI_API_KEY` PHP constant or environment variable (resolution order defined in the M10 freeze). UPR must never store provider API keys in options (plain or encrypted), audit, diagnostics, or support export. Host DPIA is a human/process obligation, not a machine-enforced core gate. External transmission requires M10 freeze + external opt-in + live-enablement GO. M12 action step makes **no new provider call**.
+4. **Privacy and secrets.** Star rating is excluded from provider inputs. M11/M12 add **no** additional account, order, email, token, or URL fields to provider payloads. Review text is untrusted user content and **may contain personal data**; M10 enablement acknowledgements remain the controlling boundary for external transmission. Provider secret resolution is: (1) nonempty `UPR_OPENAI_API_KEY` PHP constant, (2) nonempty environment variable `UPR_OPENAI_API_KEY`, (3) encrypted Controls-stored credential under [`../roadmap/m10-o9-encrypted-openai-credential-amendment.md`](../roadmap/m10-o9-encrypted-openai-credential-amendment.md) (**O9′**, supersedes M10 O9 host-only ban). UPR must never return the secret to HTML, REST, CLI, diagnostics, Site Health, audit, SupportExport, logs, or exceptions; ciphertext may exist only in the dedicated option. Host DPIA is a human/process obligation, not a machine-enforced core gate. External transmission requires M10 freeze + external opt-in + live-enablement GO. M12 action step makes **no new provider call**.
 
 5. **Data model.** Terminal assessments live in `{prefix}upr_moderation_assessments` (not comment meta). Execution ownership uses a portable separate table `{prefix}upr_moderation_assessment_claims` with `PRIMARY KEY (comment_id, policy_version)` — **no** MySQL/MariaDB partial unique indexes. Site rate limit / circuit breaker use `{prefix}upr_moderation_ops` with atomic SQL, not option read-modify-write. Schema migrations are monotonic forward-only; disabling AI does not downgrade schema or drop tables. M11 recommendations are **derive-at-read**; no recommendation projection table in M11. M12 adds an additive `{prefix}upr_moderation_action_ledger` (leased states) only after Implementation GO.
 
@@ -52,7 +52,7 @@
 - Integrators treat M8–M10 as assessment foundations; M11 as recommendation UI only; M12 as a **named**, separately gated auto-spam contract (`auto_spam_held_technical`) per [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md). [`docs/future/ai-review-scoring.md`](../future/ai-review-scoring.md) is a demoted appendix under the M12 freeze.
 - M5 moderation audit, Comments-admin context, staff-reply rules, and M2/M3 submission security remain intact and authoritative for status except the narrow AI CAS path when explicitly enabled.
 - Support export and public-contract registry remain unchanged until a later freeze explicitly amends them.
-- Implementation PRs that introduce auto-approval, option-stored secrets, provider filters, partial-index claim uniqueness, public-hook replay after crash, or enablement without Calibration GO are out of policy.
+- Implementation PRs that introduce auto-approval, **plaintext** option-stored secrets, provider filters, partial-index claim uniqueness, public-hook replay after crash, or enablement without Calibration GO are out of policy. Encrypted OpenAI credential storage under O9′ ([`../roadmap/m10-o9-encrypted-openai-credential-amendment.md`](../roadmap/m10-o9-encrypted-openai-credential-amendment.md)) is in policy.
 - M10 implementation must keep Responses `store: false`, typed fail-closed OpenAI errors, and atomic external quotas per the M10 freeze.
 - Documentation freeze merge and tag do **not** turn on automatic action in any environment.
 
@@ -60,6 +60,7 @@
 
 - [`../roadmap/m8-ai-assisted-moderation-planning.md`](../roadmap/m8-ai-assisted-moderation-planning.md) — authoritative freeze (D1–D17)
 - [`../roadmap/m10-external-ai-advisory-assessments.md`](../roadmap/m10-external-ai-advisory-assessments.md) — M10 external OpenAI advisory freeze
+- [`../roadmap/m10-o9-encrypted-openai-credential-amendment.md`](../roadmap/m10-o9-encrypted-openai-credential-amendment.md) — M10 O9′ encrypted Controls credential (supersedes O9)
 - [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md) — M11 recommendation-only freeze
 - [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md) — M12 guarded auto-spam freeze
 - [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) — demoted M12 appendix
