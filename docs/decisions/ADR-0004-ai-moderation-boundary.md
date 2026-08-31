@@ -64,6 +64,7 @@
 - [`../roadmap/m11-ai-moderation-recommendations.md`](../roadmap/m11-ai-moderation-recommendations.md) — M11 recommendation-only freeze
 - [`../roadmap/m12-guarded-auto-spam.md`](../roadmap/m12-guarded-auto-spam.md) — M12 guarded auto-spam freeze
 - [`../roadmap/m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md) — M15 operator AI moderation queue (advisory presenter; human status decisions only)
+- [`../roadmap/m15-operator-ai-moderation-queue-closure.md`](../roadmap/m15-operator-ai-moderation-queue-closure.md) — M15 closure (PR #79)
 - [`../future/ai-review-scoring.md`](../future/ai-review-scoring.md) — demoted M12 appendix
 - [`../runbooks/ai-outage.md`](../runbooks/ai-outage.md)
 - [`ADR-0003-public-contract-compatibility.md`](ADR-0003-public-contract-compatibility.md)

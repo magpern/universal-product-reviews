@@ -193,6 +193,7 @@ required_docs=(
   docs/roadmap/c20-customer-edit-availability-promotion.md
   docs/roadmap/m14-guest-edit-reentry-decision.md
   docs/roadmap/m15-operator-ai-moderation-queue.md
+  docs/roadmap/m15-operator-ai-moderation-queue-closure.md
 )
 for f in "${required_docs[@]}"; do
   test -f "$f" || fail "missing $f"

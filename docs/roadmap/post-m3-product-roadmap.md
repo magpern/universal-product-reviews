@@ -1,7 +1,7 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.8.0`**. Runtime remains **`0.8.0`**; **no release** until operational rollout is separately authorised.  
+**Baseline:** Universal Product Reviews annotated **`v0.8.0`**. Product-development milestones through **M15** are closed; runtime at M15 closure remains **`0.8.0`** until a separately authorised SemVer / RC. **No production release** until operational rollout is separately authorised.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
 Each numbered milestone below required its own **plan → documentation freeze → implementation** cycle. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
@@ -14,13 +14,14 @@ These items are closed as **product development**. None of them is a SemVer rele
 
 | Item | Record |
 |------|--------|
+| **M15** operator AI moderation queue | **Closed:** [`m15-operator-ai-moderation-queue-closure.md`](m15-operator-ai-moderation-queue-closure.md) (implementation PR [#79](https://github.com/magpern/universal-product-reviews/pull/79) → `6a09ce4bf24d96f9bb8b773db6f5205d9a2b538d`; freeze tag `m15-operator-ai-moderation-queue-freeze` → `a1e083fc17597fe629fc0ec04764086971217c68`; runtime `0.8.0` at closure; SupportExport `upr-support-export/v1` unchanged). **No release was made in the closure.** |
 | **M14** customer 7-day review edits | **Accepted:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (implementation PR [#73](https://github.com/magpern/universal-product-reviews/pull/73) → `b9f4a9596f41a5236e5488adf0461d7f4bea8ea2`; runtime `0.8.0`; SupportExport `upr-support-export/v1` unchanged). **No release was made.** |
 | **C20** `CustomerEditAvailability::resolve` | **Promoted P → S:** [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md). Independent of SemVer. |
 | **Guest-edit credential alternative** | **Deferred** (completed-invite re-entry is sufficient): [`m14-guest-edit-reentry-decision.md`](m14-guest-edit-reentry-decision.md). Not implemented. |
 
 **M13** operator command surface is **closed**: [`m13-operator-ai-command-surface-closure.md`](m13-operator-ai-command-surface-closure.md) (PR #70; masters default-off). M11 recommendation-only is **closed**: [`m11-ai-moderation-recommendations-closure.md`](m11-ai-moderation-recommendations-closure.md). M10 implementation is **closed** after #55–#57 plus O9′ [#76](https://github.com/magpern/universal-product-reviews/pull/76) (SemVer deferred; external AI still off by default): [`m10-external-ai-advisory-assessments-closure.md`](m10-external-ai-advisory-assessments-closure.md). M7 and M9 are closed at **`v0.8.0`**. M8 planning is closed. M12 Simulation-GO implementation: [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) (production still blocked).
 
-**Next numbered freeze open:** **M15 — Operator AI Moderation Queue** ([`m15-operator-ai-moderation-queue.md`](m15-operator-ai-moderation-queue.md)). Documentation freeze authorises implementation with masters and external AI **default-off**; runtime remains **`0.8.0`**. Optional unfrozen candidates (each still needs **plan → documentation freeze → implementation**): C11/C16–C17; WC importer. They are **not** operational gates and are **not** in progress.
+**Next numbered freeze open:** **none.** Optional unfrozen candidates (each still needs **plan → documentation freeze → implementation**): C11/C16–C17; WC importer. They are **not** operational gates and are **not** in progress.
 
 ---
 
@@ -35,7 +36,7 @@ Do **not** treat any of the following as done. They are **not** product-developm
 | **Automatic-spam activation** | Masters on in production | **Separate production approval** after Calibration GO. Masters remain **default-off**. Dry-run `observed` never promotes. |
 | **Production rollout** | Live site running UPR | A **released** UPR (SemVer / installable ZIP — **not** created yet) **plus** host adapter, installation, and operational validation. Host adapters stay **outside** this repository. |
 
-**Recommended next implementation milestone:** **M15** ([`m15-operator-ai-moderation-queue.md`](m15-operator-ai-moderation-queue.md)) after this freeze merge/tag.
+**Recommended next product-development work:** optional unfrozen candidates above (each needs its own freeze). Operational gates remain deferred.
 
 ---
 
@@ -103,7 +104,7 @@ Do **not** treat any of the following as done. They are **not** product-developm
 - **M12** — Sole contract **`auto_spam_held_technical`**. Freeze: [`m12-guarded-auto-spam.md`](m12-guarded-auto-spam.md). Two-gate evidence: **Simulation GO** / **Calibration GO**. Posture: [`m12-calibration-nogo.md`](m12-calibration-nogo.md). Freeze-era closure: [`m12-guarded-auto-spam-closure.md`](m12-guarded-auto-spam-closure.md). **Simulation-GO implementation closure:** [`m12-simulation-implementation-closure.md`](m12-simulation-implementation-closure.md) (PR #67; masters default off; production still blocked). Kit: `scripts/calibration/evidence-kit/`. Auto-approve permanently excluded.  
 - **M13** — Operator AI Moderation Command Surface. Freeze: [`m13-operator-ai-command-surface.md`](m13-operator-ai-command-surface.md). **Closed:** [`m13-operator-ai-command-surface-closure.md`](m13-operator-ai-command-surface-closure.md) (PR #70; masters default-off; no Calibration GO / no production enablement).  
 - **M14** — Customer 7-day review edits. Freeze: [`m14-customer-seven-day-review-edits.md`](m14-customer-seven-day-review-edits.md). **Accepted:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (PR #73; runtime `0.8.0`; SupportExport `upr-support-export/v1` unchanged). **C20 promoted to S:** [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md). Guest-edit alternative **deferred:** [`m14-guest-edit-reentry-decision.md`](m14-guest-edit-reentry-decision.md).  
-- **M15** — Operator AI Moderation Queue (enhanced native Comments pending queue; presenter-only assessment panel; Keep on hold; no AI status mutation). Freeze: [`m15-operator-ai-moderation-queue.md`](m15-operator-ai-moderation-queue.md). Runtime remains **`0.8.0`**; SupportExport **`upr-support-export/v1` unchanged**. Implementation not closed until a later closure record.
+- **M15** — Operator AI Moderation Queue (enhanced native Comments pending queue; presenter-only assessment panel; Keep on hold; no AI status mutation). Freeze: [`m15-operator-ai-moderation-queue.md`](m15-operator-ai-moderation-queue.md). **Closed:** [`m15-operator-ai-moderation-queue-closure.md`](m15-operator-ai-moderation-queue-closure.md) (PR #79 → `6a09ce4…`; runtime `0.8.0` at closure; SupportExport **`upr-support-export/v1` unchanged**).
 
 ---
 

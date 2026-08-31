@@ -37,7 +37,8 @@ Provider enum is exactly **`local` \| `openai`** — **no** host-replaceable pro
 | Keep on hold (`admin-post`, no status write) | `moderate_comments` + nonce + in-scope held product review |
 | Native Publish / Mark as spam / Move to trash | WordPress core only (relabel on held queue; UPR does not harden) |
 
-Authoritative freeze: [`../roadmap/m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md).
+Authoritative freeze: [`../roadmap/m15-operator-ai-moderation-queue.md`](../roadmap/m15-operator-ai-moderation-queue.md).  
+Closure: [`../roadmap/m15-operator-ai-moderation-queue-closure.md`](../roadmap/m15-operator-ai-moderation-queue-closure.md).
 
 ## Privacy boundaries (M5)
 
