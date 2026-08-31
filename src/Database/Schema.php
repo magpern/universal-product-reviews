@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260831a';
+	public const DB_VERSION = '20260831b';
 
 	public const OPS_ROW_ID = 1;
 
@@ -183,6 +183,10 @@ final class Schema {
 				auth_class varchar(16) NOT NULL,
 				target_content_hmac char(64) NOT NULL,
 				target_rating tinyint unsigned NOT NULL,
+				prior_content_hmac char(64) NOT NULL,
+				prior_rating tinyint unsigned NOT NULL,
+				content_changed tinyint(1) NOT NULL DEFAULT 0,
+				rating_changed tinyint(1) NOT NULL DEFAULT 0,
 				prior_status varchar(16) NOT NULL,
 				phase varchar(16) NOT NULL,
 				claimed_at datetime NOT NULL,

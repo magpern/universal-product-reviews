@@ -19,6 +19,7 @@ use UniversalProductReviews\CustomerEdit\EditClaimReconciler;
 use UniversalProductReviews\CustomerEdit\EditClaimRepository;
 use UniversalProductReviews\CustomerEdit\EditFinaliser;
 use UniversalProductReviews\CustomerEdit\EditSessionService;
+use UniversalProductReviews\CustomerEdit\EditWriteService;
 use UniversalProductReviews\CustomerEdit\InviteTokenDispatcher;
 use UniversalProductReviews\Database\Schema;
 use UniversalProductReviews\Http\ReviewEditHandler;
@@ -46,6 +47,7 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		CustomerEditAuthorization::clear();
 		EditSessionService::$after_parent_lock_for_tests = null;
 		EditFinaliser::$crash_after_step_for_tests       = null;
+		EditWriteService::$crash_after_for_tests         = null;
 		delete_option( Options::LOCAL_AI_SHADOW_ENABLED );
 		Plugin::reset_for_tests();
 		Plugin::init();
@@ -61,6 +63,7 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		CustomerEditAuthorization::clear();
 		EditSessionService::$after_parent_lock_for_tests = null;
 		EditFinaliser::$crash_after_step_for_tests       = null;
+		EditWriteService::$crash_after_for_tests         = null;
 		SessionCookie::clear();
 		$_POST = array();
 		$_GET  = array();
@@ -84,6 +87,12 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( $src_idx );
 		$this->assertSame( 'source_op_id', (string) ( $src_idx[0]['Column_name'] ?? '' ) );
 		$this->assertSame( '0', (string) ( $src_idx[0]['Non_unique'] ?? '1' ) );
+
+		$cols = $wpdb->get_col( "SHOW COLUMNS FROM {$claims}", 0 );
+		$this->assertContains( 'content_changed', $cols );
+		$this->assertContains( 'rating_changed', $cols );
+		$this->assertContains( 'prior_content_hmac', $cols );
+		$this->assertContains( 'prior_rating', $cols );
 	}
 
 	public function test_e20_acquire_rejects_recovery_owned_content_written_after_ttl(): void {
@@ -91,6 +100,7 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$hmac       = EditClaimRepository::hmac_body( 'target' );
 		$first      = EditClaimRepository::acquire( $comment_id, 'guest_session', $hmac, 5, 'hold' );
 		$this->assertNotNull( $first );
+		$this->assertTrue( EditClaimRepository::mark_writing( $comment_id, $first['claim_token'], $first['generation'] ) );
 		$this->assertTrue(
 			EditClaimRepository::mark_content_written( $comment_id, $first['claim_token'], $first['generation'], wp_generate_uuid4() )
 		);
@@ -103,6 +113,27 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 			array( '%d' )
 		);
 		$this->assertNull( EditClaimRepository::acquire( $comment_id, 'guest_session', $hmac, 4, 'hold' ) );
+	}
+
+	public function test_e20_acquire_rejects_recovery_owned_writing_after_ttl(): void {
+		$comment_id = $this->insert_review( $this->upr_create_product(), '1' );
+		$hmac       = EditClaimRepository::hmac_body( 'target' );
+		$first      = EditClaimRepository::acquire( $comment_id, 'guest_session', $hmac, 5, 'approve' );
+		$this->assertNotNull( $first );
+		$this->assertTrue( EditClaimRepository::mark_writing( $comment_id, $first['claim_token'], $first['generation'] ) );
+		global $wpdb;
+		$wpdb->update(
+			EditClaimRepository::table(),
+			array( 'claim_expires_at' => gmdate( 'Y-m-d H:i:s', time() - 3600 ) ),
+			array( 'comment_id' => $comment_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		$this->assertNull( EditClaimRepository::acquire( $comment_id, 'guest_session', $hmac, 4, 'hold' ) );
+		$stats = EditClaimReconciler::run();
+		$this->assertSame( 0, $stats['released'] );
+		$row = EditClaimRepository::get( $comment_id );
+		$this->assertNotSame( 'claimed', (string) ( $row['phase'] ?? '' ) );
 	}
 
 	public function test_completed_invite_secret_edits_only_and_cannot_resubmit(): void {
@@ -320,6 +351,8 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Updated guest', $json );
 		$this->assertArrayHasKey( 'finalise_op_id', $payload );
 		$this->assertArrayNotHasKey( 'hmac', $payload );
+		$this->assertTrue( $payload['content_changed'] );
+		$this->assertTrue( $payload['rating_changed'] );
 	}
 
 	public function test_logged_in_edit_and_c20(): void {
@@ -370,6 +403,37 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'No changes to save', $body );
 		$this->assertSame( '0', (string) get_comment( $completed['comment_id'] )->comment_approved );
 		$this->assertSame( 0, count( $this->audit_rows( 'review.customer_edited' ) ) );
+	}
+
+	public function test_body_only_edit_audit_flags(): void {
+		$completed = $this->complete_guest_review();
+		wp_set_comment_status( $completed['comment_id'], 'approve' );
+		$rating = (int) get_comment_meta( $completed['comment_id'], 'rating', true );
+		InviteTokenDispatcher::dispatch( $completed['raw'] );
+		ob_start();
+		$this->post_edit( $completed['comment_id'], $rating, 'Body-only customer edit for M14 flags.' );
+		ob_end_clean();
+		$this->assertSame( '0', (string) get_comment( $completed['comment_id'] )->comment_approved );
+		$this->assertSame( $rating, (int) get_comment_meta( $completed['comment_id'], 'rating', true ) );
+		$payload = $this->customer_edited_payload( $completed['comment_id'] );
+		$this->assertTrue( $payload['content_changed'] );
+		$this->assertFalse( $payload['rating_changed'] );
+	}
+
+	public function test_rating_only_edit_audit_flags(): void {
+		$completed = $this->complete_guest_review();
+		wp_set_comment_status( $completed['comment_id'], 'approve' );
+		$body = (string) get_comment( $completed['comment_id'] )->comment_content;
+		InviteTokenDispatcher::dispatch( $completed['raw'] );
+		ob_start();
+		$this->post_edit( $completed['comment_id'], 2, $body );
+		ob_end_clean();
+		$this->assertSame( '0', (string) get_comment( $completed['comment_id'] )->comment_approved );
+		$this->assertSame( $body, (string) get_comment( $completed['comment_id'] )->comment_content );
+		$this->assertSame( 2, (int) get_comment_meta( $completed['comment_id'], 'rating', true ) );
+		$payload = $this->customer_edited_payload( $completed['comment_id'] );
+		$this->assertFalse( $payload['content_changed'] );
+		$this->assertTrue( $payload['rating_changed'] );
 	}
 
 	public function test_two_posts_one_commit_one_409(): void {
@@ -466,6 +530,7 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$claimed = EditClaimRepository::acquire( $completed['comment_id'], 'guest_session', $hmac, $rating, 'approve' );
 		$this->assertNotNull( $claimed );
 		$op = wp_generate_uuid4();
+		$this->assertTrue( EditClaimRepository::mark_writing( $completed['comment_id'], $claimed['claim_token'], $claimed['generation'] ) );
 		$this->assertTrue( EditClaimRepository::mark_content_written( $completed['comment_id'], $claimed['claim_token'], $claimed['generation'], $op ) );
 		wp_set_comment_status( $completed['comment_id'], 'spam' );
 		$outcome = EditFinaliser::run( $completed['comment_id'], $claimed['claim_token'], $claimed['generation'] );
@@ -480,6 +545,7 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		update_comment_meta( $comment_id, 'rating', 5 );
 		$claimed = EditClaimRepository::acquire( $comment_id, 'logged_in', EditClaimRepository::hmac_body( 'expected' ), 5, 'hold' );
 		$this->assertNotNull( $claimed );
+		$this->assertTrue( EditClaimRepository::mark_writing( $comment_id, $claimed['claim_token'], $claimed['generation'] ) );
 		$this->assertTrue( EditClaimRepository::mark_content_written( $comment_id, $claimed['claim_token'], $claimed['generation'], wp_generate_uuid4() ) );
 		$stats = EditClaimReconciler::run();
 		$this->assertSame( 1, $stats['abandoned'] );
@@ -492,6 +558,18 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		for ( $step = 1; $step <= 7; $step++ ) {
 			$this->assert_crash_recover_exactly_once( $step );
 		}
+	}
+
+	public function test_crash_after_body_write_rolls_back_and_is_not_unwritten(): void {
+		$this->assert_write_crash_rolls_back( EditWriteService::CRASH_AFTER_BODY );
+	}
+
+	public function test_crash_after_rating_write_rolls_back_and_is_not_unwritten(): void {
+		$this->assert_write_crash_rolls_back( EditWriteService::CRASH_AFTER_RATING );
+	}
+
+	public function test_crash_before_content_written_cas_rolls_back_and_is_not_unwritten(): void {
+		$this->assert_write_crash_rolls_back( EditWriteService::CRASH_BEFORE_CONTENT_WRITTEN_CAS );
 	}
 
 	public function test_support_export_contract_unchanged(): void {
@@ -654,6 +732,25 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @return array<string, mixed>
+	 */
+	private function customer_edited_payload( int $comment_id ): array {
+		$mine = array_values(
+			array_filter(
+				$this->audit_rows( 'review.customer_edited' ),
+				static function ( array $row ) use ( $comment_id ): bool {
+					$payload = json_decode( (string) $row['payload_json'], true );
+					return is_array( $payload ) && (int) ( $payload['comment_id'] ?? 0 ) === $comment_id;
+				}
+			)
+		);
+		$this->assertCount( 1, $mine );
+		$payload = json_decode( (string) $mine[0]['payload_json'], true );
+		$this->assertIsArray( $payload );
+		return $payload;
+	}
+
+	/**
 	 * @return list<array<string, mixed>>
 	 */
 	private function audit_rows( string $event_type ): array {
@@ -706,6 +803,7 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$claimed = EditClaimRepository::acquire( $completed['comment_id'], 'guest_session', $hmac, $rating, 'approve' );
 		$this->assertNotNull( $claimed );
 		$op = wp_generate_uuid4();
+		$this->assertTrue( EditClaimRepository::mark_writing( $completed['comment_id'], $claimed['claim_token'], $claimed['generation'] ) );
 		$this->assertTrue( EditClaimRepository::mark_content_written( $completed['comment_id'], $claimed['claim_token'], $claimed['generation'], $op ) );
 
 		EditFinaliser::$crash_after_step_for_tests = $step;
@@ -745,5 +843,67 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$jobs = $this->count_assess_jobs_for_op( $op );
 		$this->assertLessThanOrEqual( 1, $jobs, 'step ' . $step . ' jobs' );
 		$this->assertSame( '0', (string) get_comment( $completed['comment_id'] )->comment_approved );
+	}
+
+	private function assert_write_crash_rolls_back( string $step ): void {
+		$completed = $this->complete_guest_review();
+		wp_set_comment_status( $completed['comment_id'], 'approve' );
+		$original_body   = (string) get_comment( $completed['comment_id'] )->comment_content;
+		$original_rating = (int) get_comment_meta( $completed['comment_id'], 'rating', true );
+
+		InviteTokenDispatcher::dispatch( $completed['raw'] );
+		EditWriteService::$crash_after_for_tests = $step;
+		ob_start();
+		try {
+			$this->post_edit( $completed['comment_id'], 2, 'Crash-window edited body for M14.' );
+		} catch ( \Throwable $e ) {
+			ob_end_clean();
+			$this->fail( 'handler must catch write crash: ' . $e->getMessage() );
+		}
+		$http = (string) ob_get_clean();
+		EditWriteService::$crash_after_for_tests = null;
+
+		$this->assertStringContainsString( 'Could not save your review.', $http );
+		clean_comment_cache( $completed['comment_id'] );
+		wp_cache_delete( $completed['comment_id'], 'comment_meta' );
+		update_meta_cache( 'comment', array( $completed['comment_id'] ) );
+		$this->assertSame( $original_body, (string) get_comment( $completed['comment_id'] )->comment_content, $step );
+		$this->assertSame( $original_rating, (int) get_comment_meta( $completed['comment_id'], 'rating', true ), $step );
+		$this->assertSame( '1', (string) get_comment( $completed['comment_id'] )->comment_approved, $step );
+
+		$row = EditClaimRepository::get( $completed['comment_id'] );
+		$this->assertIsArray( $row );
+		$this->assertSame( 'writing', (string) $row['phase'] );
+		$this->assertEmpty( $row['finalized_at'] );
+
+		global $wpdb;
+		$wpdb->update(
+			EditClaimRepository::table(),
+			array( 'claim_expires_at' => gmdate( 'Y-m-d H:i:s', time() - 3600 ) ),
+			array( 'comment_id' => $completed['comment_id'] ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		$this->assertNull(
+			EditClaimRepository::acquire( $completed['comment_id'], 'guest_session', EditClaimRepository::hmac_body( 'other' ), 3, 'approve' )
+		);
+
+		$stats = EditClaimReconciler::run();
+		$this->assertSame( 0, $stats['released'], $step );
+		$row = EditClaimRepository::get( $completed['comment_id'] );
+		$this->assertSame( 'abandoned', (string) ( $row['finalise_outcome'] ?? '' ), $step );
+		$this->assertNotEmpty( $row['finalized_at'] );
+		$this->assertSame( $original_body, (string) get_comment( $completed['comment_id'] )->comment_content, $step );
+		$this->assertSame( '1', (string) get_comment( $completed['comment_id'] )->comment_approved, $step );
+		$mine = array_values(
+			array_filter(
+				$this->audit_rows( 'review.customer_edited' ),
+				static function ( array $row ) use ( $completed ): bool {
+					$payload = json_decode( (string) $row['payload_json'], true );
+					return is_array( $payload ) && (int) ( $payload['comment_id'] ?? 0 ) === $completed['comment_id'];
+				}
+			)
+		);
+		$this->assertCount( 0, $mine, $step );
 	}
 }

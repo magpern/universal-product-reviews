@@ -59,7 +59,7 @@ Customer 7-day self-edits are implemented (M14). Authoritative freeze: [`../road
 | Guest | Original completed invite secret on `/upr-review/{token}/` → 303 `/upr-review/edit/` with a short-lived `edit_session` cookie. `find_active_by_raw(..., 'invite')` stays null; no second submit. |
 | Write path | Body + rating only; request-local arm; durable `upr_review_edit_claims`; approve→hold via `ApproveToHoldCas` (operator spam/trash always wins). |
 | Reissue | At most one active `edit_session` per parent invite; 10 mints / rolling hour including revoked; parent row `SELECT … FOR UPDATE`. |
-| Recovery | Existing `upr_reconcile_invitations` / `wp upr reconcile-invitations` resumes `content_written` generations (recovery-owned, not TTL-released). |
+| Recovery | Existing `upr_reconcile_invitations` / `wp upr reconcile-invitations` resumes `writing` and `content_written` generations (recovery-owned, not TTL-released). |
 
 Security revoke of a **redeemed** invite uses `TokenRepository::revoke( $id )` and **does** deny guest edit. Mass `revoke_for_item` / `revoke_all_outstanding` remain unredeemed-only.
 

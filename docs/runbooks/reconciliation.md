@@ -40,7 +40,7 @@ wp upr db-upgrade
 - Abandoned `initial_sending` / `reminder_sending` claims past stale window
 - Refunded/cancelled/opted-out/not-reviewable items → suppress + revoke tokens/sessions
 - Orphaned comments with association meta but incomplete UPR state → attach `review_comment_id` and complete; **never** re-invite
-- In-flight customer edits (`upr_review_edit_claims`): expired unwritten `claimed` rows are released; `content_written` without `finalized_at` is **recovery-owned** (ignore TTL) and is finalised or abandoned by fingerprint — never a second skip/audit/AS job for the same `finalise_op_id`. No extra `reconcile.completed` payload keys.
+- In-flight customer edits (`upr_review_edit_claims`): expired unwritten `claimed` rows are released; `writing` and `content_written` without `finalized_at` are **recovery-owned** (ignore TTL) — never classify `writing` as safely unwritten. `content_written` is finalised or abandoned by fingerprint; `writing` completes the marker if the target fingerprint already matches, otherwise abandons the generation (re-hold only when live content is neither prior nor target). Never a second skip/audit/AS job for the same `finalise_op_id`. No extra `reconcile.completed` payload keys.
 
 Dry-run still performs **zero writes**, including no edit-claim recovery.
 

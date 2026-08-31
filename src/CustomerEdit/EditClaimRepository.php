@@ -45,7 +45,11 @@ final class EditClaimRepository {
 		string $auth_class,
 		string $target_hmac,
 		int $target_rating,
-		string $prior_status
+		string $prior_status,
+		bool $content_changed = false,
+		bool $rating_changed = false,
+		string $prior_hmac = '',
+		int $prior_rating = 0
 	): ?array {
 		global $wpdb;
 
@@ -57,7 +61,8 @@ final class EditClaimRepository {
 		}
 
 		$existing = self::get( $comment_id );
-		if ( is_array( $existing ) && 'content_written' === (string) ( $existing['phase'] ?? '' ) && empty( $existing['finalized_at'] ) ) {
+		$phase    = is_array( $existing ) ? (string) ( $existing['phase'] ?? '' ) : '';
+		if ( is_array( $existing ) && empty( $existing['finalized_at'] ) && in_array( $phase, array( 'writing', 'content_written' ), true ) ) {
 			return null;
 		}
 
@@ -76,6 +81,10 @@ final class EditClaimRepository {
 					'auth_class'                => $auth_class,
 					'target_content_hmac'       => $target_hmac,
 					'target_rating'             => $target_rating,
+					'prior_content_hmac'        => $prior_hmac,
+					'prior_rating'              => $prior_rating,
+					'content_changed'           => $content_changed ? 1 : 0,
+					'rating_changed'            => $rating_changed ? 1 : 0,
 					'prior_status'              => $prior_status,
 					'phase'                     => 'claimed',
 					'claimed_at'                => $now,
@@ -89,7 +98,7 @@ final class EditClaimRepository {
 					'claim_expires_at'          => $expires,
 					'updated_at'                => $now,
 				),
-				array( '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+				array( '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 			);
 			if ( ! $ok ) {
 				return null;
@@ -104,7 +113,8 @@ final class EditClaimRepository {
 		$n      = $wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$table} SET claim_token = %s, generation = generation + 1, auth_class = %s,
-				target_content_hmac = %s, target_rating = %d, prior_status = %s, phase = %s,
+				target_content_hmac = %s, target_rating = %d, prior_content_hmac = %s, prior_rating = %d,
+				content_changed = %d, rating_changed = %d, prior_status = %s, phase = %s,
 				claimed_at = %s, content_written_at = NULL, finalise_op_id = NULL,
 				finalise_lease_token = NULL, finalise_lease_expires_at = NULL,
 				finalized_at = NULL, finalise_outcome = NULL, finalise_reassess = %s,
@@ -116,11 +126,15 @@ final class EditClaimRepository {
 						phase = %s AND content_written_at IS NULL AND finalized_at IS NULL AND claim_expires_at < %s
 					)
 				)
-				AND NOT (phase = %s AND finalized_at IS NULL)",
+				AND NOT (phase IN (%s, %s) AND finalized_at IS NULL)",
 				$token,
 				$auth_class,
 				$target_hmac,
 				$target_rating,
+				$prior_hmac,
+				$prior_rating,
+				$content_changed ? 1 : 0,
+				$rating_changed ? 1 : 0,
 				$prior_status,
 				'claimed',
 				$now,
@@ -130,7 +144,8 @@ final class EditClaimRepository {
 				$comment_id,
 				'claimed',
 				$cutoff,
-				'content_written'
+				'content_written',
+				'writing'
 			)
 		);
 
@@ -143,6 +158,25 @@ final class EditClaimRepository {
 			'claim_token' => $token,
 			'generation'  => (int) ( $row['generation'] ?? 0 ),
 		);
+	}
+
+	public static function mark_writing( int $comment_id, string $claim_token, int $generation ): bool {
+		global $wpdb;
+		$table = self::table();
+		$now   = current_time( 'mysql', true );
+		$n     = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET phase = %s, updated_at = %s
+				WHERE comment_id = %d AND claim_token = %s AND generation = %d AND phase = %s AND finalized_at IS NULL",
+				'writing',
+				$now,
+				$comment_id,
+				$claim_token,
+				$generation,
+				'claimed'
+			)
+		);
+		return 1 === (int) $n;
 	}
 
 	public static function mark_content_written( int $comment_id, string $claim_token, int $generation, string $finalise_op_id ): bool {
@@ -161,7 +195,7 @@ final class EditClaimRepository {
 				$comment_id,
 				$claim_token,
 				$generation,
-				'claimed',
+				'writing',
 				$finalise_op_id
 			)
 		);
@@ -296,7 +330,7 @@ final class EditClaimRepository {
 		global $wpdb;
 		$table = self::table();
 		$rows  = $wpdb->get_results(
-			"SELECT * FROM {$table} WHERE phase = 'content_written' AND finalized_at IS NULL",
+			"SELECT * FROM {$table} WHERE phase IN ('writing', 'content_written') AND finalized_at IS NULL",
 			ARRAY_A
 		);
 		return is_array( $rows ) ? $rows : array();

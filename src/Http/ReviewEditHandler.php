@@ -15,6 +15,7 @@ use UniversalProductReviews\CustomerEdit\CustomerEditEligibility;
 use UniversalProductReviews\CustomerEdit\EditClaimRepository;
 use UniversalProductReviews\CustomerEdit\EditFinaliser;
 use UniversalProductReviews\CustomerEdit\EditSessionAuthenticator;
+use UniversalProductReviews\CustomerEdit\EditWriteService;
 use UniversalProductReviews\Tokens\SessionCookie;
 
 defined( 'ABSPATH' ) || exit;
@@ -103,52 +104,40 @@ final class ReviewEditHandler {
 			return;
 		}
 
+		$content_changed = $hmac !== $live_hmac;
+		$rating_changed  = $rating !== $live_rating;
+
 		$prior  = CustomerEditEligibility::prior_status_label( $comment );
 		$claimed = EditClaimRepository::acquire(
 			(int) $comment->comment_ID,
 			$resolved['auth_class'],
 			$hmac,
 			$rating,
-			$prior
+			$prior,
+			$content_changed,
+			$rating_changed,
+			$live_hmac,
+			$live_rating
 		);
 		if ( null === $claimed ) {
 			self::fail( 409, __( 'This review cannot be updated right now.', 'universal-product-reviews' ) );
 			return;
 		}
 
+		if ( ! EditClaimRepository::mark_writing( (int) $comment->comment_ID, $claimed['claim_token'], $claimed['generation'] ) ) {
+			self::fail( 409, __( 'This review cannot be updated right now.', 'universal-product-reviews' ) );
+			return;
+		}
+
 		try {
-			CustomerEditAuthorization::arm( (int) $comment->comment_ID, $claimed['claim_token'], $claimed['generation'] );
-			$updated = wp_update_comment(
-				array(
-					'comment_ID'      => (int) $comment->comment_ID,
-					'comment_content' => $canonical,
-				)
-			);
-			if ( false === $updated || is_wp_error( $updated ) ) {
-				EditClaimRepository::abandon_unwritten( (int) $comment->comment_ID, $claimed['claim_token'], $claimed['generation'] );
+			if ( ! EditWriteService::persist_mutation(
+				(int) $comment->comment_ID,
+				$claimed['claim_token'],
+				$claimed['generation'],
+				$canonical,
+				$rating
+			) ) {
 				self::fail( 500, __( 'Could not save your review.', 'universal-product-reviews' ) );
-				return;
-			}
-			update_comment_meta( (int) $comment->comment_ID, 'rating', $rating );
-
-			clean_comment_cache( (int) $comment->comment_ID );
-			$fresh = get_comment( (int) $comment->comment_ID );
-			if ( ! $fresh instanceof \WP_Comment ) {
-				EditClaimRepository::force_abandon( (int) $comment->comment_ID, $claimed['claim_token'], $claimed['generation'] );
-				self::fail( 500, __( 'Could not save your review.', 'universal-product-reviews' ) );
-				return;
-			}
-			$fresh_hmac = EditClaimRepository::hmac_body( (string) $fresh->comment_content );
-			$fresh_rate = (int) get_comment_meta( (int) $fresh->comment_ID, 'rating', true );
-			if ( $fresh_hmac !== $hmac || $fresh_rate !== $rating ) {
-				EditClaimRepository::force_abandon( (int) $comment->comment_ID, $claimed['claim_token'], $claimed['generation'] );
-				self::fail( 500, __( 'Could not save your review.', 'universal-product-reviews' ) );
-				return;
-			}
-
-			$op_id = wp_generate_uuid4();
-			if ( ! EditClaimRepository::mark_content_written( (int) $comment->comment_ID, $claimed['claim_token'], $claimed['generation'], $op_id ) ) {
-				self::fail( 409, __( 'This review cannot be updated right now.', 'universal-product-reviews' ) );
 				return;
 			}
 

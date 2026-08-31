@@ -60,14 +60,20 @@ final class M14CustomerEditUnitTest extends TestCase {
 	}
 
 	public function test_payload_allowlist_body_and_rating_only(): void {
+		$writer = file_get_contents( dirname( __DIR__, 2 ) . '/src/CustomerEdit/EditWriteService.php' );
+		$this->assertIsString( $writer );
+		$this->assertStringContainsString( "'comment_ID'", $writer );
+		$this->assertStringContainsString( "'comment_content'", $writer );
+		$this->assertStringContainsString( 'START TRANSACTION', $writer );
+		$this->assertStringContainsString( 'ROLLBACK', $writer );
+		$this->assertStringNotContainsString( "'comment_author'", $writer );
+		$this->assertStringNotContainsString( "'comment_author_email'", $writer );
+		$this->assertStringNotContainsString( "'_upr_order_item_id'", $writer );
 		$handler = file_get_contents( dirname( __DIR__, 2 ) . '/src/Http/ReviewEditHandler.php' );
 		$this->assertIsString( $handler );
-		$this->assertStringContainsString( "'comment_ID'", $handler );
-		$this->assertStringContainsString( "'comment_content'", $handler );
-		$this->assertStringNotContainsString( "'comment_author'", $handler );
-		$this->assertStringNotContainsString( "'comment_author_email'", $handler );
-		$this->assertStringNotContainsString( "'_upr_order_item_id'", $handler );
-		$this->assertStringNotContainsString( 'comment_author_url', $handler );
+		$this->assertStringContainsString( 'mark_writing', $handler );
+		$this->assertStringContainsString( 'content_changed', $handler );
+		$this->assertStringContainsString( 'rating_changed', $handler );
 	}
 
 	public function test_identity_stripping_without_changing_author_fields(): void {
@@ -194,7 +200,9 @@ final class M14CustomerEditUnitTest extends TestCase {
 		$this->assertIsString( $repo );
 		$this->assertStringContainsString( 'hash_hmac( \'sha256\'', $repo );
 		$this->assertStringContainsString( 'content_written', $repo );
-		$this->assertStringContainsString( "AND NOT (phase = %s AND finalized_at IS NULL)", $repo );
+		$this->assertStringContainsString( 'writing', $repo );
+		$this->assertStringContainsString( 'mark_writing', $repo );
+		$this->assertStringContainsString( 'phase IN (%s, %s)', $repo );
 	}
 
 	public function test_approve_to_hold_cas_contract(): void {
@@ -206,6 +214,15 @@ final class M14CustomerEditUnitTest extends TestCase {
 		$this->assertStringNotContainsString( 'AiActionOrigin', $src );
 		$this->assertStringNotContainsString( 'wp_set_comment_status( $', $src );
 		$this->assertStringContainsString( "do_action( 'wp_set_comment_status'", $src );
+	}
+
+	public function test_finaliser_uses_stored_change_flags(): void {
+		$src = file_get_contents( dirname( __DIR__, 2 ) . '/src/CustomerEdit/EditFinaliser.php' );
+		$this->assertIsString( $src );
+		$this->assertStringContainsString( "\$row['content_changed']", $src );
+		$this->assertStringContainsString( "\$row['rating_changed']", $src );
+		$this->assertStringNotContainsString( "'content_changed'  => true", $src );
+		$this->assertStringNotContainsString( "'rating_changed'   => true", $src );
 	}
 
 	public function test_support_export_schema_unchanged(): void {

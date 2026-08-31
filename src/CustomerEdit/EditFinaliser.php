@@ -88,8 +88,8 @@ final class EditFinaliser {
 			'product_id'       => (int) $ctx['product_id'],
 			'old_status'       => (string) ( $row['prior_status'] ?? '' ),
 			'new_status'       => 'hold',
-			'content_changed'  => true,
-			'rating_changed'   => true,
+			'content_changed'  => (int) ( $row['content_changed'] ?? 0 ) === 1,
+			'rating_changed'   => (int) ( $row['rating_changed'] ?? 0 ) === 1,
 			'path'             => (string) ( $row['auth_class'] ?? 'guest_session' ),
 			'finalise_op_id'   => $op_id,
 		);
