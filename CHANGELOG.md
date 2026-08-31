@@ -6,9 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.9.0-rc.1] - 2026-08-31
+
+DEV **test candidate** (release candidate). Annotated tag `v0.9.0-rc.1` only — **no** GitHub Release, installable ZIP, or final `v0.9.0` in this step. M12 masters and external AI remain **default-off**. SupportExport remains **`upr-support-export/v1`**.
+
+### Added
+
+- **M10:** External OpenAI advisory assessments (default-off); encrypted Controls credential (O9′); host override still first.
+- **M11:** Recommendation-only AI moderation guidance on held reviews (no auto-action).
+- **M12:** Guarded `auto_spam_held_technical` under Simulation GO (masters default-off; Calibration GO / production enablement still required).
+- **M13:** Operator AI command surface (posture, would-act preview, held recommendation filters, CLI, D21 retention health).
+- **M14:** Customer 7-day body+rating self-edit; completed-invite guest proof; approve→hold CAS; C20 promoted to Stable.
+- **M15:** Enhanced native Comments pending queue (`upr_view=pending`); privacy-safe assessment presenter; Keep on hold (`review.operator_deferred`); no AI status mutation.
+
 ### Fixed
 
 - M9 latest-assessment lookup: select by `MAX(assessment_id)` so same-second `completed_at` collisions return exactly one deterministic row per comment for Comments-admin advisory prefetch.
+- M15 Keep on hold: phrasing-content submit button + admin-footer POST form (valid inside core row-action `<span>` wrappers).
+
+### Documentation
+
+- Closures / freezes for M10–M15 on `main` (see `docs/roadmap/`).
 
 ## [0.8.0] - 2026-08-28
 

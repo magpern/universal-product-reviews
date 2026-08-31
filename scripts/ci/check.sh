@@ -23,7 +23,7 @@ test -f docs/milestones/M1-core-enablement.md || fail "missing M1 milestone spec
 test -f docs/milestones/M2-invitations.md || fail "missing M2 milestone spec"
 test -f docs/production-replay.md || fail "missing docs/production-replay.md"
 grep -q 'Plugin Name: Universal Product Reviews' universal-product-reviews.php || fail "plugin header"
-grep -q 'Version: 0.8.0' universal-product-reviews.php || fail "expected version 0.8.0"
+grep -q 'Version: 0.9.0-rc.1' universal-product-reviews.php || fail "expected version 0.9.0-rc.1"
 grep -q 'namespace UniversalProductReviews' src/Plugin.php || fail "namespace"
 test -f src/Database/Schema.php || fail "missing Schema.php"
 test -f src/Database/Migrator.php || fail "missing Migrator.php"
