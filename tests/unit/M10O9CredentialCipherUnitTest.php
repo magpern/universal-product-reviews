@@ -43,9 +43,30 @@ final class M10O9CredentialCipherUnitTest extends TestCase {
 		$this->assertSame( $plain, $result->plaintext() );
 	}
 
-	public function test_key_source_only_flip_fails_closed(): void {
-		$cipher = $this->cipher_with_fixed_auth_key( str_repeat( 'ab', 32 ) );
-		$stored = $cipher->encrypt( 'sk-flip-test' );
+	public function test_key_source_only_flip_fails_closed_due_to_aad(): void {
+		// Both key sources resolve to the identical 32-byte key so a source-byte
+		// flip cannot fail from key-material mismatch — only from AAD binding.
+		$identical_key = str_repeat( "\x11", 32 );
+		$cipher        = new class( $identical_key ) extends OpenAiCredentialCipher {
+			/** @var string */
+			public string $resolved_for_site = '';
+
+			public function __construct( private string $key ) {}
+			protected function resolve_wp_auth_salts(): ?string {
+				return $this->key;
+			}
+			protected function site_salt_material(): string {
+				return 'unused-when-resolve_key_for_source-overridden';
+			}
+			protected function resolve_key_for_source( int $source ): string {
+				if ( self::KEY_SOURCE_SITE === $source ) {
+					$this->resolved_for_site = $this->key;
+				}
+				return $this->key;
+			}
+		};
+
+		$stored = $cipher->encrypt( 'sk-flip-aad-only' );
 		$parsed = $cipher->parse_envelope( $stored );
 		$this->assertNotNull( $parsed );
 		$this->assertSame( OpenAiCredentialCipher::KEY_SOURCE_AUTH, $parsed['source'] );
@@ -55,6 +76,10 @@ final class M10O9CredentialCipherUnitTest extends TestCase {
 		$result   = $cipher->decrypt( $tampered );
 		$this->assertSame( OpenAiCredentialState::INVALIDATED, $result->state() );
 		$this->assertNull( $result->plaintext() );
+		$this->assertSame( $identical_key, $cipher->resolved_for_site, 'decrypt used identical key bytes for flipped source' );
+
+		// Untampered envelope still decrypts under the same cipher.
+		$this->assertSame( OpenAiCredentialState::AVAILABLE, $cipher->decrypt( $stored )->state() );
 	}
 
 	public function test_salt_rotation_invalidates_without_erasing_bytes(): void {
