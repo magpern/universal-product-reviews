@@ -191,11 +191,17 @@ final class Commands {
 	 * @param array<string, string> $assoc Assoc args.
 	 */
 	private static function require_manage_woocommerce_user( array $assoc ): void {
-		if ( ! isset( $assoc['user'] ) || '' === (string) $assoc['user'] ) {
-			\WP_CLI::error( 'Missing required --user=<id|login> with manage_woocommerce.' );
+		$raw = '';
+		if ( isset( $assoc['user'] ) && '' !== (string) $assoc['user'] ) {
+			$raw = (string) $assoc['user'];
+		} elseif ( function_exists( 'get_current_user_id' ) && get_current_user_id() > 0 ) {
+			// WP-CLI global --user is not passed in $assoc when it shares the flag name.
+			$raw = (string) get_current_user_id();
 		}
 
-		$raw = (string) $assoc['user'];
+		if ( '' === $raw ) {
+			\WP_CLI::error( 'Missing required --user=<id|login> with manage_woocommerce.' );
+		}
 		$user = ctype_digit( $raw ) ? get_user_by( 'id', (int) $raw ) : get_user_by( 'login', $raw );
 		if ( ! $user || ! ( $user instanceof \WP_User ) ) {
 			\WP_CLI::error( 'Invalid --user; cannot resolve WordPress user.' );
