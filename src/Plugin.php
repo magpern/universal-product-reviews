@@ -11,6 +11,7 @@ namespace UniversalProductReviews;
 
 use UniversalProductReviews\Admin\AdminController;
 use UniversalProductReviews\Ai\AssessmentLifecycle;
+use UniversalProductReviews\CustomerEdit\CustomerEditGuard;
 use UniversalProductReviews\CLI\Commands;
 use UniversalProductReviews\Http\RewriteRules;
 use UniversalProductReviews\Invitations\InvitationScheduler;
@@ -43,6 +44,7 @@ final class Plugin {
 		GuestSubmissionGuard::register();
 		NativeSubmissionGuard::register();
 		ReviewAvailability::register();
+		CustomerEditGuard::register();
 
 		InvitationScheduler::register();
 		SuppressionService::register();
@@ -58,5 +60,6 @@ final class Plugin {
 	 */
 	public static function reset_for_tests(): void {
 		self::$initialized = false;
+		\UniversalProductReviews\CustomerEdit\CustomerEditAuthorization::clear();
 	}
 }

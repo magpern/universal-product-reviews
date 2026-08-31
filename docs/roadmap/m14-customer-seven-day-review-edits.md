@@ -75,8 +75,8 @@ This freeze **amends** ARCHITECTURE §12: the clock is **submission GMT** (`comm
 
 | ID | Decision | Locked value |
 |----|----------|--------------|
-| **E20** | Durable claim | Table `{prefix}upr_review_edit_claims`, PK `comment_id`. `content_written` is **recovery-owned** even after 5 min TTL. See §4. |
-| **E21** | Write protocol | Authorise → canonical HMAC → acquire → arm → `wp_update_comment` → rating meta → fingerprint re-read → `content_written` + `finalise_op_id` → E33. Reconcile via existing `upr_reconcile_invitations` only. |
+| **E20** | Durable claim | Table `{prefix}upr_review_edit_claims`, PK `comment_id`. `writing` and `content_written` are **recovery-owned** even after 5 min TTL. See §4. |
+| **E21** | Write protocol | Authorise → canonical HMAC → compute `content_changed`/`rating_changed` → acquire (store flags + prior fingerprints) → **commit `writing` checkpoint** → transactional body + rating + `content_written` CAS → E33. Rollback of that unit leaves no persisted edit. Reconcile via existing `upr_reconcile_invitations` only. |
 | **E33** | Finalisation | Per-generation lease (60s); `ApproveToHoldCas`; clear AI claims **before** skip; UNIQUE skip + UNIQUE audit insert-or-detect. See §4. |
 | **E22** | History | No revision-body store. Event `review.customer_edited` only. HMAC is recovery proof, not history. |
 
@@ -85,7 +85,7 @@ This freeze **amends** ARCHITECTURE §12: the clock is **submission GMT** (`comm
 | ID | Decision | Locked value |
 |----|----------|--------------|
 | **E23** | Post-edit status | Approve→hold **only if still `'1'`** at `ApproveToHoldCas`. Already hold → stay. Spam/trash/deleted → **abandon**; operator wins; never restore hold. |
-| **E24** | Audit | `actor_type=customer`; allowlisted payload including opaque `finalise_op_id`; `UNIQUE(event_type, correlation_id)` insert-or-detect. **Forbidden:** body, diff, hmac, email, token, rating **value**. |
+| **E24** | Audit | `actor_type=customer`; allowlisted payload including opaque `finalise_op_id` and stored booleans `content_changed` / `rating_changed` (computed before write, not hardcoded). `UNIQUE(event_type, correlation_id)` insert-or-detect. **Forbidden:** body, diff, hmac, email, token, rating **value**. |
 | **E25** | AI invalidation | On **completed** E33 only: clear active claims, insert skipped `content_edited` keyed by `source_op_id=finalise_op_id`. Masters remain default-off. |
 | **E26** | Privacy | No tokens/URLs/emails/bodies/keys/prompts/hmacs/revision text in diagnostics, logs, audit, CLI, HTML, or SupportExport. `finalise_op_id` allowed on the customer-edit audit event and assessment row only. |
 
@@ -94,7 +94,7 @@ This freeze **amends** ARCHITECTURE §12: the clock is **submission GMT** (`comm
 | ID | Decision | Locked value |
 |----|----------|--------------|
 | **E27** | **C20** (provisional, sensitivity none) | Read-only `CustomerEditAvailability::resolve( int $comment_id, int $user_id ): array{ can_edit: bool, reason_code: string }`. **No** `apply_filters` that can force `can_edit=true`. No UPR theme/block UI. Guest edit UI is **only** `/upr-review/edit/` (M7 a11y). |
-| **E28** | Schema | Yes: `upr_review_edit_claims`; `upr_moderation_assessments.source_op_id char(36) NULL UNIQUE`; `upr_audit.correlation_id char(36) NULL` + `UNIQUE(event_type, correlation_id)`; `upr_db_version` bump after `20260830a`. `edit_session` reuses `upr_tokens.purpose` (`varchar(16)`). No new AS hook. |
+| **E28** | Schema | Yes: `upr_review_edit_claims` (incl. `writing` phase, change flags, prior fingerprints); `upr_moderation_assessments.source_op_id char(36) NULL UNIQUE`; `upr_audit.correlation_id char(36) NULL` + `UNIQUE(event_type, correlation_id)`; `upr_db_version` bump (`20260831b`). `edit_session` reuses `upr_tokens.purpose` (`varchar(16)`). No new AS hook. |
 | **E29** | Token route | One HMAC `SELECT` then dispatch. See §3. |
 | **E30** | Reissue | Serialized per parent invite. 10 mints/hour including revoked. See §3. |
 | **E31** | Aggregate proofs | WC 8.2.0 floor + WC 11.0.1 DEV. See §7. |
@@ -200,8 +200,10 @@ PK `comment_id`. One in-flight claim per comment.
 | `auth_class` | `logged_in` \| `guest_session` |
 | `target_content_hmac` | HMAC-SHA256 of canonical sanitised body with `wp_salt( 'auth' )` — **never store raw body** |
 | `target_rating` | Tinyint 1–5 |
+| `prior_content_hmac` / `prior_rating` | Fingerprints of live body+rating at acquire (recovery only; not audit) |
+| `content_changed` / `rating_changed` | Booleans computed before mutation; copied into `review.customer_edited` |
 | `prior_status` | `hold` / `approve` at acquire |
-| `phase` | `claimed` \| `content_written` |
+| `phase` | `claimed` \| `writing` \| `content_written` |
 | `claimed_at` / `content_written_at` | UTC |
 | `finalise_op_id` | Opaque UUID; NULL until `content_written`; then immutable for the generation |
 | `finalise_lease_token` / `finalise_lease_expires_at` | Exclusive E33 owner; TTL **60 seconds** |
@@ -210,22 +212,22 @@ PK `comment_id`. One in-flight claim per comment.
 | `claim_expires_at` | **5 minutes** from acquire; **does not** release `content_written` |
 | `updated_at` | UTC |
 
-**Acquire:** allowed when no row; **or** `finalized_at` set; **or** `phase=claimed` and `content_written_at IS NULL` and expired. **Forbidden** when `phase=content_written` and `finalized_at IS NULL`, **including after TTL**. Concurrent POST → generic **409**. Acquire `WHERE` must never match `phase=content_written`.
+**Acquire:** allowed when no row; **or** `finalized_at` set; **or** `phase=claimed` and `content_written_at IS NULL` and expired. **Forbidden** when `phase=writing` or `phase=content_written` and `finalized_at IS NULL`, **including after TTL**. Concurrent POST → generic **409**. Acquire `WHERE` must never match `writing` or `content_written` in-flight rows.
 
 ### E21 request path
 
-1. Authorise (E2 or E3) + window/status. Canonicalise body. HMAC. Reject no-op before acquire.
-2. Acquire claim.
-3. Arm `CustomerEditAuthorization` (comment_id + claim_token + generation).
-4. `wp_update_comment()` (body only); rating meta while armed (`add` or `update`; never unauthorised delete).
-5. Re-read live body + rating. Mismatch → **abandon**; do not start E33.
-6. CAS `phase=content_written`, mint `finalise_op_id` if NULL. **No E33 side effect before this CAS.**
-7. Enter E33 (lease + `ApproveToHoldCas`). Spam/trash/deleted → abandon.
-8. `finally`: clear arm; clear edit_session cookie on success.
+1. Authorise (E2 or E3) + window/status. Canonicalise body. HMAC. Reject no-op before acquire. Compute `content_changed` / `rating_changed` from live vs target.
+2. Acquire claim (store flags + prior fingerprints).
+3. **CAS `phase=writing`** (durable checkpoint **before** any comment mutation).
+4. Arm `CustomerEditAuthorization` (comment_id + claim_token + generation).
+5. **One InnoDB transaction:** body write (if content changed); rating meta (if rating changed); fingerprint re-read; CAS `phase=content_written` + mint `finalise_op_id` if NULL. Failure or crash → `ROLLBACK` (no persisted edit). **No E33 side effect before this CAS.**
+6. Enter E33 (lease + `ApproveToHoldCas`). Spam/trash/deleted → abandon.
+7. `finally`: clear arm; clear edit_session cookie on success.
 
 **Reconcile** (existing `upr_reconcile_invitations` + `wp upr reconcile-invitations` only):
 
-- Expired `claimed` with no `content_written` → release (reacquire allowed).
+- Expired `claimed` with no `content_written` and **not** `writing` → release (reacquire allowed).
+- `writing` without `finalized_at` (**ignore expiry**): never treat as safely unwritten. Target fingerprint match → CAS `content_written` then E33. Live still equals prior fingerprints (rolled-back unit) → abandon generation only. Partial (target body, stale rating) → finish rating then E33. Otherwise **abandon the generation with no comment-status write**, no skip, no `review.customer_edited` (mismatch cannot be attributed to the claim; preserve live/external status).
 - `content_written` without `finalized_at` (**ignore expiry**): fingerprint match → E33; mismatch/missing comment → abandon that generation.
 
 ### `ApproveToHoldCas`
@@ -284,7 +286,7 @@ After a non-no-op persist:
 | Rating meta add/update/delete bypass | E7 three meta filters |
 | Double POST | One claim; second 409 |
 | Operator spam during finalise | `ApproveToHoldCas` affected 0 → abandon; no hold restore |
-| Crash after comment write | Recovery-owned `content_written`; E33 exactly-once |
+| Crash after comment write | `writing` checkpoint; transactional rollback leaves no persisted edit; never TTL-release `writing` |
 | Concurrent reissue | E30 parent `FOR UPDATE`; never 11; never two active |
 | Hidden-product new submit via edit | C9/guards unchanged; E15 is existing-comment only |
 | PII leak | Allowlists; grep-forbid hmac/body/token |
@@ -302,7 +304,7 @@ After a non-no-op persist:
 
 **Concurrency:** two simultaneous POSTs → one commit, one 409; E30 two concurrent visits with 9 hour-children → one mint, one denial, count = 10, exactly one unrevoked `edit_session`.
 
-**Recovery:** crash after each E33 step → one skip, one audit, one job; operator spam interleave never restores hold; fingerprint mismatch abandons.
+**Recovery:** crash after each E33 step → one skip, one audit, one job; crash after body write / rating write / immediately before `content_written` CAS → rollback (original body+rating); `writing` is not released as unwritten; operator spam interleave never restores hold; fingerprint mismatch abandons with no status write, hooks, skip, or `review.customer_edited`.
 
 **Privacy:** no token/email/body/URL/key/prompt/hmac in audit/CLI/export/HTML/diagnostics; SupportExport schema hash unchanged; `finalise_op_id` not in export/logs/HTML.
 

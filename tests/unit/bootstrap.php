@@ -290,6 +290,12 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 			unset( $query );
 			return 0;
 		}
+
+		public function suppress_errors( $suppress = true ) {
+			$prev                    = $this->suppress_errors ?? false;
+			$this->suppress_errors   = (bool) $suppress;
+			return $prev;
+		}
 	};
 }
 
@@ -452,6 +458,84 @@ if ( ! function_exists( 'get_comment' ) ) {
 	function get_comment( $comment = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		$id = is_object( $comment ) ? (int) $comment->comment_ID : (int) $comment;
 		return $GLOBALS['upr_test_comments'][ $id ] ?? null;
+	}
+}
+
+if ( ! class_exists( 'WP_Comment', false ) ) {
+	class WP_Comment { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedClassFound
+		/** @var int|string */
+		public $comment_ID = 0;
+		/** @var int|string */
+		public $comment_post_ID = 0;
+		/** @var int|string */
+		public $comment_parent = 0;
+		/** @var string */
+		public $comment_type = 'review';
+		/** @var string */
+		public $comment_approved = '1';
+		/** @var string */
+		public $comment_date_gmt = '';
+		/** @var string */
+		public $comment_date = '';
+		/** @var int */
+		public $user_id = 0;
+		/** @var string */
+		public $comment_content = '';
+		/** @var string */
+		public $comment_author = '';
+		/** @var string */
+		public $comment_author_email = '';
+		/** @var string */
+		public $comment_author_url = '';
+
+		/**
+		 * @return array<string, mixed>
+		 */
+		public function to_array() {
+			return get_object_vars( $this );
+		}
+	}
+}
+
+if ( ! class_exists( 'WP_Error', false ) ) {
+	class WP_Error { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedClassFound
+		/** @var string */
+		public $code = '';
+		/** @var string */
+		public $message = '';
+
+		public function __construct( $code = '', $message = '', $data = '' ) {
+			unset( $data );
+			$this->code    = (string) $code;
+			$this->message = (string) $message;
+		}
+
+		public function get_error_code() {
+			return $this->code;
+		}
+
+		public function get_error_message() {
+			return $this->message;
+		}
+	}
+}
+
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $thing instanceof \WP_Error;
+	}
+}
+
+if ( ! function_exists( 'wp_filter_comment' ) ) {
+	function wp_filter_comment( $commentdata ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $commentdata;
+	}
+}
+
+if ( ! function_exists( 'user_can' ) ) {
+	function user_can( $user, $capability ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset( $user );
+		return current_user_can( $capability );
 	}
 }
 

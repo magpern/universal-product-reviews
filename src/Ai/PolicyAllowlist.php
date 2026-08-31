@@ -60,6 +60,7 @@ final class PolicyAllowlist {
 		'model_invalid',
 		'input_too_large',
 		'provider_incomplete',
+		'content_edited',
 	);
 
 	/** @var list<string> */

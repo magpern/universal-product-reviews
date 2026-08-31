@@ -113,6 +113,51 @@ final class AssessmentRepository {
 	}
 
 	/**
+	 * Insert-or-detect skipped content_edited keyed by source_op_id (E33).
+	 *
+	 * @return int New assessment_id, or 0 if duplicate/failure.
+	 */
+	public static function insert_skipped_content_edited( int $comment_id, string $source_op_id ): int {
+		global $wpdb;
+
+		if ( $comment_id <= 0 || '' === $source_op_id ) {
+			return 0;
+		}
+
+		$now       = current_time( 'mysql', true );
+		$retention = AssessmentRetention::due_at_for_status( '0', strtotime( $now . ' UTC' ) );
+		$prev      = $wpdb->suppress_errors( true );
+		$inserted  = $wpdb->insert(
+			self::table(),
+			array(
+				'schema_version'           => PolicyAllowlist::SCHEMA_VERSION,
+				'comment_id'               => $comment_id,
+				'mode'                     => 'shadow',
+				'state'                    => 'skipped',
+				'publication_safety_score' => null,
+				'confidence'               => null,
+				'reason_codes'             => null,
+				'policy_version'           => PolicyAllowlist::POLICY_VERSION,
+				'provider_kind'            => 'local',
+				'provider_fingerprint'     => ProviderFingerprint::for_builtin( PolicyAllowlist::POLICY_VERSION ),
+				'failure_code'             => 'content_edited',
+				'requested_at'             => $now,
+				'completed_at'             => $now,
+				'retention_due_at'         => $retention,
+				'source_op_id'             => $source_op_id,
+			),
+			array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+		);
+		$wpdb->suppress_errors( $prev );
+
+		if ( false === $inserted ) {
+			return 0;
+		}
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
 	 * Latest terminal row per comment id.
 	 *
 	 * Authoritative ordering is monotonic `assessment_id` (insertion order).

@@ -14,7 +14,7 @@ Invitation tokens (`upr_tokens`, purpose `invite`), form sessions (purpose `form
 | Replay attack | Verify single-winner redeem and one `review_comment_id` |
 | Session abandoned | Customer may reopen invite link (open ≠ redeem) until invite expiry/revoke |
 | Token appears in access logs | Host must redact `/upr-review/{token}/`; treat as leak if logs retained |
-| Guest cannot edit after successful submit | Expected until M14: completion sets `redeemed_at` only; `find_active_by_raw` stays null. After M14: same secret may mint `edit_session` only when E3 tuple+window hold |
+| Guest cannot edit after successful submit | Completion sets `redeemed_at` only; `find_active_by_raw` stays null. The same secret may mint `edit_session` only when the E3 tuple + 7-day window hold (serialized, 10/hour). Security-revoked redeemed invites are generic-denied. |
 | Suspected leak of a **redeemed** invite during the 7-day edit window | **Security revoke** that token id with `TokenRepository::revoke( $id )` (sets `revoked_at` even when `redeemed_at` is set). That **does** kill M14 edit. Do **not** use `revoke_for_item` / `revoke_all_outstanding` for this — those skip redeemed rows by design |
 
 ## Revocation triggers
@@ -39,7 +39,7 @@ Mass `revoke_for_item` / `revoke_all_outstanding` remain **unredeemed-only**. Po
 
 - Raw tokens/session secrets never stored — only HMAC-SHA-256 (`hash_hmac` with `wp_salt('auth')`)
 - Do not log full tokens in application logs
-- Token exchange returns `303` + `Referrer-Policy: no-referrer`; form URLs are token-free
+- Token exchange returns `303` + `Referrer-Policy: no-referrer`; form and edit URLs are token-free
 - Cookie: `__Host-upr_review_session` on HTTPS (`Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, no `Domain`)
 - **Host duty:** redact or exclude `/upr-review/{token}/` from web-server access logs
 - Auth-salt rotation invalidates **all** outstanding tokens and sessions (including M14 completed-invite HMAC match and in-flight claim HMACs)

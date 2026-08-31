@@ -23,6 +23,10 @@ final class DefaultReviewLinkBuilder implements ReviewLinkBuilder {
 		return (string) $base;
 	}
 
+	public function edit_url(): string {
+		return home_url( user_trailingslashit( 'upr-review/edit' ) );
+	}
+
 	public static function resolve(): ReviewLinkBuilder {
 		$builder = apply_filters( 'upr_review_link_builder', new self() );
 		return $builder instanceof ReviewLinkBuilder ? $builder : new self();

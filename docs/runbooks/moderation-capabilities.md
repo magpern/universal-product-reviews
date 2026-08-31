@@ -51,7 +51,19 @@ Schema remains `upr-support-export/v1`. M5–M10 must not add assessment payload
 
 Native WordPress Edit Comment (`moderate_comments`) is unchanged M5 operator UX.
 
-Customer 7-day self-edits are **M14**. Authoritative freeze: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md). Implementation fills runtime behaviour. Until then: no customer edit route, no `edit_session`, no `upr_review_edit_claims`.
+Customer 7-day self-edits are implemented (M14). Authoritative freeze: [`../roadmap/m14-customer-seven-day-review-edits.md`](../roadmap/m14-customer-seven-day-review-edits.md).
+
+| Surface | Runtime |
+|---------|---------|
+| Logged-in author (verified purchase) | `/upr-review/edit/?comment_id=` while the 7-day UTC window and hold/approve status hold. C20 `CustomerEditAvailability::resolve()` is display-only and cannot grant writes. |
+| Guest | Original completed invite secret on `/upr-review/{token}/` → 303 `/upr-review/edit/` with a short-lived `edit_session` cookie. `find_active_by_raw(..., 'invite')` stays null; no second submit. |
+| Write path | Body + rating only; request-local arm; durable `upr_review_edit_claims`; approve→hold via `ApproveToHoldCas` (operator spam/trash always wins). |
+| Reissue | At most one active `edit_session` per parent invite; 10 mints / rolling hour including revoked; parent row `SELECT … FOR UPDATE`. |
+| Recovery | Existing `upr_reconcile_invitations` / `wp upr reconcile-invitations` resumes `writing` and `content_written` generations (recovery-owned, not TTL-released). |
+
+Security revoke of a **redeemed** invite uses `TokenRepository::revoke( $id )` and **does** deny guest edit. Mass `revoke_for_item` / `revoke_all_outstanding` remain unredeemed-only.
+
+Do not enable AI masters for edit reassessment; shadow remains default-off. No revision-body store. SupportExport remains `upr-support-export/v1`.
 
 ## Related
 

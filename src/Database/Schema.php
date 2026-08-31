@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Schema {
 
-	public const DB_VERSION = '20260830a';
+	public const DB_VERSION = '20260831b';
 
 	public const OPS_ROW_ID = 1;
 
@@ -32,6 +32,7 @@ final class Schema {
 		$ops          = $wpdb->prefix . 'upr_moderation_ops';
 		$external_ops = $wpdb->prefix . 'upr_moderation_external_ops';
 		$action_ledger = $wpdb->prefix . 'upr_moderation_action_ledger';
+		$edit_claims   = $wpdb->prefix . 'upr_review_edit_claims';
 
 		return array(
 			$invite => "CREATE TABLE {$invite} (
@@ -100,10 +101,12 @@ final class Schema {
 				order_id bigint(20) unsigned DEFAULT NULL,
 				order_item_id bigint(20) unsigned DEFAULT NULL,
 				payload_json text DEFAULT NULL,
+				correlation_id char(36) DEFAULT NULL,
 				PRIMARY KEY  (id),
 				KEY occurred_at (occurred_at),
 				KEY item_occurred (order_item_id, occurred_at),
-				KEY event_occurred (event_type, occurred_at)
+				KEY event_occurred (event_type, occurred_at),
+				UNIQUE KEY event_correlation (event_type, correlation_id)
 			) {$charset};",
 			$assessments => "CREATE TABLE {$assessments} (
 				assessment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -121,10 +124,12 @@ final class Schema {
 				requested_at datetime NOT NULL,
 				completed_at datetime NOT NULL,
 				retention_due_at datetime NOT NULL,
+				source_op_id char(36) DEFAULT NULL,
 				PRIMARY KEY  (assessment_id),
 				KEY comment_completed (comment_id, completed_at),
 				KEY retention_due_at (retention_due_at),
-				KEY state_completed (state, completed_at)
+				KEY state_completed (state, completed_at),
+				UNIQUE KEY source_op_id (source_op_id)
 			) {$charset};",
 			$claims => "CREATE TABLE {$claims} (
 				comment_id bigint(20) unsigned NOT NULL,
@@ -170,6 +175,33 @@ final class Schema {
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (comment_id, assessment_id, action_policy_version),
 				KEY state_updated (state, updated_at)
+			) {$charset};",
+			$edit_claims => "CREATE TABLE {$edit_claims} (
+				comment_id bigint(20) unsigned NOT NULL,
+				claim_token char(36) NOT NULL,
+				generation int unsigned NOT NULL DEFAULT 1,
+				auth_class varchar(16) NOT NULL,
+				target_content_hmac char(64) NOT NULL,
+				target_rating tinyint unsigned NOT NULL,
+				prior_content_hmac char(64) NOT NULL,
+				prior_rating tinyint unsigned NOT NULL,
+				content_changed tinyint(1) NOT NULL DEFAULT 0,
+				rating_changed tinyint(1) NOT NULL DEFAULT 0,
+				prior_status varchar(16) NOT NULL,
+				phase varchar(16) NOT NULL,
+				claimed_at datetime NOT NULL,
+				content_written_at datetime DEFAULT NULL,
+				finalise_op_id char(36) DEFAULT NULL,
+				finalise_lease_token char(36) DEFAULT NULL,
+				finalise_lease_expires_at datetime DEFAULT NULL,
+				finalized_at datetime DEFAULT NULL,
+				finalise_outcome varchar(16) DEFAULT NULL,
+				finalise_reassess varchar(16) DEFAULT NULL,
+				claim_expires_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (comment_id),
+				KEY phase_finalized (phase, finalized_at),
+				KEY claim_expires_at (claim_expires_at)
 			) {$charset};",
 		);
 	}

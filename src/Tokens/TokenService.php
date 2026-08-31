@@ -47,6 +47,14 @@ final class TokenService {
 			return null;
 		}
 
+		return self::issue_form_session_for_invite_row( $invite );
+	}
+
+	/**
+	 * @param array<string, mixed> $invite Invite row (already loaded).
+	 * @return array{form_url:string}|null
+	 */
+	public static function issue_form_session_for_invite_row( array $invite ): ?array {
 		$product_id = (int) $invite['product_id'];
 		if ( ! ProductReviewability::is_reviewable( $product_id ) ) {
 			TokenRepository::revoke( (int) $invite['id'] );
