@@ -357,6 +357,86 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( $payload['rating_changed'] );
 	}
 
+	public function test_c20_stable_contract_criteria(): void {
+		$product_id = $this->upr_create_product();
+		$user_id    = $this->factory()->user->create(
+			array(
+				'role'       => 'customer',
+				'user_email' => 'c20-buyer@example.com',
+			)
+		);
+		$this->grant_purchase( $user_id, $product_id );
+		$comment_id = $this->insert_review( $product_id, '1', $user_id, 'C20 eligible logged-in review.' );
+		update_comment_meta( $comment_id, 'rating', 5 );
+		wp_set_comment_status( $comment_id, 'approve' );
+		wp_set_current_user( $user_id );
+
+		$avail = CustomerEditAvailability::resolve( $comment_id, $user_id );
+		$this->assertSame(
+			array(
+				'can_edit'    => true,
+				'reason_code' => 'ok',
+			),
+			$avail
+		);
+		$this->assertFalse( CustomerEditAuthorization::is_armed() );
+
+		$denied = CustomerEditGuard::filter_update_comment_data(
+			array( 'comment_content' => 'C20 must not grant writes' ),
+			get_comment( $comment_id ),
+			array()
+		);
+		$this->assertTrue( is_wp_error( $denied ) );
+		$this->assertStringNotContainsString( 'C20 must not grant writes', (string) get_comment( $comment_id )->comment_content );
+
+		add_filter(
+			'upr_customer_edit_availability',
+			static function () {
+				return array(
+					'can_edit'    => true,
+					'reason_code' => 'forced',
+				);
+			}
+		);
+		$this->assertSame( 'ok', CustomerEditAvailability::resolve( $comment_id, $user_id )['reason_code'] );
+
+		$guest_user = CustomerEditAvailability::resolve( $comment_id, 0 );
+		$this->assertFalse( $guest_user['can_edit'] );
+		$this->assertSame( 'not_eligible', $guest_user['reason_code'] );
+
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->comments,
+			array( 'comment_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - ( 7 * 86400 ) - 1 ) ),
+			array( 'comment_ID' => $comment_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		clean_comment_cache( $comment_id );
+		$expired = CustomerEditAvailability::resolve( $comment_id, $user_id );
+		$this->assertFalse( $expired['can_edit'] );
+		$this->assertSame( 'not_eligible', $expired['reason_code'] );
+
+		$wpdb->update(
+			$wpdb->comments,
+			array( 'comment_date_gmt' => gmdate( 'Y-m-d H:i:s' ) ),
+			array( 'comment_ID' => $comment_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		clean_comment_cache( $comment_id );
+		wp_set_comment_status( $comment_id, 'spam' );
+		$spam = CustomerEditAvailability::resolve( $comment_id, $user_id );
+		$this->assertFalse( $spam['can_edit'] );
+		$this->assertSame( 'not_eligible', $spam['reason_code'] );
+
+		$completed = $this->complete_guest_review();
+		$guest     = CustomerEditAvailability::resolve( $completed['comment_id'], 0 );
+		$this->assertFalse( $guest['can_edit'] );
+		$this->assertSame( 'not_eligible', $guest['reason_code'] );
+		remove_all_filters( 'upr_customer_edit_availability' );
+	}
+
 	public function test_logged_in_edit_and_c20(): void {
 		$product_id = $this->upr_create_product();
 		$user_id    = $this->factory()->user->create(
@@ -560,6 +640,14 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$comment_id = $this->insert_review( $this->upr_create_product(), '1', 0, 'Original approved body for writing recovery.' );
 		wp_set_comment_status( $comment_id, 'approve' );
 		clean_comment_cache( $comment_id );
+		global $wpdb;
+		$skips_before = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->prefix}upr_moderation_assessments WHERE comment_id = %d",
+				$comment_id
+			)
+		);
+		$jobs_before  = $this->count_assess_jobs_for_comment( $comment_id );
 		$original     = (string) get_comment( $comment_id )->comment_content;
 		$prior_hmac   = EditClaimRepository::hmac_body( $original );
 		$prior_rating = (int) get_comment_meta( $comment_id, 'rating', true );
@@ -579,7 +667,6 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( EditClaimRepository::mark_writing( $comment_id, $claimed['claim_token'], $claimed['generation'] ) );
 
 		$external_body = 'External operator rewrite of the review body.';
-		global $wpdb;
 		$wpdb->update(
 			$wpdb->comments,
 			array( 'comment_content' => $external_body ),
@@ -637,14 +724,13 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertCount( 0, $mine );
-		$skips = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}upr_moderation_assessments WHERE comment_id = %d",
-				$comment_id
-			)
+		$skips_sql = $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->prefix}upr_moderation_assessments WHERE comment_id = %d",
+			$comment_id
 		);
-		$this->assertSame( 0, $skips );
-		$this->assertSame( 0, $this->count_assess_jobs_for_comment( $comment_id ) );
+		$skips     = (int) $wpdb->get_var( $skips_sql );
+		$this->assertSame( $skips_before, $skips );
+		$this->assertSame( $jobs_before, $this->count_assess_jobs_for_comment( $comment_id ) );
 	}
 
 	public function test_crash_after_each_e33_step_is_exactly_once(): void {

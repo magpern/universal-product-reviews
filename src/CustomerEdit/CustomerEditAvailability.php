@@ -1,6 +1,6 @@
 <?php
 /**
- * C20 provisional read-only display helper. Cannot grant write auth.
+ * C20 stable read-only display helper. Cannot grant write auth.
  *
  * @package UniversalProductReviews
  */

@@ -114,6 +114,10 @@ final class M14CustomerEditUnitTest extends TestCase {
 		$src = file_get_contents( dirname( __DIR__, 2 ) . '/src/CustomerEdit/CustomerEditAvailability.php' );
 		$this->assertIsString( $src );
 		$this->assertStringNotContainsString( 'apply_filters', $src );
+		$this->assertStringNotContainsString( 'CustomerEditAuthorization', $src );
+		$this->assertDoesNotMatchRegularExpression( '/\barm\s*\(/', $src );
+		preg_match_all( "/'reason_code'\\s*=>\\s*'([^']+)'/", $src, $codes );
+		$this->assertSame( array( 'not_eligible', 'ok' ), array_values( array_unique( $codes[1] ) ) );
 		add_filter(
 			'upr_product_review_availability',
 			static function ( $value ) {
@@ -123,9 +127,20 @@ final class M14CustomerEditUnitTest extends TestCase {
 				return $value;
 			}
 		);
+		add_filter(
+			'upr_customer_edit_availability',
+			static function () {
+				return array(
+					'can_edit'    => true,
+					'reason_code' => 'ok',
+				);
+			}
+		);
 		$resolved = CustomerEditAvailability::resolve( 0, 0 );
 		$this->assertFalse( $resolved['can_edit'] );
 		$this->assertSame( 'not_eligible', $resolved['reason_code'] );
+		$this->assertFalse( CustomerEditAuthorization::is_armed() );
+		$this->assertSame( 7 * 86400, CustomerEditClock::WINDOW_SECONDS );
 	}
 
 	public function test_content_edited_in_failure_codes(): void {

@@ -10,7 +10,7 @@ Generic core only: no host-, brand-, theme-, or infrastructure-specific runtime 
 
 This freeze **amends** ARCHITECTURE §12: the clock is **submission GMT** (`comment_date_gmt`), not first approval (`_upr_approved_at` is named in ARCHITECTURE but **not implemented**); “audit row per revision” means a **privacy-safe event**, not stored prior bodies. Guest proof is a **scoped completed-invite lookup** of the original invite HMAC — not M2-active `find_active_by_raw`.
 
-**Contract ID:** Planning referred to the read-only display helper as “C18”. Registry **C18** is already `DeliveryStatus::has_confirmation`. This freeze locks the helper as **C20** (provisional). Do not reuse C18.
+**Contract ID:** Planning referred to the read-only display helper as “C18”. Registry **C18** is already `DeliveryStatus::has_confirmation`. This freeze locks the helper as **C20**. Do not reuse C18. Stability at freeze: **provisional**. **Promoted to Stable:** [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md).
 
 ---
 
@@ -93,7 +93,7 @@ This freeze **amends** ARCHITECTURE §12: the clock is **submission GMT** (`comm
 
 | ID | Decision | Locked value |
 |----|----------|--------------|
-| **E27** | **C20** (provisional, sensitivity none) | Read-only `CustomerEditAvailability::resolve( int $comment_id, int $user_id ): array{ can_edit: bool, reason_code: string }`. **No** `apply_filters` that can force `can_edit=true`. No UPR theme/block UI. Guest edit UI is **only** `/upr-review/edit/` (M7 a11y). |
+| **E27** | **C20** (sensitivity none) | Read-only `CustomerEditAvailability::resolve( int $comment_id, int $user_id ): array{ can_edit: bool, reason_code: string }`. **No** `apply_filters` that can force `can_edit=true`. No UPR theme/block UI. Guest edit UI is **only** `/upr-review/edit/` (M7 a11y). Locked **provisional** for M14 implementation. **Promoted to Stable** by [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md) (independent of SemVer). |
 | **E28** | Schema | Yes: `upr_review_edit_claims` (incl. `writing` phase, change flags, prior fingerprints); `upr_moderation_assessments.source_op_id char(36) NULL UNIQUE`; `upr_audit.correlation_id char(36) NULL` + `UNIQUE(event_type, correlation_id)`; `upr_db_version` bump (`20260831b`). `edit_session` reuses `upr_tokens.purpose` (`varchar(16)`). No new AS hook. |
 | **E29** | Token route | One HMAC `SELECT` then dispatch. See §3. |
 | **E30** | Reissue | Serialized per parent invite. 10 mints/hour including revoked. See §3. |
@@ -330,7 +330,9 @@ After a non-no-op persist:
 
 ## 9. Explicit non-goals
 
-Edit-notification / reminder email; a second customer-visible edit secret or completion credential; minting a second raw secret onto the success page; account-claim of guest reviews by email; customer deletion; title/media; body revision store; C20 promotion to Stable; C16/C17; new public `upr_*` filters; new AS jobs; SupportExport v2; SemVer / `v0.8.0` / Release / ZIP; Calibration GO / auto-spam enablement; host/theme UI; DEV/production WordPress access.
+Edit-notification / reminder email; a second customer-visible edit secret or completion credential; minting a second raw secret onto the success page; account-claim of guest reviews by email; customer deletion; title/media; body revision store; C16/C17; new public `upr_*` filters; new AS jobs; SupportExport v2; SemVer / `v0.8.0` / Release / ZIP; Calibration GO / auto-spam enablement; host/theme UI; DEV/production WordPress access.
+
+C20 promotion to Stable was a non-goal of **M14 implementation**. It is recorded separately: [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md). Guest-edit alternative decision: [`m14-guest-edit-reentry-decision.md`](m14-guest-edit-reentry-decision.md).
 
 ---
 
