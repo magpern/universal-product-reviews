@@ -205,6 +205,13 @@ final class M14CustomerEditUnitTest extends TestCase {
 		$this->assertStringContainsString( 'phase IN (%s, %s)', $repo );
 	}
 
+	public function test_writing_reconcile_never_calls_approve_to_hold(): void {
+		$src = file_get_contents( dirname( __DIR__, 2 ) . '/src/CustomerEdit/EditClaimReconciler.php' );
+		$this->assertIsString( $src );
+		$this->assertStringNotContainsString( 'ApproveToHoldCas', $src );
+		$this->assertStringContainsString( 'force_abandon', $src );
+	}
+
 	public function test_approve_to_hold_cas_contract(): void {
 		$src = file_get_contents( dirname( __DIR__, 2 ) . '/src/Moderation/ApproveToHoldCas.php' );
 		$this->assertIsString( $src );

@@ -9,8 +9,6 @@ declare( strict_types=1 );
 
 namespace UniversalProductReviews\CustomerEdit;
 
-use UniversalProductReviews\Moderation\ApproveToHoldCas;
-
 defined( 'ABSPATH' ) || exit;
 
 final class EditClaimReconciler {
@@ -73,8 +71,6 @@ final class EditClaimReconciler {
 		$live_rate   = (int) get_comment_meta( $comment_id, 'rating', true );
 		$target_hmac = (string) ( $row['target_content_hmac'] ?? '' );
 		$target_rate = (int) ( $row['target_rating'] ?? 0 );
-		$prior_hmac  = (string) ( $row['prior_content_hmac'] ?? '' );
-		$prior_rate  = (int) ( $row['prior_rating'] ?? 0 );
 
 		if ( $live_hmac === $target_hmac && $live_rate === $target_rate ) {
 			$op_id = (string) ( $row['finalise_op_id'] ?? '' );
@@ -102,13 +98,8 @@ final class EditClaimReconciler {
 			return self::run_finaliser( $comment_id, $claim_token, $generation );
 		}
 
-		if ( '' !== $prior_hmac && $live_hmac === $prior_hmac && $live_rate === $prior_rate ) {
-			EditClaimRepository::force_abandon( $comment_id, $claim_token, $generation );
-			return 'abandoned';
-		}
-
-		ApproveToHoldCas::cas_write( $comment_id );
-		clean_comment_cache( $comment_id );
+		// Rolled-back unit (live still prior) or any other non-target live state:
+		// abandon only. No status write, skip, or customer-edit audit.
 		EditClaimRepository::force_abandon( $comment_id, $claim_token, $generation );
 		return 'abandoned';
 	}

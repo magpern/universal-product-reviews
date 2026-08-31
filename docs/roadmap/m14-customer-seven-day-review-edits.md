@@ -227,7 +227,7 @@ PK `comment_id`. One in-flight claim per comment.
 **Reconcile** (existing `upr_reconcile_invitations` + `wp upr reconcile-invitations` only):
 
 - Expired `claimed` with no `content_written` and **not** `writing` → release (reacquire allowed).
-- `writing` without `finalized_at` (**ignore expiry**): never treat as safely unwritten. Target fingerprint match → CAS `content_written` then E33. Live still equals prior fingerprints (rolled-back unit) → abandon generation only. Partial (target body, stale rating) → finish rating then E33. Otherwise re-hold if still approved and abandon.
+- `writing` without `finalized_at` (**ignore expiry**): never treat as safely unwritten. Target fingerprint match → CAS `content_written` then E33. Live still equals prior fingerprints (rolled-back unit) → abandon generation only. Partial (target body, stale rating) → finish rating then E33. Otherwise **abandon the generation with no comment-status write**, no skip, no `review.customer_edited` (mismatch cannot be attributed to the claim; preserve live/external status).
 - `content_written` without `finalized_at` (**ignore expiry**): fingerprint match → E33; mismatch/missing comment → abandon that generation.
 
 ### `ApproveToHoldCas`
@@ -304,7 +304,7 @@ After a non-no-op persist:
 
 **Concurrency:** two simultaneous POSTs → one commit, one 409; E30 two concurrent visits with 9 hour-children → one mint, one denial, count = 10, exactly one unrevoked `edit_session`.
 
-**Recovery:** crash after each E33 step → one skip, one audit, one job; crash after body write / rating write / immediately before `content_written` CAS → rollback (original body+rating); `writing` is not released as unwritten; operator spam interleave never restores hold; fingerprint mismatch abandons.
+**Recovery:** crash after each E33 step → one skip, one audit, one job; crash after body write / rating write / immediately before `content_written` CAS → rollback (original body+rating); `writing` is not released as unwritten; operator spam interleave never restores hold; fingerprint mismatch abandons with no status write, hooks, skip, or `review.customer_edited`.
 
 **Privacy:** no token/email/body/URL/key/prompt/hmac in audit/CLI/export/HTML/diagnostics; SupportExport schema hash unchanged; `finalise_op_id` not in export/logs/HTML.
 

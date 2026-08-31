@@ -134,6 +134,8 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $stats['released'] );
 		$row = EditClaimRepository::get( $comment_id );
 		$this->assertNotSame( 'claimed', (string) ( $row['phase'] ?? '' ) );
+		$this->assertSame( 'abandoned', (string) ( $row['finalise_outcome'] ?? '' ) );
+		$this->assertSame( '1', (string) get_comment( $comment_id )->comment_approved );
 	}
 
 	public function test_completed_invite_secret_edits_only_and_cannot_resubmit(): void {
@@ -553,6 +555,98 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 'abandoned', (string) ( $row['finalise_outcome'] ?? '' ) );
 	}
 
+	public function test_writing_mismatch_abandons_without_status_write(): void {
+		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
+		$comment_id = $this->insert_review( $this->upr_create_product(), '1', 0, 'Original approved body for writing recovery.' );
+		wp_set_comment_status( $comment_id, 'approve' );
+		clean_comment_cache( $comment_id );
+		$original     = (string) get_comment( $comment_id )->comment_content;
+		$prior_hmac   = EditClaimRepository::hmac_body( $original );
+		$prior_rating = (int) get_comment_meta( $comment_id, 'rating', true );
+		$target_hmac  = EditClaimRepository::hmac_body( 'Claimed target body that was never written.' );
+		$claimed      = EditClaimRepository::acquire(
+			$comment_id,
+			'logged_in',
+			$target_hmac,
+			2,
+			'approve',
+			true,
+			true,
+			$prior_hmac,
+			$prior_rating
+		);
+		$this->assertNotNull( $claimed );
+		$this->assertTrue( EditClaimRepository::mark_writing( $comment_id, $claimed['claim_token'], $claimed['generation'] ) );
+
+		$external_body = 'External operator rewrite of the review body.';
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->comments,
+			array( 'comment_content' => $external_body ),
+			array( 'comment_ID' => $comment_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		clean_comment_cache( $comment_id );
+		$this->assertSame( '1', (string) get_comment( $comment_id )->comment_approved );
+
+		$status_hooks     = 0;
+		$transition_hooks = 0;
+		add_action(
+			'wp_set_comment_status',
+			static function ( $id ) use ( &$status_hooks, $comment_id ): void {
+				if ( (int) $id === $comment_id ) {
+					++$status_hooks;
+				}
+			},
+			10,
+			1
+		);
+		add_action(
+			'transition_comment_status',
+			static function ( $new, $old, $comment ) use ( &$transition_hooks, $comment_id ): void {
+				if ( $comment instanceof \WP_Comment && (int) $comment->comment_ID === $comment_id ) {
+					++$transition_hooks;
+				}
+			},
+			10,
+			3
+		);
+
+		EditClaimReconciler::run();
+
+		clean_comment_cache( $comment_id );
+		$fresh = get_comment( $comment_id );
+		$this->assertSame( '1', (string) $fresh->comment_approved );
+		$this->assertSame( $external_body, (string) $fresh->comment_content );
+		$this->assertSame( $prior_rating, (int) get_comment_meta( $comment_id, 'rating', true ) );
+		$this->assertSame( 0, $status_hooks );
+		$this->assertSame( 0, $transition_hooks );
+
+		$row = EditClaimRepository::get( $comment_id );
+		$this->assertSame( 'abandoned', (string) ( $row['finalise_outcome'] ?? '' ) );
+		$this->assertNotEmpty( $row['finalized_at'] );
+		$this->assertSame( '', (string) ( $row['finalise_op_id'] ?? '' ) );
+		$mine = array_values(
+			array_filter(
+				$this->audit_rows( 'review.customer_edited' ),
+				static function ( array $row ) use ( $comment_id ): bool {
+					$payload = json_decode( (string) $row['payload_json'], true );
+					return is_array( $payload ) && (int) ( $payload['comment_id'] ?? 0 ) === $comment_id;
+				}
+			)
+		);
+		$this->assertCount( 0, $mine );
+		$skips = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->prefix}upr_moderation_assessments WHERE comment_id = %d",
+				$comment_id
+			)
+		);
+		$this->assertSame( 0, $skips );
+		$this->assertSame( 0, $this->count_assess_jobs_for_comment( $comment_id ) );
+	}
+
 	public function test_crash_after_each_e33_step_is_exactly_once(): void {
 		update_option( Options::LOCAL_AI_SHADOW_ENABLED, 'yes', false );
 		for ( $step = 1; $step <= 7; $step++ ) {
@@ -789,6 +883,23 @@ final class M14CustomerEditIntegrationTest extends WP_UnitTestCase {
 				"SELECT COUNT(*) FROM {$table} WHERE hook = %s AND args LIKE %s",
 				'upr_assess_review',
 				'%' . $wpdb->esc_like( $op_id ) . '%'
+			)
+		);
+		return (int) $n;
+	}
+
+	private function count_assess_jobs_for_comment( int $comment_id ): int {
+		global $wpdb;
+		$table = $wpdb->prefix . 'actionscheduler_actions';
+		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+		if ( $found !== $table ) {
+			return 0;
+		}
+		$n = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE hook = %s AND args LIKE %s",
+				'upr_assess_review',
+				$wpdb->esc_like( '[' . $comment_id . ',' ) . '%'
 			)
 		);
 		return (int) $n;
