@@ -50,7 +50,7 @@ final class PluginActionLinks {
 		if ( current_user_can( 'moderate_comments' ) ) {
 			$reviews_url = add_query_arg(
 				array(
-					'upr_view' => CommentListEnhancements::VIEW_PRODUCT_REVIEWS,
+					'upr_view' => CommentListEnhancements::VIEW_PENDING,
 				),
 				admin_url( 'edit-comments.php' )
 			);

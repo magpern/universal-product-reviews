@@ -248,7 +248,6 @@ Authoritative freeze: [`docs/roadmap/m15-operator-ai-moderation-queue.md`](docs/
 - Privacy-safe `QueueAssessmentPresenter` `<dl>` inside the existing `upr_ai` cell on held pending view; presenter-only “Likely acceptable” label (`RecommendationPolicy::action_label()` unchanged)
 - Native Publish / Mark as spam / Move to trash are **relabel-only**; Keep on hold is the sole UPR `admin-post` and never writes status
 - Audit: `review.operator_deferred` for Keep on hold only; native transitions remain `review.status_changed`
-- **Not implemented until M15 WP1–WP4** after freeze merge/tag
 
 ### Customer review edits (M14)
 

@@ -57,6 +57,9 @@ final class CommentListEnhancements {
 		add_filter( 'comments_clauses', array( self::class, 'invitation_linked_clauses' ), 10, 2 );
 		add_filter( 'comments_clauses', array( self::class, 'recommendation_filter_clauses' ), 10, 2 );
 		add_action( 'the_comments', array( self::class, 'prefetch_page' ), 10, 2 );
+		add_filter( 'comment_row_actions', array( self::class, 'row_actions' ), 10, 2 );
+		add_filter( 'bulk_actions-edit-comments', array( self::class, 'bulk_actions' ) );
+		add_filter( 'gettext', array( self::class, 'empty_state_gettext' ), 10, 3 );
 	}
 
 	/**
@@ -175,8 +178,19 @@ final class CommentListEnhancements {
 		$assessment = isset( $ctx['ai_assessment'] ) && is_array( $ctx['ai_assessment'] ) ? $ctx['ai_assessment'] : null;
 		$comment    = get_comment( $comment_id );
 		$is_held    = $comment && Eligibility::is_held_status( Eligibility::approval_status( $comment ) );
+		$display_on = Options::ai_recommendations_display_enabled();
 
-		echo esc_html( self::format_ai_advisory_display( $assessment, (bool) $is_held, Options::ai_recommendations_display_enabled() ) );
+		$pending_queue = self::VIEW_PENDING === self::sanitised_view() && $is_held;
+
+		if ( $pending_queue ) {
+			$presented = QueueAssessmentPresenter::present( $assessment, true, $display_on );
+			echo esc_html( (string) $presented['status_copy'] );
+			// Structured dl only on held pending view.
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_definition_list escapes.
+			echo QueueAssessmentPresenter::render_definition_list( $presented );
+		} else {
+			echo esc_html( self::format_ai_advisory_display( $assessment, (bool) $is_held, $display_on ) );
+		}
 
 		self::maybe_render_reanalyse_link( $comment_id );
 	}
@@ -573,5 +587,94 @@ final class CommentListEnhancements {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Relabel native Approve/Spam/Trash on held UPR pending queue; add Keep on hold.
+	 *
+	 * @param array<string, string> $actions Actions.
+	 * @param \WP_Comment           $comment Comment.
+	 * @return array<string, string>
+	 */
+	public static function row_actions( array $actions, $comment ): array {
+		if ( self::VIEW_PENDING !== self::sanitised_view() ) {
+			return $actions;
+		}
+		if ( ! $comment instanceof \WP_Comment || ! ReviewContext::is_in_scope( $comment ) ) {
+			return $actions;
+		}
+		if ( ! Eligibility::is_held_status( Eligibility::approval_status( $comment ) ) ) {
+			return $actions;
+		}
+
+		if ( isset( $actions['approve'] ) ) {
+			$actions['approve'] = self::relabel_action_html( (string) $actions['approve'], __( 'Publish', 'universal-product-reviews' ) );
+		}
+		if ( isset( $actions['spam'] ) ) {
+			$actions['spam'] = self::relabel_action_html( (string) $actions['spam'], __( 'Mark as spam', 'universal-product-reviews' ) );
+		}
+		if ( isset( $actions['trash'] ) ) {
+			$actions['trash'] = self::relabel_action_html( (string) $actions['trash'], __( 'Move to trash', 'universal-product-reviews' ) );
+		}
+
+		if ( current_user_can( 'moderate_comments' ) ) {
+			$product_id = ReviewContext::product_id( $comment );
+			$title      = $product_id > 0 ? get_the_title( $product_id ) : '';
+			if ( '' === $title ) {
+				$title = sprintf( '#%d', $product_id );
+			}
+			$actions['upr_keep_hold'] = OperatorQueueKeepHold::row_action_html( (int) $comment->comment_ID, $title );
+		}
+
+		return $actions;
+	}
+
+	/**
+	 * Relabel bulk Approve/Spam/Trash on held UPR pending queue only.
+	 *
+	 * @param array<string, string> $actions Bulk actions.
+	 * @return array<string, string>
+	 */
+	public static function bulk_actions( array $actions ): array {
+		if ( self::VIEW_PENDING !== self::sanitised_view() ) {
+			return $actions;
+		}
+		if ( isset( $actions['approve'] ) ) {
+			$actions['approve'] = __( 'Publish', 'universal-product-reviews' );
+		}
+		if ( isset( $actions['spam'] ) ) {
+			$actions['spam'] = __( 'Mark as spam', 'universal-product-reviews' );
+		}
+		if ( isset( $actions['markspam'] ) ) {
+			$actions['markspam'] = __( 'Mark as spam', 'universal-product-reviews' );
+		}
+		if ( isset( $actions['trash'] ) ) {
+			$actions['trash'] = __( 'Move to trash', 'universal-product-reviews' );
+		}
+		return $actions;
+	}
+
+	/**
+	 * Empty-state copy for the UPR pending queue.
+	 */
+	public static function empty_state_gettext( string $translation, string $text, string $domain ): string {
+		if ( 'default' !== $domain ) {
+			return $translation;
+		}
+		if ( self::VIEW_PENDING !== self::sanitised_view() ) {
+			return $translation;
+		}
+		if ( ! in_array( $text, array( 'No comments found.', 'No comments awaiting moderation.' ), true ) ) {
+			return $translation;
+		}
+		return __( 'No product reviews awaiting moderation.', 'universal-product-reviews' );
+	}
+
+	/**
+	 * Replace visible link text while preserving the native href/nonce markup.
+	 */
+	private static function relabel_action_html( string $html, string $label ): string {
+		$replaced = preg_replace( '/>[^<]*<\/a>/', '>' . esc_html( $label ) . '</a>', $html, 1 );
+		return is_string( $replaced ) ? $replaced : $html;
 	}
 }
