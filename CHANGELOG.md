@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.9.0-rc.2] - 2026-08-31
 
-DEV **test candidate** (release candidate). Annotated tag `v0.9.0-rc.2` only — **no** GitHub Release, installable ZIP, or final `v0.9.0` in this step. Supersedes `v0.9.0-rc.1` for DEV bind-mount validation reproducibility (includes M13 CLI fix from PR #82).
+DEV **test candidate** (release candidate). Annotated tag `v0.9.0-rc.2` only — **no** GitHub Release, installable ZIP, or final `v0.9.0` in this step. **DEV acceptance:** [`docs/roadmap/upr-v0.9.0-rc.2-dev-acceptance.md`](docs/roadmap/upr-v0.9.0-rc.2-dev-acceptance.md) (2026-08-31).
 
 ### Fixed
 

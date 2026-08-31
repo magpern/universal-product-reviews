@@ -1,7 +1,7 @@
 # Post-M3 product roadmap (non-binding)
 
 **Status:** Forward product-development priorities only. **Not** a freeze plan and **not** an implementation authorisation.  
-**Baseline:** Universal Product Reviews annotated **`v0.8.0`**. Product-development milestones through **M15** are closed; runtime at M15 closure remains **`0.8.0`** until a separately authorised SemVer / RC. **No production release** until operational rollout is separately authorised.  
+**Baseline:** Universal Product Reviews annotated **`v0.9.0-rc.2`** DEV acceptance recorded (see [`upr-v0.9.0-rc.2-dev-acceptance.md`](upr-v0.9.0-rc.2-dev-acceptance.md)). Product-development milestones through **M15** are closed. **No production release** until operational rollout is separately authorised.  
 **Out of scope for this document:** Production rollout, host deploy runbooks, and operational invitation gates. Those remain separately governed.
 
 Each numbered milestone below required its own **plan → documentation freeze → implementation** cycle. Keep UPR **generic**: no host-, brand-, theme-, provider-, or infrastructure-specific runtime code in this repository.
@@ -14,6 +14,7 @@ These items are closed as **product development**. None of them is a SemVer rele
 
 | Item | Record |
 |------|--------|
+| **DEV RC** `v0.9.0-rc.2` pre-production acceptance | **Accepted:** [`upr-v0.9.0-rc.2-dev-acceptance.md`](upr-v0.9.0-rc.2-dev-acceptance.md) (tag peel `06e406f…`; supersedes rc.1 for DEV reproducibility; **no** GitHub Release/ZIP/final `v0.9.0`) |
 | **M15** operator AI moderation queue | **Closed:** [`m15-operator-ai-moderation-queue-closure.md`](m15-operator-ai-moderation-queue-closure.md) (implementation PR [#79](https://github.com/magpern/universal-product-reviews/pull/79) → `6a09ce4bf24d96f9bb8b773db6f5205d9a2b538d`; freeze tag `m15-operator-ai-moderation-queue-freeze` → `a1e083fc17597fe629fc0ec04764086971217c68`; runtime `0.8.0` at closure; SupportExport `upr-support-export/v1` unchanged). **No release was made in the closure.** |
 | **M14** customer 7-day review edits | **Accepted:** [`m14-customer-seven-day-review-edits-closure.md`](m14-customer-seven-day-review-edits-closure.md) (implementation PR [#73](https://github.com/magpern/universal-product-reviews/pull/73) → `b9f4a9596f41a5236e5488adf0461d7f4bea8ea2`; runtime `0.8.0`; SupportExport `upr-support-export/v1` unchanged). **No release was made.** |
 | **C20** `CustomerEditAvailability::resolve` | **Promoted P → S:** [`c20-customer-edit-availability-promotion.md`](c20-customer-edit-availability-promotion.md). Independent of SemVer. |
