@@ -39,7 +39,6 @@ jobs:
       - name: Build package from the release tag
         id: build
         run: |
-          git fetch --tags origin
           bash scripts/build-release-package.sh "${GITHUB_REF_NAME}"
           zip="builds/universal-product-reviews-${{ steps.meta.outputs.version }}.zip"
           [ -s "$zip" ] || { echo "::error::missing $zip"; ls -la builds || true; exit 1; }
