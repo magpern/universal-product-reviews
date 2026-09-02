@@ -3,7 +3,7 @@
  * Plugin Name: Universal Product Reviews
  * Plugin URI: https://github.com/magpern/universal-product-reviews
  * Description: Portable WooCommerce product-review operations (invitations, moderation, retention). M2 invitations and guest authorization.
- * Version: 0.9.0-rc.2
+ * Version: 0.9.0-rc.3
  * Author: magpern
  * License: Proprietary
  * Text Domain: universal-product-reviews
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UPR_VERSION', '0.9.0-rc.2' );
+define( 'UPR_VERSION', '0.9.0-rc.3' );
 define( 'UPR_PLUGIN_FILE', __FILE__ );
 define( 'UPR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -27,6 +27,19 @@ if ( version_compare( PHP_VERSION, '8.1', '<' ) ) {
 $upr_autoload = UPR_PLUGIN_DIR . 'vendor/autoload.php';
 if ( is_readable( $upr_autoload ) ) {
 	require_once $upr_autoload;
+}
+
+/**
+ * Automatic updates via the private update server. Define PRIVATE_UPDATE_SERVER
+ * (scheme + host, no trailing slash) in wp-config.php to enable; when it is not
+ * defined the plugin does not check for updates.
+ */
+if ( defined( 'PRIVATE_UPDATE_SERVER' ) && PRIVATE_UPDATE_SERVER && class_exists( \YahnisElsts\PluginUpdateChecker\v5\PucFactory::class ) ) {
+	\YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		rtrim( (string) PRIVATE_UPDATE_SERVER, '/' ) . '/?action=get_metadata&slug=universal-product-reviews',
+		UPR_PLUGIN_FILE,
+		'universal-product-reviews'
+	);
 }
 
 register_activation_hook(

@@ -22,7 +22,7 @@ final class M12RegressionUnitTest extends TestCase {
 	public function test_runtime_version_unchanged(): void {
 		$header = file_get_contents( dirname( __DIR__, 2 ) . '/universal-product-reviews.php' );
 		$this->assertIsString( $header );
-		$this->assertMatchesRegularExpression( '/Version:\s*0\.9\.0-rc\.2/', $header );
+		$this->assertMatchesRegularExpression( '/Version:\s*0\.9\.0-rc\.3/', $header );
 	}
 
 	public function test_ai_package_still_forbids_wp_set_comment_status(): void {

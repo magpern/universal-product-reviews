@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.9.0-rc.3] - 2026-09-02
+
+### Added
+
+- Self-updates from a private update server via the bundled Plugin Update Checker v5 Composer dependency; active only when `PRIVATE_UPDATE_SERVER` is defined in `wp-config.php`.
+
 ## [Unreleased]
 
 ## [0.9.0-rc.2] - 2026-08-31
